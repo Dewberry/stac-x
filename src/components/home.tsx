@@ -8,17 +8,20 @@ import { AREA_KIND_LABEL, type AreaKind } from "@/lib/fixtures/areas";
 import { fmtNum, fmtRange } from "@/lib/format";
 
 /**
- * The landing page: the map is the page, and a panel floats over it with
- * the question, three figures, a search box and the list of model areas.
- * One shared hover joins the list and the pins, so pointing at a name finds
- * its mark and pointing at a mark finds its name.
+ * The landing page, after Alaska Ground Watch: a hero row that runs the
+ * full width (the question on the left, three figures on the right), then
+ * one console card holding the list of model areas beside the map. One
+ * shared hover joins the list and the pins, so pointing at a name finds its
+ * mark and pointing at a mark finds its name.
  *
- * On a phone the map is a band at the top and the panel flows under it.
+ * On a phone the hero stacks, the map becomes a card, and the list flows
+ * under it. The map is first in the DOM because that is the phone's order;
+ * on a wide screen the row is reversed so the rail sits on the left.
  */
 
 const HomeMap = nextDynamic(() => import("./home-map").then((m) => m.HomeMap), {
   ssr: false,
-  loading: () => <div className="sx-home-canvas animate-pulse bg-inset" style={{ position: "absolute", inset: 0 }} />,
+  loading: () => <div className="animate-pulse bg-inset" style={{ position: "absolute", inset: 0 }} />,
 });
 
 export type HomeArea = {
@@ -62,46 +65,63 @@ export function HomeConsole({
   );
 
   return (
-    <div className="sx-stage">
-      <div className="sx-stage-map">
-        <HomeMap areas={areas} items={items} highlight={hovered} onHover={setHovered} />
-      </div>
-      <aside className="sx-panel" aria-label="Model areas">
-        <div className="sx-panel-head">
-          <h1 className="sx-panel-title">{title}</h1>
-          <p className="sx-panel-lead">{lead}</p>
-          <div className="sx-chips">
-            <span className="sx-chip" data-tone="verified">
-              <span className="ffx-num">{totals.live}</span> published
-            </span>
-            <span className="sx-chip">
-              <span className="ffx-num">{fmtNum(totals.items)}</span> items
-            </span>
-            <span className="sx-chip">
-              <span className="ffx-num">{fmtNum(totals.reviewed)}</span> reviewed
-            </span>
-          </div>
-          <label className="ffx-field">
-            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <circle cx="7" cy="7" r="4.5" />
-              <path d="m10.5 10.5 3 3" strokeLinecap="round" />
-            </svg>
-            <span className="sr-only">Search model areas</span>
-            <input
-              type="search"
-              placeholder="Search an area, a basin, a model type"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
+    <div className="sx-home">
+      <section className="sx-hero">
+        <div className="sx-hero-text">
+          <p className="sx-eyebrow">FFRD · Colorado pilot</p>
+          <h1 className="sx-hero-title">{title}</h1>
+          <p className="sx-hero-lead">{lead}</p>
         </div>
-        <ul className="sx-rail-list ffx-scroll">
-          {shown.length === 0 && <li className="sx-empty">No areas match.</li>}
-          {shown.map((a) => (
-            <AreaRow key={a.slug} area={a} active={hovered === a.slug} onHover={setHovered} />
-          ))}
-        </ul>
-      </aside>
+        <dl className="sx-stats">
+          <div className="sx-stat" data-tone="verified">
+            <dd className="ffx-num">{totals.live}</dd>
+            <dt>Published</dt>
+          </div>
+          <div className="sx-stat">
+            <dd className="ffx-num">{fmtNum(totals.items)}</dd>
+            <dt>Items</dt>
+          </div>
+          <div className="sx-stat">
+            <dd className="ffx-num">{fmtNum(totals.reviewed)}</dd>
+            <dt>Reviewed</dt>
+          </div>
+        </dl>
+      </section>
+
+      <div className="sx-console">
+        <div className="sx-console-map">
+          <HomeMap areas={areas} items={items} highlight={hovered} onHover={setHovered} />
+        </div>
+        <aside className="sx-rail" aria-label="Model areas">
+          <div className="sx-rail-head">
+            <div className="sx-rail-title">
+              <h2>Model areas</h2>
+              <span className="ffx-num">
+                {totals.live} published · {areas.length} total
+              </span>
+            </div>
+            <label className="ffx-field">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="7" cy="7" r="4.5" />
+                <path d="m10.5 10.5 3 3" strokeLinecap="round" />
+              </svg>
+              <span className="sr-only">Search model areas</span>
+              <input
+                type="search"
+                placeholder="Search areas"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+          </div>
+          <ul className="sx-rail-list ffx-scroll">
+            {shown.length === 0 && <li className="sx-empty">No areas match.</li>}
+            {shown.map((a) => (
+              <AreaRow key={a.slug} area={a} active={hovered === a.slug} onHover={setHovered} />
+            ))}
+          </ul>
+        </aside>
+      </div>
     </div>
   );
 }

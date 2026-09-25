@@ -1391,32 +1391,128 @@ main:focus {
 
 /* ============================== landing page ==============================
 
-   The map fills the viewport under the header and the panel floats over it
-   at the left. On a phone the map is a band at the top and the panel flows
-   under it as a card. */
-.sx-stage {
-  position: relative;
-  background: var(--ffx-surface-inset);
+   After Alaska Ground Watch. A hero row runs the full content width: the
+   question on the left, figures on the right. Under it, one console card
+   holds the list of model areas beside the map. On a phone the hero stacks,
+   the map is its own card and the list flows under it. */
+.sx-home {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  padding: 0.25rem var(--ffx-edge) var(--ffx-edge);
 }
-.sx-stage-map {
+.sx-hero {
+  display: grid;
+  gap: 1rem;
+  padding: 0.75rem 0.25rem 0.25rem;
+}
+.sx-eyebrow {
+  font-size: var(--ffx-t-small);
+  font-weight: 500;
+  color: var(--ffx-active-text);
+}
+.sx-hero-title {
+  margin-top: 0.25rem;
+  max-width: 22ch;
+  font-family: var(--ffx-display);
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+  line-height: 1.04;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ffx-ink);
+  text-wrap: balance;
+}
+.sx-hero-lead {
+  margin-top: 0.625rem;
+  max-width: 58ch;
+  font-size: var(--ffx-t-body);
+  line-height: var(--ffx-t-body-lh);
+  color: var(--ffx-ink-sec);
+}
+.sx-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin: 0;
+}
+.sx-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--ffx-radius-md);
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-card);
+}
+.sx-stat dd {
+  margin: 0;
+  font-family: var(--ffx-mono);
+  font-size: clamp(1.25rem, 1rem + 0.8vw, 1.6rem);
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ffx-ink);
+  white-space: nowrap;
+}
+.sx-stat dt {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sx-stat[data-tone="verified"] dd {
+  color: var(--ffx-verified-text);
+}
+@media (min-width: 64rem) {
+  .sx-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 2rem;
+    padding-top: 1.25rem;
+  }
+  .sx-stats {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .sx-stat {
+    min-width: 10rem;
+  }
+}
+
+/* The console: two cards on a phone, one card from lg with the rail on the
+   left at a fixed width and the map taking the rest, full height. */
+.sx-console {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ffx-deck-gap);
+}
+.sx-console-map {
   position: relative;
   height: 52vh;
   min-height: 18rem;
+  border-radius: var(--ffx-radius-lg);
+  overflow: hidden;
+  background: var(--ffx-surface-inset);
+  box-shadow: var(--ffx-shadow-card);
 }
-.sx-stage-map .sx-home-map,
-.sx-stage-map .ffx-map {
+.sx-console-map .sx-home-map,
+.sx-console-map .ffx-map {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
 }
-.sx-stage-map .ffx-map-canvas,
-.sx-stage-map .sx-home-canvas {
+.sx-console-map .ffx-map-canvas,
+.sx-console-map .sx-home-canvas {
   flex: 1;
   height: auto;
   min-height: 0;
 }
-.sx-stage-map .ffx-map-readout {
+.sx-console-map .ffx-map-readout {
   background: transparent;
   border-top: 0;
   position: absolute;
@@ -1424,62 +1520,48 @@ main:focus {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  padding-inline: 0.75rem;
+  padding: 0.75rem;
 }
-.sx-stage-map .ffx-map-readout > * {
+.sx-console-map .ffx-map-readout > * {
   pointer-events: auto;
 }
-.sx-panel {
+.sx-console-map .ffx-map-credit {
   background: var(--ffx-glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: var(--ffx-radius-lg);
-  box-shadow: var(--ffx-shadow-float);
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+}
+.sx-rail {
   display: flex;
   flex-direction: column;
+  border-radius: var(--ffx-radius-lg);
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-card);
   overflow: hidden;
-  margin: var(--ffx-edge);
 }
-.sx-panel-head {
-  padding: 1.125rem 1.125rem 0.875rem;
-  border-bottom: 1px solid var(--ffx-rule);
+.sx-rail-head {
   display: grid;
   gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--ffx-rule);
 }
-.sx-panel-title {
-  font-family: var(--ffx-display);
-  font-size: clamp(1.4rem, 1.2rem + 0.6vw, 1.8rem);
-  line-height: 1.08;
-  font-weight: 600;
-  letter-spacing: -0.028em;
-  color: var(--ffx-ink);
-  text-wrap: balance;
-}
-.sx-panel-lead {
-  font-size: var(--ffx-t-small);
-  line-height: 1.5;
-  color: var(--ffx-ink-sec);
-}
-.sx-chips {
+.sx-rail-title {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  align-items: baseline;
+  gap: 0.25rem 0.625rem;
 }
-.sx-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  height: 1.5rem;
-  padding: 0 0.625rem;
-  border-radius: 999px;
+.sx-rail-title h2 {
+  font-family: var(--ffx-display);
+  font-size: var(--ffx-t-head);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.sx-rail-title span {
   font-size: var(--ffx-t-micro);
-  font-weight: 500;
-  background: var(--ffx-surface-sunken);
-  color: var(--ffx-ink-sec);
+  color: var(--ffx-ink-mut);
 }
-.sx-chip[data-tone="verified"] {
-  background: var(--ffx-verified-pale);
-  color: var(--ffx-verified-text);
+.sx-rail-head .ffx-field {
+  height: 2.125rem;
 }
 .sx-rail-list {
   list-style: none;
@@ -1488,7 +1570,7 @@ main:focus {
 }
 .sx-rail-item .sx-row {
   cursor: pointer;
-  padding-inline: 1.125rem;
+  padding-inline: 1rem;
 }
 .sx-rail-item[data-live="true"] .sx-row {
   background: linear-gradient(90deg, var(--ffx-verified-pale), transparent 65%);
@@ -1513,32 +1595,35 @@ main:focus {
   font-weight: 600;
 }
 @media (min-width: 64rem) {
-  .sx-stage {
-    height: calc(100dvh - var(--ffx-header));
-    min-height: 34rem;
+  .sx-console {
+    flex-direction: row-reverse;
+    gap: 0;
+    height: clamp(30rem, calc(100dvh - 17rem), 48rem);
+    border-radius: var(--ffx-radius-lg);
     overflow: hidden;
+    background: var(--ffx-surface);
+    box-shadow: var(--ffx-shadow-card);
   }
-  .sx-stage-map {
-    position: absolute;
-    inset: 0;
+  .sx-console-map {
+    flex: 1;
+    min-width: 0;
     height: auto;
+    min-height: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
-  .sx-panel {
-    position: absolute;
-    left: var(--ffx-edge);
-    top: var(--ffx-edge);
-    bottom: var(--ffx-edge);
-    width: 24rem;
-    margin: 0;
-    z-index: 2;
+  .sx-rail {
+    width: 22rem;
+    flex: none;
+    border-radius: 0;
+    border-right: 1px solid var(--ffx-rule);
+    box-shadow: none;
+    min-height: 0;
   }
   .sx-rail-list {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-  }
-  .sx-stage-map .ffx-map-readout {
-    left: calc(24rem + var(--ffx-edge) * 2);
   }
 }
 .sx-band {
@@ -1546,7 +1631,7 @@ main:focus {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.25rem 1rem;
-  padding: 0.75rem var(--ffx-edge);
+  padding: 0 calc(var(--ffx-edge) + 0.25rem) 0.75rem;
   font-size: var(--ffx-t-micro);
   line-height: 1.5;
   color: var(--ffx-ink-mut);

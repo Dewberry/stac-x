@@ -46,10 +46,9 @@ const L = {
   items: "sx-live-items",
 };
 
-/** Room for the floating panel on the left at desktop widths, so the state is never under it. */
+/** Even room around the state, a little more at the bottom for the legend. */
 function fitPadding() {
-  const wide = matchMedia("(min-width: 64rem)").matches;
-  return { padding: wide ? { top: 40, right: 60, bottom: 40, left: 24 * 16 + 60 } : { top: 24, right: 24, bottom: 40, left: 24 } };
+  return { padding: { top: 28, right: 28, bottom: 56, left: 28 } };
 }
 
 function box(b: [number, number, number, number]) {
@@ -211,7 +210,7 @@ export function HomeMap({
       // they fit, planned areas keep their mark and drop their name; the rail
       // has every name, and a tap on a mark brings its name back.
       const dense = () => {
-        frame.dataset.dense = String(m.getZoom() < 6.5);
+        frame.dataset.dense = String(m.getZoom() < 5.8);
       };
       m.on("zoom", dense);
       m.on("load", () => {
