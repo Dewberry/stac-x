@@ -37,21 +37,17 @@ export function SiteFooter() {
   );
 }
 
-export type Crumb = { label: string; href?: string };
-
 /**
- * The top of a collection or item page, kept to two short lines so the map
- * starts high: the trail with the page's actions at its right end, then the
- * title with the page's facts beside it.
+ * The top of a collection or item page, one line so the map starts high:
+ * the title with the page's facts beside it, the page's actions at the
+ * right end. There is no breadcrumb trail; the Up action is the way back.
  */
 export function PageHead({
-  trail,
   kicker,
   title,
   subtitle,
   actions,
 }: {
-  trail: Crumb[];
   kicker?: string;
   title: ReactNode;
   subtitle?: ReactNode;
@@ -59,26 +55,12 @@ export function PageHead({
 }) {
   return (
     <div className="sx-head">
-      <div className="sx-head-row">
-        <nav aria-label="Breadcrumb" className="sx-crumbs">
-          {trail.map((c, i) => (
-            <span key={`${c.label}-${i}`} className="flex items-center gap-1.5">
-              {i > 0 && (
-                <span className="text-ink-dim" aria-hidden="true">
-                  /
-                </span>
-              )}
-              {c.href ? <Link href={c.href}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
-            </span>
-          ))}
-        </nav>
-        {actions && <div className="sx-actions">{actions}</div>}
-      </div>
       <div className="sx-title-line">
         {kicker && <span className="sx-kicker">{kicker}</span>}
         <h1 className="sx-title">{title}</h1>
         {subtitle && <div className="sx-subtitle">{subtitle}</div>}
       </div>
+      {actions && <div className="sx-actions">{actions}</div>}
     </div>
   );
 }

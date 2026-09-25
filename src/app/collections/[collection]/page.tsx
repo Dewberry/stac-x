@@ -9,7 +9,6 @@ import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { getCollection } from "@/lib/catalog";
-import { catalogTitle } from "@/lib/config";
 import { fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
 import { QC_STATUSES } from "@/lib/stac";
 import { baseName } from "@/lib/storage";
@@ -89,7 +88,6 @@ export default async function CollectionPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
-        trail={[{ label: catalogTitle, href: "/" }, { label: c.title }]}
         title={c.title}
         subtitle={
           <>
