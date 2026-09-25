@@ -23,7 +23,9 @@ export type ItemRow = {
   dateApproved: string | null;
 };
 
-const PAGE = 50;
+// A dozen rows keeps the list about as tall as the map beside it. The
+// search box and status tabs are how you find one gage in 192, not scrolling.
+const PAGE = 12;
 
 type Sort = "id" | "label" | "start" | "qc";
 
