@@ -10,39 +10,64 @@ The narrow column holds the map and what describes the object (metadata,
 assets). The wide column holds what it contains (items) or what there is to
 read about it. On a phone the columns stack, map first.
 
+![The stac-x homepage: a map of Colorado with every model area pinned and the published gages collection drawn on it](docs/images/home.png)
+
 ## Running it
 
-Node 20 or newer.
+Everyone on the team runs this on Windows, from PowerShell or from WSL.
+The commands below are the same in both unless marked.
 
-```bash
+Install [Node.js](https://nodejs.org) 20 or newer (24 is what this was built
+with). On WSL, install Node inside the Linux distro rather than using the
+Windows install.
+
+```powershell
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With nothing configured the app reads `./data`,
+Open http://localhost:3000. With nothing configured the app reads `.\data`,
 which holds the sample gages file, so it runs with no AWS account. The map
 tiles come from OpenFreeMap and need the internet; without them the data still
 draws over a plain ground.
 
-Point it at the bucket with an env file:
+To point it at the bucket, make a `.env` file from the example:
+
+```powershell
+Copy-Item .env.example .env      # PowerShell
+```
 
 ```bash
-cp .env.example .env
+cp .env.example .env             # WSL
 ```
 
 Set `STAC_SOURCES` to an S3 prefix (every `.parquet` and `.pq` under it), one
 object, a local folder, or a local file, separated by commas. AWS credentials
-come from the SDK's usual chain: env keys, a profile, or an instance role. The
-`.env.example` file explains each variable.
+come from the SDK's usual chain: `AWS_PROFILE`, env keys, or an instance role.
+`.env.example` explains each variable.
 
 Other commands:
 
-```bash
+```powershell
 npm run build      # production build
 npm run start      # serve it
 npm run lint
 npm run typecheck
 ```
+
+### Windows and WSL notes
+
+Port 3000 is often taken by another dev server. Next moves to the next free
+port and prints it; or pick one: `npm run dev -- -p 3005`.
+
+On WSL, clone into the Linux filesystem under `~`, not under `/mnt/c`. A
+checkout on the Windows drive is slow to read and file change events don't
+cross that boundary, so hot reload never fires. If hot reload still misses
+edits, set `NEXT_WATCH_POLL_MS=1000` in `.env` and restart; the dev server
+then polls for changes instead of waiting to be told.
+
+Git Bash is the one shell to avoid for anything that takes a path argument;
+it rewrites Unix-style paths before Node sees them.
 
 ## What's where
 
