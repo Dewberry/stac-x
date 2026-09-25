@@ -74,6 +74,12 @@
   --ffx-shadow-float: 0 1px 2px rgb(19 26 34 / 0.08), 0 10px 32px rgb(19 26 34 / 0.14);
   --ffx-shadow-overlay: var(--ffx-shadow-float);
   --ffx-shell-max: 96rem;
+  /* The header is the one dark surface in light mode: it anchors the page
+     and lets the white cards read as cards against the canvas. */
+  --ffx-header-bg: #15233b;
+  --ffx-header-ink: #ffffff;
+  --ffx-header-ink-mut: rgba(255, 255, 255, 0.68);
+  --ffx-header-rule: rgba(255, 255, 255, 0.28);
 
   /* ---------- 2. semantic: ink ---------- */
   --ffx-ink: var(--ffx-n-950);
@@ -151,6 +157,10 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --ffx-void: #090c10;
+    --ffx-header-bg: #0c1424;
+    --ffx-header-ink: #e8edf2;
+    --ffx-header-ink-mut: #8d98a4;
+    --ffx-header-rule: #2a333d;
     --ffx-bg: var(--ffx-n-990);
     --ffx-surface: var(--ffx-n-900);
     --ffx-surface-raised: #212932;
@@ -195,6 +205,10 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --ffx-void: #090c10;
+  --ffx-header-bg: #0c1424;
+  --ffx-header-ink: #e8edf2;
+  --ffx-header-ink-mut: #8d98a4;
+  --ffx-header-rule: #2a333d;
   --ffx-bg: var(--ffx-n-990);
   --ffx-surface: var(--ffx-n-900);
   --ffx-surface-raised: #212932;
@@ -752,7 +766,8 @@
   border: 0;
   border-bottom: 1px solid var(--ffx-control-edge);
   border-radius: 0;
-  color-scheme: inherit;
+  /* The bar is dark in both themes, so the native list opens dark too. */
+  color-scheme: dark;
 }
 
 /* ============================ status marks ============================ */
@@ -1184,8 +1199,14 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: var(--ffx-surface);
-  border-bottom: 1px solid var(--ffx-rule);
+  background: var(--ffx-header-bg);
+  color: var(--ffx-header-ink);
+  /* Everything inside the bar reads the header palette through the same
+     tokens the rest of the app uses, so the theme control needs no styles of
+     its own. */
+  --ffx-ink: var(--ffx-header-ink);
+  --ffx-ink-mut: var(--ffx-header-ink-mut);
+  --ffx-control-edge: var(--ffx-header-rule);
 }
 .sx-header-inner {
   display: flex;
@@ -1197,7 +1218,7 @@
 .sx-brand {
   display: grid;
   gap: 0.05rem;
-  color: var(--ffx-ink);
+  color: var(--ffx-header-ink);
   text-decoration: none;
   min-width: 0;
 }
@@ -1211,7 +1232,7 @@
 .sx-brand-tag {
   font-size: var(--ffx-t-micro);
   line-height: 1.2;
-  color: var(--ffx-ink-mut);
+  color: var(--ffx-header-ink-mut);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1423,10 +1444,11 @@ main:focus {
 }
 .sx-hero-lead {
   margin-top: 0.625rem;
-  max-width: 78ch;
+  max-width: 70ch;
   font-size: var(--ffx-t-body);
   line-height: var(--ffx-t-body-lh);
   color: var(--ffx-ink-sec);
+  text-wrap: pretty;
 }
 .sx-stats {
   display: grid;
@@ -1437,9 +1459,9 @@ main:focus {
 .sx-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   min-width: 0;
-  padding: 0.75rem 0.9rem;
+  padding: 0.6rem 0.8rem;
   border-radius: var(--ffx-radius-md);
   background: var(--ffx-surface);
   box-shadow: var(--ffx-shadow-card);
@@ -1447,7 +1469,7 @@ main:focus {
 .sx-stat dd {
   margin: 0;
   font-family: var(--ffx-mono);
-  font-size: clamp(1.25rem, 1rem + 0.8vw, 1.6rem);
+  font-size: clamp(1.1rem, 0.95rem + 0.5vw, 1.35rem);
   line-height: 1.1;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -1455,7 +1477,7 @@ main:focus {
   white-space: nowrap;
 }
 .sx-stat dt {
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -1471,15 +1493,16 @@ main:focus {
   .sx-hero {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
-    gap: 2rem;
+    gap: 4rem;
     padding-top: 1.25rem;
   }
   .sx-stats {
     display: flex;
     justify-content: flex-end;
+    gap: 0.5rem;
   }
   .sx-stat {
-    min-width: 10rem;
+    min-width: 8rem;
   }
 }
 
