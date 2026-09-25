@@ -40,9 +40,9 @@ export function SiteFooter() {
 export type Crumb = { label: string; href?: string };
 
 /**
- * The top of a collection or item page: the trail, then the title with the
- * page's actions at its right end. Sits on the canvas; the map card below
- * is the first thing with an edge.
+ * The top of a collection or item page, kept to two short lines so the map
+ * starts high: the trail with the page's actions at its right end, then the
+ * title with the page's facts beside it.
  */
 export function PageHead({
   trail,
@@ -59,25 +59,25 @@ export function PageHead({
 }) {
   return (
     <div className="sx-head">
-      <nav aria-label="Breadcrumb" className="sx-crumbs">
-        {trail.map((c, i) => (
-          <span key={`${c.label}-${i}`} className="flex items-center gap-1.5">
-            {i > 0 && (
-              <span className="text-ink-dim" aria-hidden="true">
-                /
-              </span>
-            )}
-            {c.href ? <Link href={c.href}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
-          </span>
-        ))}
-      </nav>
-      <div className="sx-title-row">
-        <div className="min-w-0">
-          {kicker && <div className="sx-kicker">{kicker}</div>}
-          <h1 className="sx-title">{title}</h1>
-          {subtitle && <div className="sx-subtitle">{subtitle}</div>}
-        </div>
+      <div className="sx-head-row">
+        <nav aria-label="Breadcrumb" className="sx-crumbs">
+          {trail.map((c, i) => (
+            <span key={`${c.label}-${i}`} className="flex items-center gap-1.5">
+              {i > 0 && (
+                <span className="text-ink-dim" aria-hidden="true">
+                  /
+                </span>
+              )}
+              {c.href ? <Link href={c.href}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
+            </span>
+          ))}
+        </nav>
         {actions && <div className="sx-actions">{actions}</div>}
+      </div>
+      <div className="sx-title-line">
+        {kicker && <span className="sx-kicker">{kicker}</span>}
+        <h1 className="sx-title">{title}</h1>
+        {subtitle && <div className="sx-subtitle">{subtitle}</div>}
       </div>
     </div>
   );
