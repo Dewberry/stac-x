@@ -10,7 +10,7 @@ import { fmtNum, fmtRange } from "@/lib/format";
 /**
  * The landing page, after Alaska Ground Watch: a hero row that runs the
  * full width (the question on the left, three figures on the right), then
- * one console card holding the list of model areas beside the map. One
+ * one console card holding the list of collections beside the map. One
  * shared hover joins the list and the pins, so pointing at a name finds its
  * mark and pointing at a mark finds its name.
  *
@@ -68,7 +68,7 @@ export function HomeConsole({
     <div className="sx-home">
       <section className="sx-hero">
         <div className="sx-hero-text">
-          <p className="sx-eyebrow">FFRD · Colorado pilot</p>
+          <p className="sx-eyebrow">Colorado pilot catalog</p>
           <h1 className="sx-hero-title">{title}</h1>
           <p className="sx-hero-lead">{lead}</p>
         </div>
@@ -92,12 +92,12 @@ export function HomeConsole({
         <div className="sx-console-map">
           <HomeMap areas={areas} items={items} highlight={hovered} onHover={setHovered} />
         </div>
-        <aside className="sx-rail" aria-label="Model areas">
+        <aside className="sx-rail" aria-label="Collections">
           <div className="sx-rail-head">
             <div className="sx-rail-title">
-              <h2>Model areas</h2>
+              <h2>Collections</h2>
               <span className="ffx-num">
-                {totals.live} published · {areas.length} total
+                {totals.live} published · {areas.length - totals.live} planned
               </span>
             </div>
             <label className="ffx-field">
@@ -105,10 +105,10 @@ export function HomeConsole({
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="m10.5 10.5 3 3" strokeLinecap="round" />
               </svg>
-              <span className="sr-only">Search model areas</span>
+              <span className="sr-only">Search collections</span>
               <input
                 type="search"
-                placeholder="Search areas"
+                placeholder="Search collections"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />

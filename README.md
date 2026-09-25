@@ -10,7 +10,7 @@ The narrow column holds the map and what describes the object (metadata,
 assets). The wide column holds what it contains (items) or what there is to
 read about it. On a phone the columns stack, map first.
 
-![The stac-x homepage: a map of Colorado with every model area pinned and the published gages collection drawn on it](docs/images/home.png)
+![The stac-x homepage: a map of Colorado with every collection pinned and the published gages drawn on it](docs/images/home.png)
 
 ## Running it
 

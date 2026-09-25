@@ -75,7 +75,7 @@ export default async function Home() {
       <HomeConsole
         areas={areas}
         items={items}
-        title="Where are the models for Colorado?"
+        title="What does the Colorado pilot have, and where?"
         lead={catalogDescription}
         totals={totals}
       />
@@ -86,7 +86,7 @@ export default async function Home() {
             : `Reading ${catalog.sources.length} ${catalog.sources.length === 1 ? "file" : "files"}: ${catalog.sources
                 .map((s) => baseName(s.uri))
                 .join(", ")}.`}{" "}
-          Areas without a published collection are placeholders until their data lands in the bucket.
+          Collections marked planned are placeholders until their data lands in the bucket.
         </span>
         {catalog.errors.length > 0 && (
           <span className="text-bad-text">

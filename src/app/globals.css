@@ -140,7 +140,7 @@
   --ffx-panel-pad: 1rem;
   --ffx-inset-text: 0;
   --ffx-deck-gap: 0.875rem;
-  --ffx-header: 3.25rem;
+  --ffx-header: 3.5rem;
   --ffx-radius-xs: 6px;
   --ffx-radius-sm: 8px;
   --ffx-radius-md: 12px;
@@ -1195,26 +1195,26 @@
   padding-inline: var(--ffx-edge);
 }
 .sx-brand {
+  display: grid;
+  gap: 0.05rem;
+  color: var(--ffx-ink);
+  text-decoration: none;
+  min-width: 0;
+}
+.sx-brand-name {
   font-family: var(--ffx-display);
   font-size: 1.05rem;
+  line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: var(--ffx-ink);
-  text-decoration: none;
 }
-.sx-nav {
-  display: flex;
-  gap: 1rem;
-  font-size: var(--ffx-t-small);
-}
-.sx-nav a {
+.sx-brand-tag {
+  font-size: var(--ffx-t-micro);
+  line-height: 1.2;
   color: var(--ffx-ink-mut);
-  text-decoration: none;
-  padding-block: 0.25rem;
-}
-.sx-nav a:hover,
-.sx-nav a[aria-current="page"] {
-  color: var(--ffx-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sx-footer {
   display: flex;
@@ -1393,7 +1393,7 @@ main:focus {
 
    After Alaska Ground Watch. A hero row runs the full content width: the
    question on the left, figures on the right. Under it, one console card
-   holds the list of model areas beside the map. On a phone the hero stacks,
+   holds the list of collections beside the map. On a phone the hero stacks,
    the map is its own card and the list flows under it. */
 .sx-home {
   display: grid;
@@ -1412,18 +1412,18 @@ main:focus {
 }
 .sx-hero-title {
   margin-top: 0.25rem;
-  max-width: 22ch;
+  max-width: 36ch;
   font-family: var(--ffx-display);
   font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
   line-height: 1.04;
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--ffx-ink);
-  text-wrap: balance;
+  text-wrap: pretty;
 }
 .sx-hero-lead {
   margin-top: 0.625rem;
-  max-width: 58ch;
+  max-width: 78ch;
   font-size: var(--ffx-t-body);
   line-height: var(--ffx-t-body-lh);
   color: var(--ffx-ink-sec);

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "./theme";
-import { catalogTitle } from "@/lib/config";
 export { Icon, ICONS } from "./icons";
 
 /**
- * The page chrome: a white header bar with the wordmark, and a quiet footer
- * with the palette control. Navigation is the map and the breadcrumbs, the
- * way every STAC viewer works.
+ * The page chrome: a white header bar with the wordmark and a one-line
+ * tagline, the palette control at its right end, and a quiet footer.
+ * Navigation is the map and the breadcrumbs, the way every STAC viewer
+ * works, so the header carries no links.
  */
 
 export function SiteHeader() {
@@ -18,12 +18,12 @@ export function SiteHeader() {
       </a>
       <div className="ffx-shell sx-header-inner">
         <Link href="/" className="sx-brand">
-          stac-x
+          <span className="sx-brand-name">stac-x</span>
+          <span className="sx-brand-tag">STAC catalog · FFRD Colorado pilot</span>
         </Link>
-        <nav className="sx-nav" aria-label="Primary">
-          <Link href="/">Model areas</Link>
-        </nav>
-        <span className="ml-auto hidden text-small text-ink-mut sm:inline">{catalogTitle}</span>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );
@@ -33,7 +33,6 @@ export function SiteFooter() {
   return (
     <footer className="ffx-shell sx-footer">
       <span>stac-x reads stac-geoparquet from S3. QC edits are written back beside the source file.</span>
-      <ThemeToggle />
     </footer>
   );
 }

@@ -259,7 +259,7 @@ export function HomeMap({
   }, [items]);
 
   return (
-    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Model areas across Colorado">
+    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Collections across Colorado">
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
