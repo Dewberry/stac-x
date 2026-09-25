@@ -56,7 +56,7 @@ export function humanize(key: string): string {
     station_nm: "Station name",
     site_no: "Site number",
     huc_cd: "HUC",
-    drain_area_va: "Drainage area",
+    drain_area_va: "Drainage area (mi²)",
     site_retrieved: "Site retrieved",
     daily_values: "Daily values",
     begin_date: "Begin",
@@ -67,9 +67,35 @@ export function humanize(key: string): string {
     stac_extensions: "STAC extensions",
   };
   if (known[key]) return known[key];
-  const s = key.replace(/^[a-z]+:/, "").replace(/[_\-.]+/g, " ").trim();
+  const words = key
+    .replace(/^[a-z]+:/, "")
+    .split(/[_\-.\s]+/)
+    .filter(Boolean)
+    .map((w) => ACRONYMS[w.toLowerCase()] ?? w);
+  const s = words.join(" ");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/** Words that come out of a snake_case key and should keep their capitals. */
+const ACRONYMS: Record<string, string> = {
+  ams: "AMS",
+  lpiii: "LP-III",
+  lp3: "LP-III",
+  swe: "SWE",
+  huc: "HUC",
+  usgs: "USGS",
+  nwis: "NWIS",
+  cfs: "cfs",
+  id: "id",
+  url: "URL",
+  uri: "URI",
+  crs: "CRS",
+  epsg: "EPSG",
+  dem: "DEM",
+  hms: "HMS",
+  ras: "RAS",
+  stac: "STAC",
+};
 
 /** A short label for a media type: "PNG", "Parquet", "JSON", "GeoTIFF". */
 export function mediaLabel(type: string | null | undefined): string {

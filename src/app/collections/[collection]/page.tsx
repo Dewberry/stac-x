@@ -90,7 +90,6 @@ export default async function CollectionPage({ params }: Props) {
     <div className="sx-page">
       <PageHead
         trail={[{ label: catalogTitle, href: "/" }, { label: c.title }]}
-        kicker="Collection"
         title={c.title}
         subtitle={
           <>

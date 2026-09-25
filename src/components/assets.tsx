@@ -1,6 +1,6 @@
 import { AssetPreview, Thumbnail } from "./asset-preview";
 import { CopyButton } from "./copy-button";
-import { MetaTable } from "./meta-table";
+import { Grid, MetaTable } from "./meta-table";
 import { Icon, ICONS } from "./shell";
 import { humanize, isImageType, isParquetType, mediaLabel } from "@/lib/format";
 import type { StacAsset } from "@/lib/stac";
@@ -13,6 +13,10 @@ import { assetHref } from "@/lib/utils";
  * a preview button that pulls its first rows through the server.
  */
 const KNOWN = new Set(["href", "title", "description", "type", "roles"]);
+
+function isRowList(v: unknown): v is Record<string, unknown>[] {
+  return Array.isArray(v) && v.length > 0 && v.every((x) => x && typeof x === "object" && !Array.isArray(x));
+}
 
 export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
   const entries = Object.entries(assets).sort(([a, x], [b, y]) => {
@@ -27,9 +31,13 @@ export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
         const image = isImageType(a.type);
         const parquet = isParquetType(a.type, a.href);
         const extra = Object.entries(a).filter(([k]) => !KNOWN.has(k));
+        // A list of like objects (file:values on the AMS asset) is a table in
+        // its own right, not a value squeezed into a key/value row.
+        const tables = extra.filter(([, v]) => isRowList(v)) as [string, Record<string, unknown>[]][];
+        const fields = extra.filter(([, v]) => !isRowList(v));
         const s3 = a.href.startsWith("s3://");
         return (
-          <details key={key} className="sx-asset" open={image}>
+          <details key={key} className="sx-asset" open={image || extra.length > 0}>
             <summary>
               <span className="sx-asset-name">{a.title || humanize(key)}</span>
               {a.type && <span className="sx-tag">{mediaLabel(a.type)}</span>}
@@ -51,9 +59,17 @@ export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
                 {parquet && <AssetPreview href={a.href} />}
               </div>
               <div className="sx-asset-href">{a.href}</div>
-              {extra.length > 0 && (
-                <MetaTable className="-mx-3 w-auto" entries={extra.map(([k, v]) => ({ key: k, value: v }))} />
+              {fields.length > 0 && (
+                <MetaTable className="-mx-3 w-auto" entries={fields.map(([k, v]) => ({ key: k, value: v }))} />
               )}
+              {tables.map(([k, rows]) => (
+                <div key={k} className="sx-asset-table">
+                  <div className="sx-asset-table-label">
+                    {humanize(k)} <span className="ffx-num text-ink-mut">({rows.length})</span>
+                  </div>
+                  <Grid rows={rows} />
+                </div>
+              ))}
             </div>
           </details>
         );

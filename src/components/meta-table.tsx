@@ -83,7 +83,10 @@ export function Value({ value, keyName = "" }: { value: unknown; keyName?: strin
 
 /** A list of like objects as a grid: one column per key seen in any row. */
 export function Grid({ rows, max = 100 }: { rows: Record<string, unknown>[]; max?: number }) {
-  const cols = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+  const all = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+  // The column that names the row (a period, an id, a date) reads first.
+  const leads = all.filter((c) => /period|date|time|^id$|_id$|name|key/i.test(c));
+  const cols = [...leads, ...all.filter((c) => !leads.includes(c))];
   const shown = rows.slice(0, max);
   return (
     <div className="ffx-table-wrap">

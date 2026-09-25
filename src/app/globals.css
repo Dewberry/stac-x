@@ -426,6 +426,20 @@
   gap: var(--ffx-deck-gap);
   min-width: 0;
 }
+/* On a phone the columns dissolve and the panels line up by what a
+   reviewer wants first: the review panel, then the items or assets, then
+   the metadata. */
+@media (max-width: 63.99rem) {
+  .sx-cols > .sx-col {
+    display: contents;
+  }
+  .sx-cols #qc {
+    order: -1;
+  }
+  .sx-cols #meta {
+    order: 2;
+  }
+}
 @media (min-width: 64rem) {
   .sx-cols {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -799,6 +813,8 @@
 .ffx-chip[data-tone="idle"] {
   --ffx-chip-mark: var(--ffx-neutral);
   --ffx-chip-ink: var(--ffx-neutral-text);
+  --ffx-chip-bg: transparent;
+  padding-inline: 0.25rem;
 }
 
 /* A small tag for a media type or a role. */
@@ -1063,6 +1079,21 @@
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
   overflow-wrap: anywhere;
+}
+.sx-asset-table {
+  border: 1px solid var(--ffx-rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sx-asset-table-label {
+  padding: 0.4rem 0.625rem;
+  font-size: var(--ffx-t-small);
+  font-weight: 600;
+  border-bottom: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-sunken);
+}
+.sx-asset-table .ffx-table thead th {
+  background: var(--ffx-surface);
 }
 .sx-thumb {
   display: block;

@@ -26,7 +26,7 @@ export function sources(): string[] {
 export const catalogTitle = process.env.STAC_TITLE || "Colorado STAC";
 export const catalogDescription =
   process.env.STAC_DESCRIPTION ||
-  "Items for the Colorado pilot, read straight from stac-geoparquet files in S3.";
+  "Every published collection for the FFRD Colorado pilot. Open an area to browse and review its items.";
 
 /** How long a parsed file is trusted before its ETag is checked again. */
 export const refreshMs = Number(process.env.STAC_REFRESH_SECONDS || 30) * 1000;
