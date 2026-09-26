@@ -40,7 +40,9 @@ const SRC_STATE = "sx-state";
 const SRC_AREAS = "sx-areas";
 const SRC_ITEMS = "sx-items";
 const SRC_BASINS = "sx-basins";
+const SRC_MASK = "sx-mask";
 const L = {
+  mask: "sx-outside-mask",
   basinFill: "sx-basin-fill",
   basinLine: "sx-basin-line",
   stateLine: "sx-state-line",
@@ -61,6 +63,22 @@ function box(b: [number, number, number, number]) {
   return {
     type: "Polygon" as const,
     coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]],
+  };
+}
+
+/**
+ * Everything but Colorado: the world as an outer ring with the state cut out
+ * as a hole. Painted as a translucent wash so the neighbors stay readable
+ * (gages and collections run past the border) but the state is the subject.
+ */
+function outside(b: [number, number, number, number]) {
+  const [w, s, e, n] = b;
+  return {
+    type: "Polygon" as const,
+    coordinates: [
+      [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]],
+      [[w, s], [w, n], [e, n], [e, s], [w, s]],
+    ],
   };
 }
 
@@ -98,9 +116,17 @@ function addLayers(
   basinHighlight: string | null,
 ) {
   map.addSource(SRC_STATE, { type: "geojson", data: { type: "Feature", properties: {}, geometry: box(COLORADO) } });
+  map.addSource(SRC_MASK, { type: "geojson", data: { type: "Feature", properties: {}, geometry: outside(COLORADO) } });
   map.addSource(SRC_AREAS, { type: "geojson", data: areasFc(areas), promoteId: "slug" });
   map.addSource(SRC_ITEMS, { type: "geojson", data: items });
   map.addSource(SRC_BASINS, { type: "geojson", data: basins ?? { type: "FeatureCollection", features: [] }, promoteId: "huc4" });
+
+  // The wash goes under the basins so a basin that crosses the border keeps
+  // its tint outside, just dimmer.
+  map.addLayer({
+    id: L.mask, type: "fill", source: SRC_MASK,
+    paint: { "fill-color": p.ground, "fill-opacity": 0.55 },
+  });
 
   const isBasinHi: ExpressionSpecification = ["==", ["get", "huc4"], basinHighlight ?? ""];
   map.addLayer({
@@ -121,7 +147,7 @@ function addLayers(
 
   map.addLayer({
     id: L.stateLine, type: "line", source: SRC_STATE,
-    paint: { "line-color": p.inkDim, "line-width": 1.25, "line-dasharray": [3, 2], "line-opacity": 0.8 },
+    paint: { "line-color": p.inkSec, "line-width": 1.75, "line-opacity": 0.9 },
   });
   const isHi: ExpressionSpecification = ["==", ["get", "slug"], highlight ?? ""];
   map.addLayer({
@@ -304,7 +330,7 @@ export function HomeMap({
 
       unwatch = watchTheme(() => {
         for (const id of Object.values(L)) if (m.getLayer(id)) m.removeLayer(id);
-        for (const id of [SRC_STATE, SRC_AREAS, SRC_ITEMS, SRC_BASINS]) if (m.getSource(id)) m.removeSource(id);
+        for (const id of [SRC_STATE, SRC_MASK, SRC_AREAS, SRC_ITEMS, SRC_BASINS]) if (m.getSource(id)) m.removeSource(id);
         basemap();
       });
     });
