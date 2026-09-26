@@ -29,6 +29,7 @@ export default async function Home() {
     if (!c) return { ...a, live: false, href: null, itemCount: null, temporal: null, reviewed: null };
     return {
       ...a,
+      blurb: c.description ?? a.blurb,
       bbox: c.bbox ?? a.bbox,
       live: true,
       href: collectionHref(c.id),
@@ -45,6 +46,7 @@ export default async function Home() {
       name: c.title,
       kind: "gages",
       basin: "Colorado",
+      huc4: "1019",
       bbox: c.bbox ?? unionBbox(c.items) ?? [-109.06, 36.99, -102.04, 41.0],
       live: true,
       href: collectionHref(c.id),

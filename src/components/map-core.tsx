@@ -53,6 +53,7 @@ export function palette(host: HTMLElement) {
     neutral: c("--ffx-neutral"),
     trace: c("--ffx-trace-strong"),
     traceSoft: c("--ffx-trace"),
+    planned: c("--ffx-planned"),
   };
   probe.remove();
   return p;

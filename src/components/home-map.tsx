@@ -1,7 +1,6 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
@@ -19,6 +18,7 @@ import {
   type Palette,
 } from "./map-core";
 import type { HomeArea } from "./home";
+import { BASINS_URL } from "@/lib/basins";
 
 /**
  * The landing page map: Colorado, with every model area named on it.
@@ -26,25 +26,30 @@ import type { HomeArea } from "./home";
  * Follows the Alaska Ground Watch home map. Each area is an HTML marker with
  * its name beside it, so it is focusable and named for assistive tech, and
  * pointing at one lights up its row in the rail (and the other way round).
- * A live area, one whose collection exists in the catalog, is a link: click
- * it and the collection opens. A planned area is drawn quieter and does
- * nothing when clicked but show its outline.
+ * Clicking a pin selects the area, which opens the preview card; the card is
+ * the way into a collection. A planned area is drawn quieter and its card
+ * says it is not yet published.
  *
- * Under the markers, GeoJSON layers draw the state as a dashed box, each
- * area's extent when it is highlighted, and the real items of every live
- * collection as small dots, so the map shows actual coverage where it exists
- * and a promise where it doesn't.
+ * Under the markers, GeoJSON layers draw the USGS four-digit basins, tinted
+ * where a basin has published or planned work, the state as a dashed box,
+ * and the real items of every live collection as small dots. Clicking a
+ * basin selects it, which zooms the map and scrolls the rail to its group.
  */
 
 const SRC_STATE = "sx-state";
 const SRC_AREAS = "sx-areas";
 const SRC_ITEMS = "sx-items";
+const SRC_BASINS = "sx-basins";
 const L = {
+  basinFill: "sx-basin-fill",
+  basinLine: "sx-basin-line",
   stateLine: "sx-state-line",
   areaFill: "sx-area-fill",
   areaLine: "sx-area-line",
   items: "sx-live-items",
 };
+
+export type BasinState = Record<string, "live" | "planned">;
 
 /** Even room around the state, a little more at the bottom for the legend. */
 function fitPadding() {
@@ -71,10 +76,48 @@ function areasFc(areas: HomeArea[]): FeatureCollection {
   };
 }
 
-function addLayers(map: MapLibreMap, p: Palette, areas: HomeArea[], items: FeatureCollection, highlight: string | null) {
+/** The basin polygons with each one's state stamped on, so the paint can read it. */
+function stampBasins(fc: FeatureCollection, state: BasinState): FeatureCollection {
+  return {
+    ...fc,
+    features: fc.features.map((f) => ({
+      ...f,
+      id: String(f.properties?.huc4),
+      properties: { ...f.properties, state: state[String(f.properties?.huc4)] ?? "none" },
+    })),
+  };
+}
+
+function addLayers(
+  map: MapLibreMap,
+  p: Palette,
+  areas: HomeArea[],
+  items: FeatureCollection,
+  basins: FeatureCollection | null,
+  highlight: string | null,
+  basinHighlight: string | null,
+) {
   map.addSource(SRC_STATE, { type: "geojson", data: { type: "Feature", properties: {}, geometry: box(COLORADO) } });
   map.addSource(SRC_AREAS, { type: "geojson", data: areasFc(areas), promoteId: "slug" });
   map.addSource(SRC_ITEMS, { type: "geojson", data: items });
+  map.addSource(SRC_BASINS, { type: "geojson", data: basins ?? { type: "FeatureCollection", features: [] }, promoteId: "huc4" });
+
+  const isBasinHi: ExpressionSpecification = ["==", ["get", "huc4"], basinHighlight ?? ""];
+  map.addLayer({
+    id: L.basinFill, type: "fill", source: SRC_BASINS,
+    paint: {
+      "fill-color": ["match", ["get", "state"], "live", p.verified, "planned", p.planned, p.inkDim],
+      "fill-opacity": ["case", isBasinHi, 0.3, ["match", ["get", "state"], "live", 0.16, "planned", 0.1, 0.035]],
+    },
+  });
+  map.addLayer({
+    id: L.basinLine, type: "line", source: SRC_BASINS,
+    paint: {
+      "line-color": ["match", ["get", "state"], "live", p.verified, "planned", p.planned, p.inkDim],
+      "line-width": ["case", isBasinHi, 2.5, ["match", ["get", "state"], "live", 1.8, 1.1]],
+      "line-opacity": ["match", ["get", "state"], "none", 0.5, 1],
+    },
+  });
 
   map.addLayer({
     id: L.stateLine, type: "line", source: SRC_STATE,
@@ -104,16 +147,27 @@ function addLayers(map: MapLibreMap, p: Palette, areas: HomeArea[], items: Featu
 export function HomeMap({
   areas,
   items,
+  basinState,
   highlight,
+  basinHighlight,
+  focus,
   onHover,
+  onSelect,
+  onBasinSelect,
 }: {
   areas: HomeArea[];
   /** Real items from every live collection, as points. */
   items: FeatureCollection;
+  /** Which basins have published or planned work, by HUC4. */
+  basinState: BasinState;
   highlight: string | null;
+  basinHighlight: string | null;
+  /** A box to fit to; the key changes on every request so the same box can be refit. */
+  focus: { bbox: [number, number, number, number]; key: number } | null;
   onHover: (slug: string | null) => void;
+  onSelect: (slug: string) => void;
+  onBasinSelect: (huc4: string) => void;
 }) {
-  const router = useRouter();
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -125,12 +179,21 @@ export function HomeMap({
   const areasRef = useRef(areas);
   const itemsRef = useRef(items);
   const highlightRef = useRef(highlight);
+  const basinHighlightRef = useRef(basinHighlight);
+  const basinStateRef = useRef(basinState);
+  const basinsRef = useRef<FeatureCollection | null>(null);
   const onHoverRef = useRef(onHover);
+  const onSelectRef = useRef(onSelect);
+  const onBasinSelectRef = useRef(onBasinSelect);
   useEffect(() => {
     areasRef.current = areas;
     itemsRef.current = items;
     highlightRef.current = highlight;
+    basinHighlightRef.current = basinHighlight;
+    basinStateRef.current = basinState;
     onHoverRef.current = onHover;
+    onSelectRef.current = onSelect;
+    onBasinSelectRef.current = onBasinSelect;
   });
 
   useEffect(() => {
@@ -165,9 +228,21 @@ export function HomeMap({
 
       const draw = () => {
         if (m.getSource(SRC_AREAS)) return;
-        addLayers(m, palette(frame), areasRef.current, itemsRef.current, highlightRef.current);
+        const basins = basinsRef.current ? stampBasins(basinsRef.current, basinStateRef.current) : null;
+        addLayers(m, palette(frame), areasRef.current, itemsRef.current, basins, highlightRef.current, basinHighlightRef.current);
         setCredits(creditsOf(m));
       };
+      // The basin polygons are a static file; they arrive once and are added
+      // to the source whenever the layers are (re)drawn.
+      void fetch(BASINS_URL)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((fc: FeatureCollection | null) => {
+          if (disposed || !fc) return;
+          basinsRef.current = fc;
+          const src = m.getSource(SRC_BASINS) as GeoJSONSource | undefined;
+          if (src) src.setData(stampBasins(fc, basinStateRef.current));
+        })
+        .catch(() => {});
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
 
       // Markers: one per area, name beside the mark. Built once.
@@ -175,11 +250,10 @@ export function HomeMap({
         const el = document.createElement("div");
         el.className = "sx-pin";
         el.dataset.live = String(a.live);
-        const btn: HTMLElement = document.createElement(a.live ? "a" : "button");
+        const btn = document.createElement("button");
         btn.className = "sx-pin-btn";
-        if (btn instanceof HTMLAnchorElement) btn.href = a.href ?? "#";
-        else if (btn instanceof HTMLButtonElement) btn.type = "button";
-        btn.setAttribute("aria-label", a.live ? `${a.name}, open collection` : `${a.name}, planned`);
+        btn.type = "button";
+        btn.setAttribute("aria-label", a.live ? `${a.name}, published collection` : `${a.name}, planned`);
         btn.innerHTML = `<span class="sx-pin-mark" aria-hidden="true"></span><span class="sx-pin-label">${a.name}</span>`;
         el.appendChild(btn);
         let downX = 0, downY = 0;
@@ -188,8 +262,7 @@ export function HomeMap({
           e.preventDefault();
           e.stopPropagation();
           if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
-          if (a.live && a.href) router.push(a.href);
-          else onHoverRef.current(a.slug);
+          onSelectRef.current(a.slug);
         });
         btn.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") onHoverRef.current(a.slug); });
         btn.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") onHoverRef.current(null); });
@@ -219,11 +292,19 @@ export function HomeMap({
         basemap();
       });
       m.on("sourcedata", () => setCredits(creditsOf(m)));
-      m.on("click", () => onHoverRef.current(null));
+      // A click on a basin selects it; a click on bare map clears the hover.
+      m.on("click", (e) => {
+        const hits = m.getLayer(L.basinFill) ? m.queryRenderedFeatures(e.point, { layers: [L.basinFill] }) : [];
+        const huc = hits[0]?.properties?.huc4;
+        if (huc) onBasinSelectRef.current(String(huc));
+        else onHoverRef.current(null);
+      });
+      m.on("mousemove", L.basinFill, () => (m.getCanvas().style.cursor = "pointer"));
+      m.on("mouseleave", L.basinFill, () => (m.getCanvas().style.cursor = ""));
 
       unwatch = watchTheme(() => {
         for (const id of Object.values(L)) if (m.getLayer(id)) m.removeLayer(id);
-        for (const id of [SRC_STATE, SRC_AREAS, SRC_ITEMS]) if (m.getSource(id)) m.removeSource(id);
+        for (const id of [SRC_STATE, SRC_AREAS, SRC_ITEMS, SRC_BASINS]) if (m.getSource(id)) m.removeSource(id);
         basemap();
       });
     });
@@ -238,7 +319,7 @@ export function HomeMap({
       mapRef.current = null;
     };
     // Built once; highlight and data changes are applied by the effects below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
@@ -257,6 +338,22 @@ export function HomeMap({
     const src = mapRef.current?.getSource(SRC_ITEMS) as GeoJSONSource | undefined;
     if (src) src.setData(items);
   }, [items]);
+
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m?.getLayer(L.basinFill)) return;
+    const isBasinHi: ExpressionSpecification = ["==", ["get", "huc4"], basinHighlight ?? ""];
+    m.setPaintProperty(L.basinFill, "fill-opacity", ["case", isBasinHi, 0.3, ["match", ["get", "state"], "live", 0.16, "planned", 0.1, 0.035]]);
+    m.setPaintProperty(L.basinLine, "line-width", ["case", isBasinHi, 2.5, ["match", ["get", "state"], "live", 1.8, 1.1]]);
+  }, [basinHighlight]);
+
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !focus) return;
+    const [w, s, e, n] = focus.bbox;
+    const wide = matchMedia("(min-width: 64rem)").matches;
+    m.fitBounds([[w, s], [e, n]], { padding: { top: 40, bottom: 60, left: 40, right: wide ? 400 : 40 }, maxZoom: 9, duration: 500 });
+  }, [focus]);
 
   return (
     <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Collections across Colorado">

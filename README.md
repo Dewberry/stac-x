@@ -138,6 +138,20 @@ catalog that no entry names is added as its own live area, so nothing here
 has to change for a new file to appear. Delete mock entries as real
 collections land.
 
+## The landing page map
+
+Clicking a collection in the rail or a pin on the map opens a card over the
+map with the collection's description, counts, dates and review progress;
+"Open collection" is the way in. The rail groups collections by USGS
+four-digit hydrologic basin, with a flat list one click away, and the
+basins are drawn on the map, tinted where a basin has published or planned
+work. Clicking a basin zooms to it and scrolls the rail to its group.
+
+The basin polygons are `public/data/co-huc4.json`: the HUC4 units that
+touch Colorado, pulled once from the USGS Watershed Boundary Dataset and
+simplified to about 0.006 degrees. Each area in `src/lib/fixtures/areas.ts`
+names its basin by HUC4 code; `src/lib/basins.ts` maps codes to names.
+
 ## Design
 
 The map is the app. The landing page is an edge-to-edge map of Colorado with
