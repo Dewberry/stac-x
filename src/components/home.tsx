@@ -126,8 +126,8 @@ export function HomeConsole({
       }
       // Scroll the rail, not the page: the hero above must stay put.
       const el = document.getElementById(`basin-${huc4}`);
-      const list = el?.closest(".sx-rail-list");
-      if (el && list instanceof HTMLElement) list.scrollTo({ top: el.offsetTop - list.offsetTop, behavior: "smooth" });
+      const rail = el?.closest(".sx-rail-list");
+      if (el && rail instanceof HTMLElement) rail.scrollTo({ top: el.offsetTop - rail.offsetTop, behavior: "smooth" });
     },
     [areas],
   );
