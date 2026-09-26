@@ -112,6 +112,13 @@ export default async function ItemPage({ params }: Props) {
             >
               <Icon d={ICONS.json} size={12} /> JSON
             </a>
+            <a
+              href={`/api/collections/${encodeURIComponent(c.id)}/items/${encodeURIComponent(item.id)}?download=1`}
+              className="ffx-btn ffx-btn-sm"
+              download
+            >
+              <Icon d={ICONS.download} size={12} /> Download
+            </a>
           </>
         }
       />

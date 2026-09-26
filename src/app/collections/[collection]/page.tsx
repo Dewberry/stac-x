@@ -109,6 +109,9 @@ export default async function CollectionPage({ params }: Props) {
             <a href={`/api/collections/${encodeURIComponent(c.id)}`} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
               <Icon d={ICONS.json} size={12} /> JSON
             </a>
+            <a href={`/api/collections/${encodeURIComponent(c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
+              <Icon d={ICONS.download} size={12} /> Download
+            </a>
           </>
         }
       />
