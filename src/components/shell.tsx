@@ -4,10 +4,12 @@ import { ThemeToggle } from "./theme";
 export { Icon, ICONS } from "./icons";
 
 /**
- * The page chrome: a white header bar with the wordmark and a one-line
- * tagline, the palette control at its right end, and a quiet footer.
- * Navigation is the map and the breadcrumbs, the way every STAC viewer
- * works, so the header carries no links.
+ * The page chrome, kept identical to ffrd-x's so the two consoles read as one
+ * program: a navy header bar with the wordmark alone on one line, and a
+ * footer band with the app's note on the left and the palette control at its
+ * right end. Both sit on the same 96rem shell and the same edge gutter.
+ * Navigation is the map and the Up actions, the way every STAC viewer works,
+ * so the header carries no links.
  */
 
 export function SiteHeader() {
@@ -18,12 +20,8 @@ export function SiteHeader() {
       </a>
       <div className="ffx-shell sx-header-inner">
         <Link href="/" className="sx-brand">
-          <span className="sx-brand-name">stac-x</span>
-          <span className="sx-brand-tag">STAC catalog · FFRD Colorado</span>
+          stac-x
         </Link>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
       </div>
     </header>
   );
@@ -31,8 +29,13 @@ export function SiteHeader() {
 
 export function SiteFooter() {
   return (
-    <footer className="ffx-shell sx-footer">
-      <span>stac-x reads stac-geoparquet from S3. QC edits are written back beside the source file.</span>
+    <footer className="sx-footer">
+      <div className="ffx-shell sx-footer-inner">
+        <span>stac-x reads stac-geoparquet from S3. QC edits are written back beside the source file.</span>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
+      </div>
     </footer>
   );
 }
