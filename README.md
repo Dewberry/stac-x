@@ -1,6 +1,6 @@
 # stac-x
 
-A STAC viewer for the FFRD Colorado pilot. It reads stac-geoparquet files
+A STAC viewer for FFRD's Colorado data. It reads stac-geoparquet files
 straight from S3, draws every collection on a map of the state, and lets a
 reviewer record QC on each item. The one thing it writes is that QC record.
 
@@ -128,12 +128,12 @@ OIDC, a VPN) until there is a user model.
 
 ## The landing page
 
-The map of Colorado shows every model area for the pilot. Today one
+The map of Colorado shows every model area in the state. Today one
 collection exists as a geoparquet file (the South Platte gages). The rest come
 from `src/lib/fixtures/areas.ts`, a mocked list of basins and model domains.
 An entry there whose `collection` id the catalog holds becomes live: it links
 to the collection, its counts are real, and its items are drawn on the map.
-Everything else is drawn as planned and can't be opened. A collection in the
+Everything else is drawn as in progress and can't be opened. A collection in the
 catalog that no entry names is added as its own live area, so nothing here
 has to change for a new file to appear. Delete mock entries as real
 collections land.

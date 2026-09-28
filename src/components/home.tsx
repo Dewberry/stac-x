@@ -104,7 +104,11 @@ export function HomeConsole({
   const select = useCallback(
     (slug: string | null) => {
       setSelected(slug);
-      if (slug) setBasin(bySlug.get(slug)?.huc4 ?? null);
+      const a = slug ? bySlug.get(slug) : null;
+      if (!a) return;
+      // Selecting a collection zooms to it, the same as selecting a basin.
+      setBasin(a.huc4);
+      setFocus({ bbox: a.bbox, key: Date.now() });
     },
     [bySlug],
   );
@@ -138,7 +142,7 @@ export function HomeConsole({
     <div className="sx-home">
       <section className="sx-hero">
         <div className="sx-hero-text">
-          <p className="sx-eyebrow">Colorado pilot catalog</p>
+          <p className="sx-eyebrow">FFRD · Colorado</p>
           <h1 className="sx-hero-title">{title}</h1>
           <p className="sx-hero-lead">{lead}</p>
         </div>
@@ -172,11 +176,7 @@ export function HomeConsole({
             onBasinSelect={selectBasin}
           />
           {current && (
-            <HomePreview
-              area={current}
-              onClose={() => select(null)}
-              onZoom={() => setFocus({ bbox: current.bbox, key: Date.now() })}
-            />
+            <HomePreview area={current} onClose={() => select(null)} />
           )}
         </div>
         <aside className="sx-rail" aria-label="Collections">
@@ -184,7 +184,7 @@ export function HomeConsole({
             <div className="sx-rail-title">
               <h2>Collections</h2>
               <span className="ffx-num">
-                {totals.live} published · {areas.length - totals.live} planned
+                {totals.live} published · {areas.length - totals.live} in progress
               </span>
               <span className="sx-seg" role="group" aria-label="Group the list">
                 <button type="button" aria-pressed={grouped} onClick={() => setGrouped(true)}>
@@ -224,8 +224,7 @@ export function HomeConsole({
                     >
                       <b>{g.name}</b>
                       <span className="ffx-num">
-                        {g.live ? `${g.live} published · ` : ""}
-                        {g.planned} planned
+                        {[g.live && `${g.live} published`, g.planned && `${g.planned} in progress`].filter(Boolean).join(" · ")}
                       </span>
                     </button>
                     <ul>
@@ -286,7 +285,7 @@ function AreaRow({
           </div>
         </div>
         <div className="sx-row-aside">
-          {area.live ? <span className="ffx-num">{fmtNum(area.itemCount ?? 0)}</span> : <span>planned</span>}
+          {area.live ? <span className="ffx-num">{fmtNum(area.itemCount ?? 0)}</span> : <span>in progress</span>}
         </div>
       </button>
     </li>

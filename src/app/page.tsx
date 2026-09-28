@@ -77,7 +77,7 @@ export default async function Home() {
       <HomeConsole
         areas={areas}
         items={items}
-        title="What does the Colorado pilot have, and where?"
+        title="What's in the catalog, and where?"
         lead={catalogDescription}
         totals={totals}
       />
@@ -87,8 +87,7 @@ export default async function Home() {
             ? "No geoparquet sources found."
             : `Reading ${catalog.sources.length} ${catalog.sources.length === 1 ? "file" : "files"}: ${catalog.sources
                 .map((s) => baseName(s.uri))
-                .join(", ")}.`}{" "}
-          Collections marked planned are placeholders until their data lands in the bucket.
+                .join(", ")}.`}
         </span>
         {catalog.errors.length > 0 && (
           <span className="text-bad-text">

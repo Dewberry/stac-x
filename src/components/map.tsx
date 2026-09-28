@@ -33,7 +33,7 @@ import {
  * which is the one thing hue means in this app; lines and polygons are drawn
  * in ink, with an extent box dashed so it never reads as data.
  *
- * MapLibre because the pilot's collections will run to tens of thousands of
+ * MapLibre because the program's collections will run to tens of thousands of
  * points, which rules out a DOM marker each, and because a GeoJSON source
  * today can become PMTiles from the bucket tomorrow with the layers unchanged.
  *

@@ -19,7 +19,7 @@ export function SiteHeader() {
       <div className="ffx-shell sx-header-inner">
         <Link href="/" className="sx-brand">
           <span className="sx-brand-name">stac-x</span>
-          <span className="sx-brand-tag">STAC catalog · FFRD Colorado pilot</span>
+          <span className="sx-brand-tag">STAC catalog · FFRD Colorado</span>
         </Link>
         <div className="ml-auto">
           <ThemeToggle />

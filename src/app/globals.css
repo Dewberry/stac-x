@@ -1767,6 +1767,10 @@ main:focus {
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+/* JSON sits on the left, the primary action on the right. */
+.sx-preview-btns > .ffx-btn-primary {
+  margin-left: auto;
+}
 @media (max-width: 63.99rem) {
   .sx-preview {
     left: 0.75rem;

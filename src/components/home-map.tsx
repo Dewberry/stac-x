@@ -279,7 +279,7 @@ export function HomeMap({
         const btn = document.createElement("button");
         btn.className = "sx-pin-btn";
         btn.type = "button";
-        btn.setAttribute("aria-label", a.live ? `${a.name}, published collection` : `${a.name}, planned`);
+        btn.setAttribute("aria-label", a.live ? `${a.name}, published collection` : `${a.name}, in progress`);
         btn.innerHTML = `<span class="sx-pin-mark" aria-hidden="true"></span><span class="sx-pin-label">${a.name}</span>`;
         el.appendChild(btn);
         let downX = 0, downY = 0;
@@ -391,7 +391,7 @@ export function HomeMap({
             <span className="sx-pin-mark" data-live="true" aria-hidden="true" /> Published collection
           </span>
           <span className="sx-legend">
-            <span className="sx-pin-mark" data-live="false" aria-hidden="true" /> Planned
+            <span className="sx-pin-mark" data-live="false" aria-hidden="true" /> In progress
           </span>
           <span className="sx-legend">
             <span className="sx-legend-dot" aria-hidden="true" /> Item

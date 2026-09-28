@@ -25,11 +25,9 @@ function years(t: HomeArea["temporal"]): string {
 export function HomePreview({
   area,
   onClose,
-  onZoom,
 }: {
   area: HomeArea;
   onClose: () => void;
-  onZoom: () => void;
 }) {
   const reviewed = area.reviewed ?? 0;
   const total = area.itemCount ?? 0;
@@ -41,7 +39,7 @@ export function HomePreview({
           {area.live ? (
             <span className="sx-chip" data-tone="verified">Published</span>
           ) : (
-            <span className="sx-chip">Planned</span>
+            <span className="sx-chip">In progress</span>
           )}
           <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
@@ -55,7 +53,7 @@ export function HomePreview({
           {basinName(area.huc4)} basin · HUC {area.huc4} · {AREA_KIND_LABEL[area.kind]}
         </div>
         <p className="sx-preview-sub">
-          {area.blurb ?? (area.live ? "" : "Not yet published. This area is a placeholder until its data lands in the bucket.")}
+          {area.blurb ?? (area.live ? "" : "This collection is in progress and hasn't been published yet.")}
         </p>
       </div>
       {area.live && (
@@ -83,22 +81,19 @@ export function HomePreview({
         </>
       )}
       <div className="sx-preview-btns">
+        {area.live && area.href && (
+          <a href={`/api${area.href}`} className="ffx-btn" target="_blank" rel="noreferrer">
+            JSON
+          </a>
+        )}
         {area.live && area.href ? (
           <Link href={area.href} className="ffx-btn ffx-btn-primary">
             Open collection →
           </Link>
         ) : (
           <button type="button" className="ffx-btn ffx-btn-primary" disabled>
-            Not published yet
+            Not available yet
           </button>
-        )}
-        <button type="button" className="ffx-btn" onClick={onZoom}>
-          Zoom to extent
-        </button>
-        {area.live && area.href && (
-          <a href={`/api${area.href}`} className="ffx-btn" target="_blank" rel="noreferrer">
-            JSON
-          </a>
         )}
       </div>
     </div>

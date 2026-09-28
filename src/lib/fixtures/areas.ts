@@ -2,10 +2,10 @@
  * The model areas on the landing page.
  *
  * MOCK. The program will have a STAC collection per model or dataset for the
- * Colorado pilot, and the landing page shows every one of them on a map of the
+ * Colorado, and the landing page shows every one of them on a map of the
  * state. Today exactly one collection exists as a geoparquet file (the South
  * Platte gages), so the rest of the map is populated from this list, which is
- * a plausible set of basins and model domains for the pilot and nothing more.
+ * a plausible set of basins and model domains for the state and nothing more.
  * An entry here with a `collection` that the catalog actually holds becomes
  * live: it is clickable, it draws its real items on the map, and its counts
  * come from the data. Everything else is drawn as planned and cannot be
