@@ -75,7 +75,10 @@ export function invalidateEdits(sourceUri: string) {
 
 async function build(): Promise<Catalog> {
   const now = Date.now();
-  const { uris, errors } = await listSources(now);
+  const listing = await listSources(now);
+  const uris = listing.uris;
+  // A copy: the listing is cached, and source errors are added below.
+  const errors = [...listing.errors];
 
   await Promise.all(uris.map((uri) => refreshSource(uri, now)));
   for (const key of Array.from(cache.sources.keys())) {
@@ -113,6 +116,7 @@ async function listSources(now: number) {
       uris.push(...(await listParquet(entry)));
     } catch (e) {
       errors.push(`${entry}: ${message(e)}`);
+      console.error(`stac-x: listing ${entry} failed:`, e);
     }
   }
   cache.listing = { at: now, uris: Array.from(new Set(uris)), errors };
@@ -144,6 +148,7 @@ async function refreshSource(uri: string, now: number) {
     state.error = null;
   } catch (e) {
     state.error = message(e);
+    console.error(`stac-x: reading ${uri} failed:`, e);
   }
   state.checkedAt = now;
   cache.sources.set(uri, state);

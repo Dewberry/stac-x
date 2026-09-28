@@ -3,7 +3,6 @@ import { HomeConsole, type HomeArea } from "@/components/home";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { catalogDescription } from "@/lib/config";
 import { MODEL_AREAS } from "@/lib/fixtures/areas";
-import { baseName } from "@/lib/storage";
 import { collectionHref } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -81,20 +80,14 @@ export default async function Home() {
         lead={catalogDescription}
         totals={totals}
       />
-      <div className="sx-band">
-        <span>
-          {catalog.sources.length === 0
-            ? "No geoparquet sources found."
-            : `Reading ${catalog.sources.length} ${catalog.sources.length === 1 ? "file" : "files"}: ${catalog.sources
-                .map((s) => baseName(s.uri))
-                .join(", ")}.`}
-        </span>
-        {catalog.errors.length > 0 && (
+      {/* Only shown when something is wrong. The details go to the server log. */}
+      {catalog.errors.length > 0 && (
+        <div className="sx-band">
           <span className="text-bad-text">
-            {catalog.errors.length} source {catalog.errors.length === 1 ? "error" : "errors"}: {catalog.errors.join("; ")}
+            Some collections couldn&apos;t be loaded and may be missing. Try again in a minute.
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }
