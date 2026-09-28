@@ -29,8 +29,9 @@
   --ffx-n-0: #ffffff;
   --ffx-n-50: #f6f8fa;
   --ffx-n-100: #eef1f4;
-  --ffx-n-150: #e9edf1;
+  --ffx-n-150: #e3e8ed;
   --ffx-n-200: #dfe5eb;
+  --ffx-n-250: #d6dde4;
   --ffx-n-300: #c9d1d9;
   --ffx-n-400: #a7b1bc;
   --ffx-n-500: #8a95a1;
@@ -67,17 +68,19 @@
   --ffx-bg: var(--ffx-n-150);
   --ffx-surface: var(--ffx-n-0);
   --ffx-surface-raised: var(--ffx-n-0);
-  --ffx-surface-sunken: var(--ffx-n-50);
+  --ffx-surface-sunken: var(--ffx-n-100);
   --ffx-surface-inset: #e2e8ee;
   --ffx-glass: rgba(255, 255, 255, 0.9);
 
   /* ---------- 2. semantic: structure ---------- */
-  --ffx-rule: var(--ffx-n-200);
+  --ffx-rule: var(--ffx-n-250);
   --ffx-rule-strong: var(--ffx-n-300);
   --ffx-panel-edge: transparent;
   --ffx-control-edge: var(--ffx-n-300);
   --ffx-grid: var(--ffx-n-100);
-  --ffx-shadow-card: 0 1px 2px rgb(19 26 34 / 0.05), 0 6px 18px rgb(19 26 34 / 0.06);
+  /* The 1px ring gives a card an edge where the soft shadow alone would fade
+     into whatever is under it, a map or a canvas-colored basemap. */
+  --ffx-shadow-card: 0 0 0 1px rgb(19 26 34 / 0.07), 0 1px 2px rgb(19 26 34 / 0.06), 0 6px 18px rgb(19 26 34 / 0.07);
   --ffx-shadow-float: 0 1px 2px rgb(19 26 34 / 0.08), 0 10px 32px rgb(19 26 34 / 0.14);
   --ffx-shadow-overlay: var(--ffx-shadow-float);
   --ffx-shell-max: 96rem;
