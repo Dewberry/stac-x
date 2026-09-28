@@ -39,6 +39,7 @@ export type HomeArea = {
   bbox: [number, number, number, number];
   live: boolean;
   href: string | null;
+  jsonHref: string | null;
   itemCount: number | null;
   temporal: [string | null, string | null] | null;
   /** The collection's QC record; null when it has none or isn't published. */

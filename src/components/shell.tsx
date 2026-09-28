@@ -1,6 +1,9 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { BrandLink } from "./brand-link";
+import { HeaderControls } from "./env-switcher";
+export { EnvBand } from "./env-switcher";
 import { ThemeToggle } from "./theme";
+import type { Session } from "@/lib/session";
 export { Icon, ICONS } from "./icons";
 
 /**
@@ -8,20 +11,22 @@ export { Icon, ICONS } from "./icons";
  * program: a navy header bar with the wordmark alone on one line, and a
  * footer band with the app's note on the left and the palette control at its
  * right end. Both sit on the same 96rem shell and the same edge gutter.
- * Navigation is the map and the Up actions, the way every STAC viewer works,
- * so the header carries no links.
+ * Navigation is the map and the Up actions, the way every STAC viewer works.
+ * Signed in, the header's right end holds the environment switcher and the
+ * account badge.
  */
 
-export function SiteHeader() {
+export function SiteHeader({ session }: { session: Session | null }) {
   return (
     <header className="sx-header">
       <a href="#main" className="ffx-skip">
         Skip to content
       </a>
       <div className="ffx-shell sx-header-inner">
-        <Link href="/" className="sx-brand">
-          stac-x
-        </Link>
+        <BrandLink className="sx-brand" />
+        <div className="ml-auto flex items-center gap-2">
+          <HeaderControls session={session} home="/" homeLabel="Home" signOut="/signin" />
+        </div>
       </div>
     </header>
   );

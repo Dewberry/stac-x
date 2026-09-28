@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Mono, Instrument_Sans } from "next/font/google";
-import { SiteFooter, SiteHeader } from "@/components/shell";
+import { EnvBand, SiteFooter, SiteHeader } from "@/components/shell";
 import { ThemeScript } from "@/components/theme";
 import { catalogTitle } from "@/lib/config";
+import { SESSION } from "@/lib/session";
 import "./globals.css";
 
 /**
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     default: catalogTitle,
     template: `%s | ${catalogTitle}`,
   },
-  description: "Browse STAC collections and items held as geoparquet in S3, and record QC on each item.",
+  description: "Browse STAC collections held as geoparquet in S3, review them, and move them from Development to Testing to Production.",
 };
 
 export const viewport = {
@@ -55,7 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col">
-        <SiteHeader />
+        <SiteHeader session={SESSION} />
+        <EnvBand />
         <main id="main" tabIndex={-1} className="ffx-shell flex-1">
           {children}
         </main>

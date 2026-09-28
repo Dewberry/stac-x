@@ -1,9 +1,10 @@
 import "server-only";
 
 import { refreshMs, sources as configuredSources } from "./config";
+import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { readItems } from "./parquet";
-import type { CatalogItem, Collection, Provider, QcEdit, StacItem } from "./stac";
+import type { CatalogItem, Collection, Provider, QcEdit, QcEvent, StacItem } from "./stac";
 import { awsLooksConfigured, head, isS3, listParquet, readJson } from "./storage";
 
 /**
@@ -16,8 +17,9 @@ import { awsLooksConfigured, head, isS3, listParquet, readJson } from "./storage
  * ETag changes. ETags are checked at most every STAC_REFRESH_SECONDS, so a
  * page view is normally zero calls to S3.
  *
- * The cache hangs off globalThis so it survives dev-server hot reloads, which
- * otherwise re-parse every file on every edit to a component.
+ * Each environment has its own sources and its own cache. The caches hang
+ * off globalThis so they survive dev-server hot reloads, which otherwise
+ * re-parse every file on every edit to a component.
  */
 
 type SourceState = {
@@ -25,8 +27,9 @@ type SourceState = {
   etag: string;
   items: StacItem[];
   editsEtag: string | null;
-  /** QC records from the sidecar, by collection id. */
+  /** QC records and history from the sidecar, by collection id. */
   qc: Record<string, QcEdit>;
+  history: Record<string, QcEvent[]>;
   checkedAt: number;
   error: string | null;
 };
@@ -47,41 +50,54 @@ export type Catalog = {
   refreshedAt: string;
 };
 
-const g = globalThis as unknown as { __stacx?: Cache };
-const cache: Cache = (g.__stacx ??= { sources: new Map(), listing: null, docs: new Map(), building: null });
+const g = globalThis as unknown as { __stacxEnvs?: Record<EnvKey, Cache> };
+const caches: Record<EnvKey, Cache> = (g.__stacxEnvs ??= Object.fromEntries(
+  ENVS.map((e) => [e.key, { sources: new Map(), listing: null, docs: new Map(), building: null }]),
+) as Record<EnvKey, Cache>);
 
-export async function getCatalog(): Promise<Catalog> {
+export async function getCatalog(env: EnvKey): Promise<Catalog> {
+  const cache = caches[env];
   // Coalesce concurrent builds: the three server components of a page all
   // ask, and one build serves them.
   if (cache.building) return cache.building;
-  cache.building = build().finally(() => (cache.building = null));
+  cache.building = build(env, cache).finally(() => (cache.building = null));
   return cache.building;
 }
 
-export async function getCollection(id: string): Promise<Collection | null> {
-  const c = await getCatalog();
+export async function getCollection(env: EnvKey, id: string): Promise<Collection | null> {
+  const c = await getCatalog(env);
   return c.collections.find((x) => x.id === id) ?? null;
 }
 
-export async function getItem(collection: string, id: string): Promise<CatalogItem | null> {
-  const c = await getCollection(collection);
+export async function getItem(env: EnvKey, collection: string, id: string): Promise<CatalogItem | null> {
+  const c = await getCollection(env, collection);
   return c?.items.find((x) => x.id === id) ?? null;
 }
 
-/** Called after a write so the next read sees it without waiting for the ETag check. */
-export function invalidateEdits(sourceUri: string) {
-  const s = cache.sources.get(sourceUri);
-  if (s) s.checkedAt = 0;
+/**
+ * Called after a write so the next read sees it without waiting for the ETag
+ * check: one source after a QC save, or every source (and the listing) after
+ * a collection was promoted into the environment.
+ */
+export function invalidate(env: EnvKey, sourceUri?: string) {
+  const cache = caches[env];
+  if (sourceUri) {
+    const s = cache.sources.get(sourceUri);
+    if (s) s.checkedAt = 0;
+    return;
+  }
+  cache.listing = null;
+  for (const s of cache.sources.values()) s.checkedAt = 0;
 }
 
-async function build(): Promise<Catalog> {
+async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   const now = Date.now();
-  const listing = await listSources(now);
+  const listing = await listSources(env, cache, now);
   const uris = listing.uris;
   // A copy: the listing is cached, and source errors are added below.
   const errors = [...listing.errors];
 
-  await Promise.all(uris.map((uri) => refreshSource(uri, now)));
+  await Promise.all(uris.map((uri) => refreshSource(cache, uri, now)));
   for (const key of Array.from(cache.sources.keys())) {
     if (!uris.includes(key)) cache.sources.delete(key);
   }
@@ -102,17 +118,17 @@ async function build(): Promise<Catalog> {
   const collections = await Promise.all(
     Array.from(byCollection.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([id, items]) => describeCollection(id, items, now)),
+      .map(([id, items]) => describeCollection(cache, id, items, now)),
   );
 
   return { collections, sources: sourcesOut, errors, refreshedAt: new Date(now).toISOString() };
 }
 
-async function listSources(now: number) {
+async function listSources(env: EnvKey, cache: Cache, now: number) {
   if (cache.listing && now - cache.listing.at < refreshMs) return cache.listing;
   const uris: string[] = [];
   const errors: string[] = [];
-  for (const entry of configuredSources()) {
+  for (const entry of configuredSources(env)) {
     try {
       uris.push(...(await listParquet(entry)));
     } catch (e) {
@@ -124,7 +140,7 @@ async function listSources(now: number) {
   return cache.listing;
 }
 
-async function refreshSource(uri: string, now: number) {
+async function refreshSource(cache: Cache, uri: string, now: number) {
   const existing = cache.sources.get(uri);
   if (existing && now - existing.checkedAt < refreshMs) return;
   const state: SourceState = existing ?? {
@@ -133,6 +149,7 @@ async function refreshSource(uri: string, now: number) {
     items: [],
     editsEtag: null,
     qc: {},
+    history: {},
     checkedAt: 0,
     error: null,
   };
@@ -145,6 +162,7 @@ async function refreshSource(uri: string, now: number) {
     }
     const { edits, etag } = await readEdits(uri);
     state.qc = edits.collections;
+    state.history = edits.history;
     state.editsEtag = etag;
     state.error = null;
   } catch (e) {
@@ -161,12 +179,15 @@ async function refreshSource(uri: string, now: number) {
  * form is honest about being derived: fromDocument is false and the page
  * says so.
  */
-async function describeCollection(id: string, items: CatalogItem[], now: number): Promise<Collection> {
-  const doc = await collectionDoc(items, now);
+async function describeCollection(cache: Cache, id: string, items: CatalogItem[], now: number): Promise<Collection> {
+  const doc = await collectionDoc(cache, items, now);
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
   const sources = Array.from(new Set(items.map((i) => i.source)));
-  const qc = qcFor(id, sources);
+  const qc = qcFor(cache, id, sources);
+  const history = sources
+    .flatMap((uri) => cache.sources.get(uri)?.history[id] ?? [])
+    .sort((a, b) => b.at.localeCompare(a.at));
 
   if (doc) {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
@@ -191,6 +212,7 @@ async function describeCollection(id: string, items: CatalogItem[], now: number)
       fromDocument: true,
       extra,
       qc,
+      history,
       items,
     };
   }
@@ -209,12 +231,13 @@ async function describeCollection(id: string, items: CatalogItem[], now: number)
     fromDocument: false,
     extra: {},
     qc,
+    history,
     items,
   };
 }
 
 /** The newest QC record for a collection across the sidecars of its files. */
-function qcFor(id: string, sources: string[]): QcEdit | null {
+function qcFor(cache: Cache, id: string, sources: string[]): QcEdit | null {
   let best: QcEdit | null = null;
   for (const uri of sources) {
     const r = cache.sources.get(uri)?.qc[id];
@@ -223,7 +246,7 @@ function qcFor(id: string, sources: string[]): QcEdit | null {
   return best;
 }
 
-async function collectionDoc(items: CatalogItem[], now: number): Promise<CollectionDoc> {
+async function collectionDoc(cache: Cache, items: CatalogItem[], now: number): Promise<CollectionDoc> {
   const href = items[0]?.links.find((l) => l.rel === "collection")?.href;
   if (!href) return null;
   if (isS3(href) && !awsLooksConfigured()) return null;

@@ -3,7 +3,8 @@ import { HomeConsole, type HomeArea } from "@/components/home";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { catalogDescription } from "@/lib/config";
 import { MODEL_AREAS } from "@/lib/fixtures/areas";
-import { collectionHref } from "@/lib/utils";
+import { pageEnv } from "@/lib/page-env";
+import { collectionHref, collectionJsonHref } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -17,19 +18,21 @@ export const dynamic = "force-dynamic";
  * area, so a new parquet file in the bucket shows up here with no code
  * change. Everything else is planned.
  */
-export default async function Home() {
-  const catalog = await getCatalog();
+export default async function Home({ params }: { params: Promise<{ env: string }> }) {
+  const env = await pageEnv(params);
+  const catalog = await getCatalog(env);
   const byId = new Map(catalog.collections.map((c) => [c.id, c]));
 
   const areas: HomeArea[] = MODEL_AREAS.map((a) => {
     const c = a.collection ? byId.get(a.collection) : undefined;
-    if (!c) return { ...a, live: false, href: null, itemCount: null, temporal: null, qc: null };
+    if (!c) return { ...a, live: false, href: null, jsonHref: null, itemCount: null, temporal: null, qc: null };
     return {
       ...a,
       blurb: c.description ?? a.blurb,
       bbox: c.bbox ?? a.bbox,
       live: true,
-      href: collectionHref(c.id),
+      href: collectionHref(env, c.id),
+      jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
       temporal: c.temporal,
       qc: c.qc,
@@ -46,7 +49,8 @@ export default async function Home() {
       huc4: "1019",
       bbox: c.bbox ?? unionBbox(c.items) ?? [-109.06, 36.99, -102.04, 41.0],
       live: true,
-      href: collectionHref(c.id),
+      href: collectionHref(env, c.id),
+      jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
       temporal: c.temporal,
       qc: c.qc,

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
   GetObjectCommand,
@@ -207,6 +207,7 @@ export async function write(
   const current = await head(uri);
   if (opts.ifMatch === null && current) throw new PreconditionFailed(uri);
   if (opts.ifMatch && current?.etag !== opts.ifMatch) throw new PreconditionFailed(uri);
+  await mkdir(/*turbopackIgnore: true*/ dirname(ref.path), { recursive: true });
   await writeFile(/*turbopackIgnore: true*/ ref.path, body);
   const after = await head(uri);
   return { etag: after?.etag ?? "" };

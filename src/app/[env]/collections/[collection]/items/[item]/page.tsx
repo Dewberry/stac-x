@@ -7,17 +7,20 @@ import { CopyButton } from "@/components/copy-button";
 import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
+import { NotInEnv } from "@/components/not-in-env";
 import { getCollection } from "@/lib/catalog";
+import { pageEnv } from "@/lib/page-env";
 import { fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
-import { collectionHref, itemHref } from "@/lib/utils";
+import { collectionHref, itemHref, itemJsonHref } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ collection: string; item: string }> };
+type Props = { params: Promise<{ env: string; collection: string; item: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const env = await pageEnv(params);
   const { collection, item } = await params;
-  const c = await getCollection(decodeURIComponent(collection));
+  const c = await getCollection(env, decodeURIComponent(collection));
   const i = c?.items.find((x) => x.id === decodeURIComponent(item));
   const label = i ? itemLabel(i.properties) : null;
   return { title: i ? (label ? `${tidyCaps(label)} (${i.id})` : i.id) : "Item" };
@@ -27,9 +30,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const CORE = ["datetime", "start_datetime", "end_datetime", "created", "updated", "title", "description"];
 
 export default async function ItemPage({ params }: Props) {
+  const env = await pageEnv(params);
   const { collection: rawC, item: rawI } = await params;
-  const c = await getCollection(decodeURIComponent(rawC));
-  if (!c) notFound();
+  const c = await getCollection(env, decodeURIComponent(rawC));
+  if (!c) return <NotInEnv env={env} collection={decodeURIComponent(rawC)} />;
   const id = decodeURIComponent(rawI);
   const index = c.items.findIndex((x) => x.id === id);
   if (index < 0) notFound();
@@ -81,11 +85,11 @@ export default async function ItemPage({ params }: Props) {
         }
         actions={
           <>
-            <Link href={collectionHref(c.id)} className="ffx-btn ffx-btn-sm">
+            <Link href={collectionHref(env, c.id)} className="ffx-btn ffx-btn-sm">
               <Icon d={ICONS.up} size={12} /> {c.title}
             </Link>
             {prev ? (
-              <Link href={itemHref(c.id, prev.id)} className="ffx-btn ffx-btn-sm" aria-label={`Previous item, ${prev.id}`}>
+              <Link href={itemHref(env, c.id, prev.id)} className="ffx-btn ffx-btn-sm" aria-label={`Previous item, ${prev.id}`}>
                 <Icon d={ICONS.prev} size={12} /> Prev
               </Link>
             ) : (
@@ -94,7 +98,7 @@ export default async function ItemPage({ params }: Props) {
               </button>
             )}
             {next ? (
-              <Link href={itemHref(c.id, next.id)} className="ffx-btn ffx-btn-sm" aria-label={`Next item, ${next.id}`}>
+              <Link href={itemHref(env, c.id, next.id)} className="ffx-btn ffx-btn-sm" aria-label={`Next item, ${next.id}`}>
                 Next <Icon d={ICONS.next} size={12} />
               </Link>
             ) : (
@@ -104,7 +108,7 @@ export default async function ItemPage({ params }: Props) {
             )}
             <CopyButton currentUrl label="Copy link" icon={ICONS.link} />
             <a
-              href={`/api/collections/${encodeURIComponent(c.id)}/items/${encodeURIComponent(item.id)}`}
+              href={itemJsonHref(env, c.id, item.id)}
               className="ffx-btn ffx-btn-sm"
               target="_blank"
               rel="noreferrer"
@@ -112,7 +116,7 @@ export default async function ItemPage({ params }: Props) {
               <Icon d={ICONS.json} size={12} /> JSON
             </a>
             <a
-              href={`/api/collections/${encodeURIComponent(c.id)}/items/${encodeURIComponent(item.id)}?download=1`}
+              href={`${itemJsonHref(env, c.id, item.id)}?download=1`}
               className="ffx-btn ffx-btn-sm"
               download
             >

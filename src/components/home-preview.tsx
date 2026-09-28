@@ -77,8 +77,8 @@ export function HomePreview({
         </>
       )}
       <div className="sx-preview-btns">
-        {area.live && area.href && (
-          <a href={`/api${area.href}`} className="ffx-btn" target="_blank" rel="noreferrer">
+        {area.live && area.jsonHref && (
+          <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
             JSON
           </a>
         )}

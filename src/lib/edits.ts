@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isQcStatus, type QcEdit, type QcStatus } from "./stac";
+import { isQcStatus, type QcEdit, type QcEvent, type QcStatus } from "./stac";
 import { NotFound, PreconditionFailed, readJson, write } from "./storage";
 
 /**
@@ -28,6 +28,10 @@ import { NotFound, PreconditionFailed, readJson, write } from "./storage";
  * record beside the first of them; on read the newest record across its
  * files wins.
  *
+ * Beside the current record, `history` keeps every QC save and every move
+ * between environments for the collection, so the page can show how it got
+ * where it is.
+ *
  * Sidecars written before QC moved to the collection have an `items` map of
  * per-item records. It's left in the file untouched and no longer read.
  */
@@ -35,8 +39,11 @@ import { NotFound, PreconditionFailed, readJson, write } from "./storage";
 export type EditsFile = {
   version: 1;
   collections: Record<string, QcEdit>;
+  history: Record<string, QcEvent[]>;
   items?: Record<string, unknown>;
 };
+
+const empty = (): EditsFile => ({ version: 1, collections: {}, history: {} });
 
 export function editsUri(parquetUri: string): string {
   return parquetUri.replace(/\.(geo)?parquet$|\.pq$/i, "") + ".edits.json";
@@ -45,11 +52,12 @@ export function editsUri(parquetUri: string): string {
 export async function readEdits(parquetUri: string): Promise<{ edits: EditsFile; etag: string | null }> {
   try {
     const { value, etag } = await readJson<EditsFile>(editsUri(parquetUri));
-    if (!value || value.version !== 1) return { edits: { version: 1, collections: {} }, etag };
+    if (!value || value.version !== 1) return { edits: empty(), etag };
     const collections = value.collections && typeof value.collections === "object" ? value.collections : {};
-    return { edits: { ...value, collections }, etag };
+    const history = value.history && typeof value.history === "object" ? value.history : {};
+    return { edits: { ...value, collections, history }, etag };
   } catch (e) {
-    if (e instanceof NotFound) return { edits: { version: 1, collections: {} }, etag: null };
+    if (e instanceof NotFound) return { edits: empty(), etag: null };
     throw e;
   }
 }
@@ -79,24 +87,33 @@ export function validateEdit(input: unknown): EditInput {
  * review queue; if it still fails, something other than a colleague is
  * writing that file.
  */
-export async function saveEdit(
-  parquetUri: string,
-  collection: string,
-  input: EditInput,
-): Promise<QcEdit> {
-  const edit: QcEdit = { ...input, updated_at: new Date().toISOString() };
+export async function updateEdits(parquetUri: string, change: (edits: EditsFile) => void): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
     const { edits, etag } = await readEdits(parquetUri);
-    edits.collections[collection] = edit;
+    change(edits);
     try {
       await write(editsUri(parquetUri), JSON.stringify(edits, null, 2) + "\n", {
         contentType: "application/json",
         ifMatch: etag,
       });
-      return edit;
+      return;
     } catch (e) {
       if (!(e instanceof PreconditionFailed) || attempt === 2) throw e;
     }
   }
   throw new PreconditionFailed(editsUri(parquetUri));
+}
+
+export function logEvent(edits: EditsFile, collection: string, event: QcEvent) {
+  (edits.history[collection] ??= []).push(event);
+}
+
+/** Save a collection's QC record and log it. */
+export async function saveEdit(parquetUri: string, collection: string, input: EditInput): Promise<QcEdit> {
+  const edit: QcEdit = { ...input, updated_at: new Date().toISOString() };
+  await updateEdits(parquetUri, (edits) => {
+    edits.collections[collection] = edit;
+    logEvent(edits, collection, { kind: "qc", at: edit.updated_at, ...input });
+  });
+  return edit;
 }

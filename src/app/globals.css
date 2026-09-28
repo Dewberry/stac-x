@@ -55,6 +55,13 @@
   --ffx-red-deep: #a3352c;
   --ffx-red-pale: #f7dbd8;
 
+  /* Environments. Two hues outside the QC colors (green, amber, red) and the
+     data blue, so an environment is never read as a review state. White text
+     on either passes 4.5:1. Production has no color of its own: it looks the
+     way the app always does. The same values in ffrd-x. */
+  --ffx-env-dev: #6d4fc2;
+  --ffx-env-test: #a3367f;
+
   /* ---------- 2. semantic: surfaces ---------- */
   --ffx-void: #dfe5eb;
   --ffx-bg: var(--ffx-n-150);
@@ -199,6 +206,8 @@
     --ffx-trace-median: #c4d7f8;
     --ffx-focus: #6b9cf0;
     --ffx-focus-halo: var(--ffx-n-900);
+    --ffx-env-dev: #7a5fd0;
+    --ffx-env-test: #b0418c;
   }
 }
 
@@ -247,6 +256,8 @@
   --ffx-trace-median: #c4d7f8;
   --ffx-focus: #6b9cf0;
   --ffx-focus-halo: var(--ffx-n-900);
+  --ffx-env-dev: #7a5fd0;
+  --ffx-env-test: #b0418c;
 }
 
 /* ---------- 3. Tailwind mapping ---------- */
@@ -1168,6 +1179,97 @@
   font-size: var(--ffx-t-small);
   color: var(--ffx-verified-text);
 }
+/* The Production confirmation: a second step inside the form, not a modal. */
+.sx-confirm {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  box-shadow: inset 3px 0 0 var(--ffx-ink);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-confirm b {
+  color: var(--ffx-ink);
+}
+
+/* Where a collection stands: three steps in the order it moves. */
+.sx-path {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.375rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+.sx-path-step {
+  position: relative;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--ffx-radius-xs);
+  border: 1px solid var(--ffx-rule);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-path-step[aria-current="step"] {
+  border-color: var(--ffx-ink);
+}
+.sx-path-mark {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--ffx-ink-dim);
+}
+.sx-path-step[data-here="true"] .sx-path-mark {
+  border-color: transparent;
+  background: var(--ffx-ink);
+}
+.sx-path-step[data-here="true"][data-env="dev"] .sx-path-mark {
+  background: var(--ffx-env-dev);
+}
+.sx-path-step[data-here="true"][data-env="test"] .sx-path-mark {
+  background: var(--ffx-env-test);
+}
+.sx-path-name {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+
+/* A collection's history in one environment. */
+.sx-history {
+  margin: 0;
+  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
+  list-style: none;
+  display: grid;
+  gap: 0.625rem;
+}
+.sx-history li {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: 0.75rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-history-when {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  padding-top: 0.1rem;
+}
+.sx-history-note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 40rem) {
+  .sx-history li {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+}
 
 .sx-callout {
   padding: 0.625rem var(--ffx-panel-pad);
@@ -1228,6 +1330,150 @@
   align-items: center;
   gap: 0.5rem 1rem;
   padding-inline: var(--ffx-edge);
+}
+
+/* A button in the bar is an outline on navy, not a white card. The same in
+   ffrd-x. */
+.sx-header .ffx-btn {
+  background: transparent;
+  color: var(--ffx-header-ink);
+  border-color: var(--ffx-header-rule);
+  box-shadow: none;
+}
+.sx-header .ffx-btn:hover {
+  background: color-mix(in srgb, var(--ffx-header-ink) 10%, transparent);
+  border-color: var(--ffx-header-ink-mut);
+}
+
+/* ============================ environments ============================
+
+   The switcher in the header, the band under it outside Production, and the
+   account menu. The same rules, under the same names, in ffrd-x. */
+.ffx-env-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ffx-header-rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ffx-header-ink);
+  font-size: var(--ffx-t-small);
+  font-weight: 500;
+  cursor: pointer;
+}
+.ffx-env-trigger:hover {
+  background: color-mix(in srgb, var(--ffx-header-ink) 10%, transparent);
+  border-color: var(--ffx-header-ink-mut);
+}
+.ffx-env-trigger[data-env="dev"] {
+  background: var(--ffx-env-dev);
+  border-color: var(--ffx-env-dev);
+}
+.ffx-env-trigger[data-env="test"] {
+  background: var(--ffx-env-test);
+  border-color: var(--ffx-env-test);
+}
+.ffx-env-dot {
+  display: block;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--ffx-ink-dim);
+  box-shadow: 0 0 0 1.5px var(--ffx-surface);
+}
+.ffx-env-dot[data-env="dev"] {
+  background: var(--ffx-env-dev);
+}
+.ffx-env-dot[data-env="test"] {
+  background: var(--ffx-env-test);
+}
+.ffx-env-dot[data-env="prod"] {
+  background: var(--ffx-ink);
+}
+.ffx-env-trigger .ffx-env-dot {
+  background: var(--ffx-header-ink);
+  box-shadow: none;
+}
+.ffx-env-menu {
+  width: 19rem;
+}
+/* Below sm the switcher and the account menu are one menu, as wide as the
+   phone allows. */
+.ffx-mobile-menu {
+  width: min(20rem, calc(100vw - 1.5rem));
+}
+.ffx-menu-item.ffx-env-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+.ffx-env-item .ffx-env-dot {
+  margin-top: 0.3rem;
+}
+.ffx-menu-item.ffx-env-item[aria-current="true"] {
+  background: var(--ffx-surface-sunken);
+}
+.ffx-env-name {
+  display: block;
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.ffx-env-blurb {
+  display: block;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  line-height: 1.4;
+}
+/* The band scrolls away with the page; the switcher in the sticky header
+   keeps the environment's color on screen. */
+.ffx-envband {
+  color: #fff;
+  font-size: var(--ffx-t-micro);
+  line-height: 1.4;
+}
+.ffx-envband[data-env="dev"] {
+  background: var(--ffx-env-dev);
+}
+.ffx-envband[data-env="test"] {
+  background: var(--ffx-env-test);
+}
+.ffx-envband-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  padding: 0.375rem var(--ffx-edge);
+}
+.ffx-envband b {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Menus from the header. */
+.ffx-menu {
+  box-shadow: var(--ffx-shadow-float);
+  z-index: 50;
+  min-width: 12rem;
+  padding: 0.375rem;
+  border-radius: var(--ffx-radius-md);
+  background: var(--ffx-surface-raised);
+}
+.ffx-menu-item {
+  display: block;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--ffx-radius-xs);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ffx-menu-item[data-highlighted] {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
+  outline: none;
 }
 .ffx-skip {
   position: absolute;

@@ -1,3 +1,4 @@
+import type { EnvKey } from "./env";
 import type { Geometry } from "geojson";
 
 /**
@@ -46,6 +47,16 @@ export type QcEdit = {
   note?: string | null;
   updated_at: string;
 };
+
+/**
+ * One line of a collection's history in an environment: a QC save, the
+ * collection leaving for the next environment, or arriving from the one
+ * before. Oldest first in the sidecar.
+ */
+export type QcEvent =
+  | { kind: "qc"; at: string; qc: QcStatus; date_approved: string | null; note?: string | null }
+  | { kind: "promoted"; at: string; to: EnvKey; files: string[] }
+  | { kind: "received"; at: string; from: EnvKey; files: string[] };
 
 export const QC_STATUSES = [
   { value: "pending", label: "Not reviewed", tone: "idle" },
@@ -96,6 +107,8 @@ export type Collection = {
   extra: Record<string, unknown>;
   /** The collection's QC record, from the sidecar. Null until someone saves one. */
   qc: QcEdit | null;
+  /** What happened to the collection in this environment, newest first. */
+  history: QcEvent[];
   items: CatalogItem[];
 };
 

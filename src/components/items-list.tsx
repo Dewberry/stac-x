@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { fmtRange } from "@/lib/format";
+import type { EnvKey } from "@/lib/env";
 import { itemHref } from "@/lib/utils";
 
 /**
@@ -24,7 +25,7 @@ const PAGE = 12;
 
 type Sort = "id" | "label" | "start";
 
-export function ItemsList({ collection, rows }: { collection: string; rows: ItemRow[] }) {
+export function ItemsList({ env, collection, rows }: { env: EnvKey; collection: string; rows: ItemRow[] }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("id");
   const [page, setPage] = useState(0);
@@ -80,7 +81,7 @@ export function ItemsList({ collection, rows }: { collection: string; rows: Item
       ) : (
         <div className="sx-rows">
           {slice.map((r) => (
-            <Link key={r.id} href={itemHref(collection, r.id)} className="sx-row">
+            <Link key={r.id} href={itemHref(env, collection, r.id)} className="sx-row">
               <div className="sx-row-main">
                 <div className="sx-row-title">{r.label ?? r.id}</div>
                 <div className="sx-row-sub">

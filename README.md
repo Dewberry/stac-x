@@ -41,8 +41,10 @@ Copy-Item .env.example .env      # PowerShell
 cp .env.example .env             # WSL
 ```
 
-Set `STAC_SOURCES` to an S3 prefix (every `.parquet` and `.pq` under it), one
-object, a local folder, or a local file, separated by commas. AWS credentials
+Set `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and `STAC_SOURCES_PROD` to where
+each environment's files live: an S3 prefix (every `.parquet` and `.pq` under
+it), one object, a local folder, or a local file, separated by commas. Unset,
+they're `./data/dev`, `./data/test` and `./data/prod`. AWS credentials
 come from the SDK's usual chain: `AWS_PROFILE`, env keys, or an instance role.
 `.env.example` explains each variable.
 
@@ -72,15 +74,19 @@ it rewrites Unix-style paths before Node sees them.
 ## What's where
 
 ```
-src/app/                    routes: landing page, collection, item, JSON and asset APIs
-src/app/actions.ts          the server action that saves QC
+src/proxy.ts                maps unprefixed URLs to Production, /dev and /test to theirs
+src/app/[env]/              routes per environment: landing page, collection, item, JSON APIs
+src/app/signin/             the stand-in sign-in
+src/app/actions.ts          the server action that saves QC and sends a collection on
 src/components/             UI: shell, maps, item list, assets, QC form, metadata table
 src/lib/catalog.ts          the in-memory catalog: parses every source, merges edits, groups by collection
 src/lib/parquet.ts          stac-geoparquet to STAC items, with hyparquet
 src/lib/storage.ts          S3 and local disk behind one interface, with conditional writes
+src/lib/env.ts              the three environments and the links between them
 src/lib/edits.ts            the QC sidecar: where it lives, how it is written
+src/lib/promote.ts          copies an approved collection to the next environment
 src/lib/fixtures/areas.ts   the mocked model areas on the landing page
-data/                       sample parquet; QC sidecars written here are ignored by git
+data/dev/                   sample parquet; data/test and data/prod fill as you promote (ignored by git)
 scripts/vendor-maplibre.mjs copies MapLibre's worker into public/ before dev and build
 ```
 
@@ -124,9 +130,33 @@ items span several parquet files keeps its record beside the first one.
 Writes are conditional on the sidecar's ETag (S3 `If-Match`), so two reviewers
 saving at once can't overwrite each other; the loser re-reads and retries.
 
-There is no sign-in yet. Anyone who can reach the app can save QC, and the
-record carries no author. Put the deployment behind something (an ALB with
-OIDC, a VPN) until there is a user model.
+There is no identity provider yet. The sign-in page is a stand-in, the same
+as ffrd-x's, and anyone who can reach the app can save QC; the records carry
+no author. Put the deployment behind something (an ALB with OIDC, a VPN)
+until there is a user model.
+
+## Environments
+
+There are three, matching the deployment: Development, Testing and
+Production. One running app reads all three, each from its own sources.
+Production's pages are unprefixed; the other two live under `/dev` and
+`/test`, so a copied link opens in the environment it came from. The header
+switcher keeps you on the same page when you change environments, and outside
+Production a colored band under the header and a `[Dev]` or `[Test]` tab title
+say where you are. ffrd-x has the same switcher, band and URLs.
+
+A collection moves forward one environment at a time, and the QC form is what
+moves it. Approving it in Development copies its parquet files, byte for byte,
+into Testing's landing folder; approving it in Testing copies them into
+Production, after a confirmation step and a required note. A copy starts
+unreviewed in its new environment. If Testing marks it Needs revision or
+Rejected it stays there, blocked, until a fixed version is approved in
+Development and sent again, which replaces it. Each environment's sidecar keeps
+its own QC record and a history of every save and move, shown on the
+collection page along with where the collection stands in all three.
+
+A parquet file that also holds another collection's items can't be promoted
+on its own, since copying it would move the other collection too.
 
 ## The landing page
 

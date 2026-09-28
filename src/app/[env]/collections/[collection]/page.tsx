@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import type { FeatureCollection } from "geojson";
 import { CopyButton } from "@/components/copy-button";
 import { ItemsList, type ItemRow } from "@/components/items-list";
@@ -9,18 +8,24 @@ import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
 import { QcForm } from "@/components/qc-form";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
+import { NotInEnv } from "@/components/not-in-env";
+import { PromotionPath } from "@/components/promotion-path";
+import { QcHistory } from "@/components/qc-history";
 import { getCollection } from "@/lib/catalog";
+import { ENVS } from "@/lib/env";
+import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
 import { baseName } from "@/lib/storage";
-import { itemHref } from "@/lib/utils";
+import { collectionJsonHref, itemHref, withEnvHome } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ collection: string }> };
+type Props = { params: Promise<{ env: string; collection: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const env = await pageEnv(params);
   const { collection } = await params;
-  const c = await getCollection(decodeURIComponent(collection));
+  const c = await getCollection(env, decodeURIComponent(collection));
   return { title: c ? c.title : "Collection" };
 }
 
@@ -30,10 +35,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * QC is recorded for the collection as a whole, so its form lives here.
  */
 export default async function CollectionPage({ params }: Props) {
+  const env = await pageEnv(params);
   const { collection: raw } = await params;
   const id = decodeURIComponent(raw);
-  const c = await getCollection(id);
-  if (!c) notFound();
+  const c = await getCollection(env, id);
+  if (!c) return <NotInEnv env={env} collection={id} />;
+  // Where else the collection is, for the promotion path.
+  const everywhere = await Promise.all(
+    ENVS.map(async (e) => ({ env: e.key, collection: e.key === env ? c : await getCollection(e.key, id) })),
+  );
 
   const rows: ItemRow[] = c.items.map((i) => {
     const label = itemLabel(i.properties);
@@ -54,7 +64,7 @@ export default async function CollectionPage({ params }: Props) {
         id: i.id,
         properties: {
           id: i.id,
-          href: itemHref(c.id, i.id),
+          href: itemHref(env, c.id, i.id),
           label: itemLabel(i.properties) ? tidyCaps(itemLabel(i.properties)!) : undefined,
         },
         geometry: i.geometry!,
@@ -97,14 +107,14 @@ export default async function CollectionPage({ params }: Props) {
         }
         actions={
           <>
-            <Link href="/" className="ffx-btn ffx-btn-sm">
+            <Link href={withEnvHome(env)} className="ffx-btn ffx-btn-sm">
               <Icon d={ICONS.up} size={12} /> Up
             </Link>
             <CopyButton currentUrl label="Copy link" icon={ICONS.link} />
-            <a href={`/api/collections/${encodeURIComponent(c.id)}`} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
+            <a href={collectionJsonHref(env, c.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
               <Icon d={ICONS.json} size={12} /> JSON
             </a>
-            <a href={`/api/collections/${encodeURIComponent(c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
+            <a href={`${collectionJsonHref(env, c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
               <Icon d={ICONS.download} size={12} /> Download
             </a>
           </>
@@ -124,9 +134,15 @@ export default async function CollectionPage({ params }: Props) {
         <div className="sx-col">
           <Panel title="Quality control" id="qc">
             <div className="px-[var(--ffx-panel-pad)] pb-[var(--ffx-panel-pad)] pt-1">
-              <QcForm collection={c.id} edit={c.qc} />
+              <PromotionPath current={env} stages={everywhere.map((s) => ({ env: s.env, qc: s.collection ? s.collection.qc?.qc ?? "pending" : null }))} />
+              <QcForm env={env} collection={c.id} edit={c.qc} />
             </div>
           </Panel>
+          {c.history.length > 0 && (
+            <Panel title="History" id="history">
+              <QcHistory events={c.history} />
+            </Panel>
+          )}
           {c.description && (
             <Panel title="About">
               <div className="sx-desc ffx-prose">{c.description}</div>
@@ -140,7 +156,7 @@ export default async function CollectionPage({ params }: Props) {
         </div>
         <div className="sx-col">
           <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
-            <ItemsList collection={c.id} rows={rows} />
+            <ItemsList env={env} collection={c.id} rows={rows} />
           </Panel>
         </div>
       </div>
