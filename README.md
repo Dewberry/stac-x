@@ -4,11 +4,10 @@ A STAC viewer for FFRD's Colorado data. It reads stac-geoparquet files
 straight from S3, draws every collection on a map of the state, and lets a
 reviewer record QC on each collection. The one thing it writes is that QC record.
 
-The layout follows STAC Browser, which is the layout people already know:
-breadcrumbs, a title row with the page's actions, and two columns under it.
-The narrow column holds the map and what describes the object (metadata,
-assets). The wide column holds what it contains (items) or what there is to
-read about it. On a phone the columns stack, map first.
+Collection and item pages follow STAC Browser, which is the layout people
+already know: breadcrumbs, a title row with the page's actions, a map across
+the top, then what describes the object (QC, metadata, assets) in one column
+and what it contains (items) in the other. On a phone the columns stack.
 
 ![The stac-x homepage: the Colorado catalog map with every collection pinned, beside the collection list grouped by basin](docs/images/home.png)
 
@@ -26,8 +25,11 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With nothing configured the app reads `.\data`,
-which holds the sample gages file, so it runs with no AWS account. The map
+Open http://localhost:3000. With nothing configured each environment reads its
+own folder under `.\data`, so it runs with no AWS account. The sample gages
+file is in `data\dev`, which means it shows up at http://localhost:3000/dev.
+Production, at the unprefixed URLs, stays empty until that collection is
+approved through Testing (see Environments). The map
 tiles come from OpenFreeMap and need the internet; without them the data still
 draws over a plain ground.
 
@@ -160,7 +162,8 @@ on its own, since copying it would move the other collection too.
 
 ## The landing page
 
-The map of Colorado shows every model area in the state. Today one
+The question and three counts run across the top, then one card holds the
+collection list beside a map of Colorado showing every model area in the state. Today one
 collection exists as a geoparquet file (the South Platte gages). The rest come
 from `src/lib/fixtures/areas.ts`, a mocked list of basins and model domains.
 An entry there whose `collection` id the catalog holds becomes live: it links
@@ -169,8 +172,6 @@ Everything else is drawn as in progress and can't be opened. A collection in the
 catalog that no entry names is added as its own live area, so nothing here
 has to change for a new file to appear. Delete mock entries as real
 collections land.
-
-## The landing page map
 
 Clicking a collection in the rail or a pin on the map opens a card over the
 map with the collection's description, counts, dates and review progress;
@@ -186,10 +187,10 @@ names its basin by HUC4 code; `src/lib/basins.ts` maps codes to names.
 
 ## Design
 
-The map is the app. The landing page is an edge-to-edge map of Colorado with
-a panel floating over it; collection and item pages put a full-width map
-under the title and the cards below it, which is the layout STAC Browser
-and Portolan use. Cards are white on a pale canvas, lifted by a shadow rather
+The map is the app. The landing page gives most of the screen to a map of
+Colorado with the collection list beside it; collection and item pages put a
+full-width map under the title and the cards below it, which is the layout
+STAC Browser and Portolan use. Cards are white on a pale canvas, lifted by a shadow rather
 than a border. River blue is for data on the map and for links; green means
 published or approved, amber needs revision, red rejected.
 
