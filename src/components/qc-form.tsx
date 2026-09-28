@@ -3,11 +3,11 @@
 import { useState, useTransition } from "react";
 import { QcChip } from "./qc-chip";
 import { fmtDate } from "@/lib/format";
-import { QC_STATUSES, type ItemEdit, type QcStatus } from "@/lib/stac";
+import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
 import { saveQcAction, type SaveState } from "@/app/actions";
 
 /**
- * The one thing on this app that writes.
+ * The one thing on this app that writes: QC for a whole collection.
  *
  * Status, approval date, an optional note. Picking Approved fills the date
  * with today if it is empty, since that is nearly always what is meant, and
@@ -18,15 +18,7 @@ import { saveQcAction, type SaveState } from "@/app/actions";
  * React resets a form once its action resolves, which snapped the status
  * select back to its first option right after a save.
  */
-export function QcForm({
-  collection,
-  id,
-  edit,
-}: {
-  collection: string;
-  id: string;
-  edit: ItemEdit | null;
-}) {
+export function QcForm({ collection, edit }: { collection: string; edit: QcEdit | null }) {
   const [state, setState] = useState<SaveState>({ ok: null });
   const [pending, start] = useTransition();
   const current = state.ok ? state.edit : edit;
@@ -44,7 +36,6 @@ export function QcForm({
     e.preventDefault();
     const form = new FormData();
     form.set("collection", collection);
-    form.set("id", id);
     form.set("qc", qc);
     form.set("date_approved", date);
     form.set("note", note);

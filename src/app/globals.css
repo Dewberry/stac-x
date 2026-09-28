@@ -1169,24 +1169,6 @@
   color: var(--ffx-verified-text);
 }
 
-/* Review progress bar. */
-.sx-bar {
-  display: flex;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 4px;
-  background: var(--ffx-idle);
-}
-.sx-bar > span {
-  display: block;
-  height: 100%;
-}
-.sx-bar-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem 0.75rem;
-  margin-top: 0.625rem;
-}
 .sx-callout {
   padding: 0.625rem var(--ffx-panel-pad);
   border-left: 3px solid var(--ffx-attn);
@@ -1734,8 +1716,8 @@ main:focus {
 }
 .sx-preview-figs {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.75rem;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem 1.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--ffx-rule);
 }
@@ -1751,9 +1733,18 @@ main:focus {
 }
 .sx-preview-rev {
   padding: 0.75rem 1rem;
-  display: grid;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-preview-qc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
 }
 .sx-preview-l {
   font-size: var(--ffx-t-micro);
@@ -1777,8 +1768,7 @@ main:focus {
     bottom: 0.75rem;
     width: auto;
   }
-  .sx-preview-sub,
-  .sx-preview-rev {
+  .sx-preview-sub {
     display: none;
   }
 }

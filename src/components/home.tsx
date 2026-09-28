@@ -8,6 +8,7 @@ import { basinName } from "@/lib/basins";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { HomePreview } from "./home-preview";
 import type { BasinState } from "./home-map";
+import type { QcEdit } from "@/lib/stac";
 
 /**
  * The landing page, after Alaska Ground Watch: a hero row that runs the
@@ -40,7 +41,8 @@ export type HomeArea = {
   href: string | null;
   itemCount: number | null;
   temporal: [string | null, string | null] | null;
-  reviewed: number | null;
+  /** The collection's QC record; null when it has none or isn't published. */
+  qc: QcEdit | null;
   blurb?: string;
   pin?: [number, number];
   anchor?: "left" | "right" | "top" | "bottom";
@@ -57,7 +59,7 @@ export function HomeConsole({
   items: FeatureCollection;
   title: string;
   lead: string;
-  totals: { live: number; items: number; reviewed: number };
+  totals: { live: number; items: number; approved: number };
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -156,8 +158,8 @@ export function HomeConsole({
             <dt>Items</dt>
           </div>
           <div className="sx-stat">
-            <dd className="ffx-num">{fmtNum(totals.reviewed)}</dd>
-            <dt>Reviewed</dt>
+            <dd className="ffx-num">{fmtNum(totals.approved)}</dd>
+            <dt>Approved</dt>
           </div>
         </dl>
       </section>

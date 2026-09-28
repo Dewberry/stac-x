@@ -1,14 +1,15 @@
 import "server-only";
 
-import { isQcStatus, type ItemEdit, type QcStatus } from "./stac";
+import { isQcStatus, type QcEdit, type QcStatus } from "./stac";
 import { NotFound, PreconditionFailed, readJson, write } from "./storage";
 
 /**
  * Where the edits live.
  *
- * QC status and the approval date are the only things this app writes, and
- * they go to a JSON sidecar beside each parquet file rather than into the
- * parquet itself:
+ * QC is recorded per collection: one status, approval date and note for the
+ * whole collection. That record is the only thing this app writes, and it
+ * goes to a JSON sidecar beside the collection's parquet file rather than
+ * into the parquet itself:
  *
  *   s3://bucket/path/gages_all_items_geopq.parquet
  *   s3://bucket/path/gages_all_items_geopq.edits.json
@@ -18,36 +19,37 @@ import { NotFound, PreconditionFailed, readJson, write } from "./storage";
  * regenerates the file would drop the edits anyway. A sidecar is one small
  * object, it can't corrupt the source, every write is a full audit record,
  * and the pipeline can fold it in on its next run with a dozen lines of
- * pandas. The viewer merges it on read, so to a reader the item simply has a
- * qc and a date_approved.
+ * pandas. The viewer merges it on read, so to a reader the collection simply
+ * has a qc and a date_approved.
  *
- * The file is keyed by item id within its collection, and written with an
- * If-Match on the ETag it was read at, so two reviewers can't overwrite each
- * other. See storage.ts.
+ * The file is keyed by collection id, and written with an If-Match on the
+ * ETag it was read at, so two reviewers can't overwrite each other. See
+ * storage.ts. A collection whose items span several parquet files keeps its
+ * record beside the first of them; on read the newest record across its
+ * files wins.
+ *
+ * Sidecars written before QC moved to the collection have an `items` map of
+ * per-item records. It's left in the file untouched and no longer read.
  */
 
 export type EditsFile = {
   version: 1;
-  items: Record<string, ItemEdit>;
+  collections: Record<string, QcEdit>;
+  items?: Record<string, unknown>;
 };
 
 export function editsUri(parquetUri: string): string {
   return parquetUri.replace(/\.(geo)?parquet$|\.pq$/i, "") + ".edits.json";
 }
 
-export function editKey(collection: string, id: string) {
-  return `${collection}/${id}`;
-}
-
 export async function readEdits(parquetUri: string): Promise<{ edits: EditsFile; etag: string | null }> {
   try {
     const { value, etag } = await readJson<EditsFile>(editsUri(parquetUri));
-    if (!value || value.version !== 1 || typeof value.items !== "object") {
-      return { edits: { version: 1, items: {} }, etag };
-    }
-    return { edits: value, etag };
+    if (!value || value.version !== 1) return { edits: { version: 1, collections: {} }, etag };
+    const collections = value.collections && typeof value.collections === "object" ? value.collections : {};
+    return { edits: { ...value, collections }, etag };
   } catch (e) {
-    if (e instanceof NotFound) return { edits: { version: 1, items: {} }, etag: null };
+    if (e instanceof NotFound) return { edits: { version: 1, collections: {} }, etag: null };
     throw e;
   }
 }
@@ -80,13 +82,12 @@ export function validateEdit(input: unknown): EditInput {
 export async function saveEdit(
   parquetUri: string,
   collection: string,
-  id: string,
   input: EditInput,
-): Promise<ItemEdit> {
-  const edit: ItemEdit = { ...input, updated_at: new Date().toISOString() };
+): Promise<QcEdit> {
+  const edit: QcEdit = { ...input, updated_at: new Date().toISOString() };
   for (let attempt = 0; attempt < 3; attempt++) {
     const { edits, etag } = await readEdits(parquetUri);
-    edits.items[editKey(collection, id)] = edit;
+    edits.collections[collection] = edit;
     try {
       await write(editsUri(parquetUri), JSON.stringify(edits, null, 2) + "\n", {
         contentType: "application/json",

@@ -6,7 +6,6 @@ import { Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
-import { QcForm } from "@/components/qc-form";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { getCollection } from "@/lib/catalog";
 import { fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
@@ -45,7 +44,7 @@ export default async function ItemPage({ params }: Props) {
   const geo: FeatureCollection = {
     type: "FeatureCollection",
     features: item.geometry
-      ? [{ type: "Feature", id: item.id, properties: { id: item.id, label: title, qc: item.edit?.qc ?? "pending" }, geometry: item.geometry }]
+      ? [{ type: "Feature", id: item.id, properties: { id: item.id, label: title }, geometry: item.geometry }]
       : [],
   };
 
@@ -159,11 +158,6 @@ export default async function ItemPage({ params }: Props) {
               <div className="sx-desc ffx-prose">{str(p.description)}</div>
             </Panel>
           )}
-          <Panel title="Quality control" note="Writes to the bucket" id="qc">
-            <div className="px-[var(--ffx-panel-pad)] pb-[var(--ffx-panel-pad)] pt-1">
-              <QcForm collection={c.id} id={item.id} edit={item.edit} />
-            </div>
-          </Panel>
           <Panel title="Metadata" id="meta">
             <div className="pb-2">
               <div className="sx-meta-group">General</div>

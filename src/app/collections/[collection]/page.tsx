@@ -7,10 +7,10 @@ import { ItemsList, type ItemRow } from "@/components/items-list";
 import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
+import { QcForm } from "@/components/qc-form";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { getCollection } from "@/lib/catalog";
 import { fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
-import { QC_STATUSES } from "@/lib/stac";
 import { baseName } from "@/lib/storage";
 import { itemHref } from "@/lib/utils";
 
@@ -25,8 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * A collection: the STAC Browser layout. Map and metadata in the narrow
- * column, description and the item list in the wide one.
+ * A collection: the STAC Browser layout. Map across the top, then QC,
+ * description and metadata in one column and the item list in the other.
+ * QC is recorded for the collection as a whole, so its form lives here.
  */
 export default async function CollectionPage({ params }: Props) {
   const { collection: raw } = await params;
@@ -41,8 +42,6 @@ export default async function CollectionPage({ params }: Props) {
       label: label ? tidyCaps(label) : null,
       start: str(i.properties.start_datetime) ?? str(i.properties.datetime),
       end: str(i.properties.end_datetime) ?? null,
-      qc: i.edit?.qc ?? "pending",
-      dateApproved: i.edit?.date_approved ?? null,
     };
   });
 
@@ -57,15 +56,10 @@ export default async function CollectionPage({ params }: Props) {
           id: i.id,
           href: itemHref(c.id, i.id),
           label: itemLabel(i.properties) ? tidyCaps(itemLabel(i.properties)!) : undefined,
-          qc: i.edit?.qc ?? "pending",
         },
         geometry: i.geometry!,
       })),
   };
-
-  const counts: Record<string, number> = {};
-  for (const r of rows) counts[r.qc] = (counts[r.qc] ?? 0) + 1;
-  const reviewed = rows.length - (counts.pending ?? 0);
 
   const meta: Entry[] = [
     { key: "id", value: c.id, label: "Id" },
@@ -98,6 +92,7 @@ export default async function CollectionPage({ params }: Props) {
               <span className="ffx-num">{fmtRange(c.temporal[0], c.temporal[1])}</span>
             ) : null}
             {!c.fromDocument && <span>metadata derived from the items</span>}
+            <QcChip status={c.qc?.qc} />
           </>
         }
         actions={
@@ -127,24 +122,9 @@ export default async function CollectionPage({ params }: Props) {
 
       <div className="sx-cols">
         <div className="sx-col">
-          <Panel title="Review progress" id="qc">
+          <Panel title="Quality control" id="qc">
             <div className="px-[var(--ffx-panel-pad)] pb-[var(--ffx-panel-pad)] pt-1">
-              <div className="sx-bar" role="img" aria-label={`${reviewed} of ${rows.length} items reviewed`}>
-                {QC_STATUSES.filter((s) => s.value !== "pending").map((s) => (
-                  <span
-                    key={s.value}
-                    style={{ width: `${((counts[s.value] ?? 0) / Math.max(1, rows.length)) * 100}%`, background: `var(--ffx-${s.tone})` }}
-                  />
-                ))}
-              </div>
-              <div className="sx-bar-legend">
-                {QC_STATUSES.map((s) => (
-                  <span key={s.value} className="inline-flex items-center gap-1.5">
-                    <QcChip status={s.value} />
-                    <span className="ffx-num text-micro text-ink-mut">{counts[s.value] ?? 0}</span>
-                  </span>
-                ))}
-              </div>
+              <QcForm collection={c.id} edit={c.qc} />
             </div>
           </Panel>
           {c.description && (

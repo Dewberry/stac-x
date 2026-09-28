@@ -20,12 +20,10 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const catalog = await getCatalog();
   const byId = new Map(catalog.collections.map((c) => [c.id, c]));
-  const reviewedOf = (c: (typeof catalog.collections)[number]) =>
-    c.items.filter((i) => i.edit && i.edit.qc !== "pending").length;
 
   const areas: HomeArea[] = MODEL_AREAS.map((a) => {
     const c = a.collection ? byId.get(a.collection) : undefined;
-    if (!c) return { ...a, live: false, href: null, itemCount: null, temporal: null, reviewed: null };
+    if (!c) return { ...a, live: false, href: null, itemCount: null, temporal: null, qc: null };
     return {
       ...a,
       blurb: c.description ?? a.blurb,
@@ -34,7 +32,7 @@ export default async function Home() {
       href: collectionHref(c.id),
       itemCount: c.itemCount,
       temporal: c.temporal,
-      reviewed: reviewedOf(c),
+      qc: c.qc,
     };
   });
   const named = new Set(MODEL_AREAS.map((a) => a.collection));
@@ -51,7 +49,7 @@ export default async function Home() {
       href: collectionHref(c.id),
       itemCount: c.itemCount,
       temporal: c.temporal,
-      reviewed: reviewedOf(c),
+      qc: c.qc,
     });
   }
   areas.sort((a, b) => Number(b.live) - Number(a.live) || a.name.localeCompare(b.name));
@@ -68,7 +66,7 @@ export default async function Home() {
   const totals = {
     live: areas.filter((a) => a.live).length,
     items: catalog.collections.reduce((n, c) => n + c.itemCount, 0),
-    reviewed: catalog.collections.reduce((n, c) => n + reviewedOf(c), 0),
+    approved: catalog.collections.filter((c) => c.qc?.qc === "approved").length,
   };
 
   return (

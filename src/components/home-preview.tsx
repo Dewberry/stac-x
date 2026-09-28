@@ -4,12 +4,13 @@ import Link from "next/link";
 import { AREA_KIND_LABEL } from "@/lib/fixtures/areas";
 import { basinName } from "@/lib/basins";
 import { fmtNum } from "@/lib/format";
+import { QcChip } from "./qc-chip";
 import type { HomeArea } from "./home";
 
 /**
  * The card that opens over the map when a collection is selected. It says
  * enough to decide whether to open the collection: what it is, its basin,
- * its counts and dates, and how much of it has been reviewed. "Open
+ * its counts and dates, and where its QC stands. "Open
  * collection" is the only way into a collection from the landing page.
  * On a phone it sits at the bottom of the map as a sheet.
  */
@@ -29,9 +30,7 @@ export function HomePreview({
   area: HomeArea;
   onClose: () => void;
 }) {
-  const reviewed = area.reviewed ?? 0;
   const total = area.itemCount ?? 0;
-  const pct = total ? Math.round((reviewed / total) * 100) : 0;
   return (
     <div className="sx-preview" role="dialog" aria-label={area.name}>
       <div className="sx-preview-head">
@@ -67,16 +66,13 @@ export function HomePreview({
               <b className="ffx-num">{years(area.temporal)}</b>
               <span>period of record</span>
             </div>
-            <div>
-              <b className="ffx-num">{fmtNum(reviewed)}</b>
-              <span>reviewed</span>
-            </div>
           </div>
           <div className="sx-preview-rev">
-            <span className="sx-preview-l">Review progress</span>
-            <div className="sx-bar" role="img" aria-label={`${reviewed} of ${total} items reviewed`}>
-              <span style={{ width: `${pct}%`, background: "var(--ffx-verified)" }} />
-            </div>
+            <span className="sx-preview-l">Quality control</span>
+            <span className="sx-preview-qc">
+              <QcChip status={area.qc?.qc} />
+              {area.qc?.date_approved && <span className="ffx-num">{area.qc.date_approved}</span>}
+            </span>
           </div>
         </>
       )}

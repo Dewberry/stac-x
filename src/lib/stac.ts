@@ -39,8 +39,8 @@ export type StacItem = {
   assets: Record<string, StacAsset>;
 };
 
-/** The two editable fields, plus bookkeeping about the edit. */
-export type ItemEdit = {
+/** A collection's QC record: the editable fields, plus when it was saved. */
+export type QcEdit = {
   qc: QcStatus;
   date_approved: string | null;
   note?: string | null;
@@ -68,7 +68,6 @@ export function qcMeta(v: unknown) {
 export type CatalogItem = StacItem & {
   /** URI of the parquet file the row was read from. Never serialized. */
   source: string;
-  edit: ItemEdit | null;
 };
 
 export type Provider = {
@@ -95,23 +94,28 @@ export type Collection = {
   fromDocument: boolean;
   /** Remaining fields of collection.json that have no slot above. */
   extra: Record<string, unknown>;
+  /** The collection's QC record, from the sidecar. Null until someone saves one. */
+  qc: QcEdit | null;
   items: CatalogItem[];
 };
 
-/**
- * The item as STAC JSON for the wire and the JSON view. The edit lands in
- * properties, which is where an item's metadata belongs in STAC, under the
- * same names the geoparquet columns will carry once the pipeline writes them.
- */
+/** The item as STAC JSON for the wire and the JSON view. */
 export function toStacJson(item: CatalogItem): StacItem {
-  const { source: _source, edit, ...rest } = item;
+  const { source: _source, ...rest } = item;
   void _source;
-  const properties: Record<string, unknown> = { ...rest.properties };
-  if (edit) {
-    properties.qc = edit.qc;
-    properties.date_approved = edit.date_approved;
-    if (edit.note) properties.qc_note = edit.note;
-    properties.qc_updated_at = edit.updated_at;
-  }
-  return { ...rest, properties };
+  return rest;
+}
+
+/**
+ * A QC record as top-level collection fields, under the names the pipeline
+ * will use once it folds the sidecar into the collection metadata.
+ */
+export function qcFields(qc: QcEdit | null): Record<string, unknown> {
+  if (!qc) return { qc: "pending", date_approved: null };
+  return {
+    qc: qc.qc,
+    date_approved: qc.date_approved,
+    ...(qc.note ? { qc_note: qc.note } : {}),
+    qc_updated_at: qc.updated_at,
+  };
 }

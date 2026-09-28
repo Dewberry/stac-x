@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCollection } from "@/lib/catalog";
+import { qcFields } from "@/lib/stac";
 
 /** The collection as STAC JSON, with its items' links. */
 export async function GET(req: Request, { params }: { params: Promise<{ collection: string }> }) {
@@ -24,6 +25,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ collecti
       temporal: { interval: [c.temporal] },
     },
     ...c.extra,
+    ...qcFields(c.qc),
     "stac-x:sources": c.sources,
     "stac-x:item_count": c.itemCount,
     links: [

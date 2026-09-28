@@ -29,9 +29,9 @@ import {
  *
  * It draws one GeoJSON feature collection, fits itself to it, and treats a
  * feature with an href as a link: click it and the page navigates there, the
- * same as clicking its row in the list. Points are colored by QC status,
- * which is the one thing hue means in this app; lines and polygons are drawn
- * in ink, with an extent box dashed so it never reads as data.
+ * same as clicking its row in the list. Points are river blue, the color
+ * for data in this app; lines and polygons are drawn in ink, with an extent
+ * box dashed so it never reads as data.
  *
  * MapLibre because the program's collections will run to tens of thousands of
  * points, which rules out a DOM marker each, and because a GeoJSON source
@@ -58,7 +58,6 @@ export type MapFeatureProps = {
   id: string;
   href?: string;
   label?: string;
-  qc?: string;
   /** "extent" draws a dashed box instead of a filled shape. */
   kind?: "extent" | "feature";
 };
@@ -98,15 +97,6 @@ function boundsOf(data: FeatureCollection, bbox?: MapProps["bbox"]): LngLatBound
   return [[w, s], [e, n]];
 }
 
-const qcColor = (p: Palette): ExpressionSpecification => [
-  "match",
-  ["get", "qc"],
-  "approved", p.verified,
-  "rejected", p.bad,
-  "needs_revision", p.attn,
-  p.neutral,
-];
-
 function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, selected: string | null) {
   map.addSource(SRC, { type: "geojson", data, promoteId: "id" });
   const isExtent: ExpressionSpecification = ["==", ["get", "kind"], "extent"];
@@ -136,7 +126,7 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, select
     id: L.points, type: "circle", source: SRC, filter: ["all", notExtent, point],
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 3.5, 12, 7],
-      "circle-color": qcColor(p),
+      "circle-color": p.trace,
       "circle-stroke-color": p.surface,
       "circle-stroke-width": 1.25,
       "circle-opacity": 0.95,

@@ -1,16 +1,16 @@
 import "server-only";
 
 import { refreshMs, sources as configuredSources } from "./config";
-import { editKey, readEdits } from "./edits";
+import { readEdits } from "./edits";
 import { readItems } from "./parquet";
-import type { CatalogItem, Collection, Provider, StacItem } from "./stac";
+import type { CatalogItem, Collection, Provider, QcEdit, StacItem } from "./stac";
 import { awsLooksConfigured, head, isS3, listParquet, readJson } from "./storage";
 
 /**
  * The in-memory catalog.
  *
  * Every request wants the same thing: all items from all configured parquet
- * files, with edits merged in, grouped by collection. Parsing a file is
+ * files, grouped by collection, with each collection's QC record merged in. Parsing a file is
  * milliseconds for hundreds of rows and under a second for a hundred
  * thousand, so the whole thing is held in memory and rebuilt when a file's
  * ETag changes. ETags are checked at most every STAC_REFRESH_SECONDS, so a
@@ -25,7 +25,8 @@ type SourceState = {
   etag: string;
   items: StacItem[];
   editsEtag: string | null;
-  edits: Record<string, CatalogItem["edit"]>;
+  /** QC records from the sidecar, by collection id. */
+  qc: Record<string, QcEdit>;
   checkedAt: number;
   error: string | null;
 };
@@ -93,7 +94,7 @@ async function build(): Promise<Catalog> {
     if (s.error) errors.push(`${uri}: ${s.error}`);
     for (const item of s.items) {
       const list = byCollection.get(item.collection) ?? [];
-      list.push({ ...item, source: uri, edit: s.edits[editKey(item.collection, item.id)] ?? null });
+      list.push({ ...item, source: uri });
       byCollection.set(item.collection, list);
     }
   }
@@ -131,7 +132,7 @@ async function refreshSource(uri: string, now: number) {
     etag: "",
     items: [],
     editsEtag: null,
-    edits: {},
+    qc: {},
     checkedAt: 0,
     error: null,
   };
@@ -143,7 +144,7 @@ async function refreshSource(uri: string, now: number) {
       state.etag = h.etag;
     }
     const { edits, etag } = await readEdits(uri);
-    state.edits = edits.items;
+    state.qc = edits.collections;
     state.editsEtag = etag;
     state.error = null;
   } catch (e) {
@@ -165,6 +166,7 @@ async function describeCollection(id: string, items: CatalogItem[], now: number)
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
   const sources = Array.from(new Set(items.map((i) => i.source)));
+  const qc = qcFor(id, sources);
 
   if (doc) {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
@@ -188,6 +190,7 @@ async function describeCollection(id: string, items: CatalogItem[], now: number)
       sources,
       fromDocument: true,
       extra,
+      qc,
       items,
     };
   }
@@ -205,8 +208,19 @@ async function describeCollection(id: string, items: CatalogItem[], now: number)
     sources,
     fromDocument: false,
     extra: {},
+    qc,
     items,
   };
+}
+
+/** The newest QC record for a collection across the sidecars of its files. */
+function qcFor(id: string, sources: string[]): QcEdit | null {
+  let best: QcEdit | null = null;
+  for (const uri of sources) {
+    const r = cache.sources.get(uri)?.qc[id];
+    if (r && (!best || r.updated_at > best.updated_at)) best = r;
+  }
+  return best;
 }
 
 async function collectionDoc(items: CatalogItem[], now: number): Promise<CollectionDoc> {

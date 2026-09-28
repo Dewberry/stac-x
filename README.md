@@ -2,7 +2,7 @@
 
 A STAC viewer for FFRD's Colorado data. It reads stac-geoparquet files
 straight from S3, draws every collection on a map of the state, and lets a
-reviewer record QC on each item. The one thing it writes is that QC record.
+reviewer record QC on each collection. The one thing it writes is that QC record.
 
 The layout follows STAC Browser, which is the layout people already know:
 breadcrumbs, a title row with the page's actions, and two columns under it.
@@ -99,9 +99,10 @@ temporal range) and the page says so.
 
 ## QC edits
 
-Reviewers set a status (not reviewed, approved, needs revision, rejected), an
-approval date, and an optional note. Picking Approved fills today's date,
-which stays editable.
+QC is recorded per collection, on the collection page: a status (not
+reviewed, approved, needs revision, rejected), an approval date, and an
+optional note. Picking Approved fills today's date, which stays editable.
+Items don't carry their own QC.
 
 Edits are not written into the parquet file. They go to a JSON sidecar beside
 it:
@@ -115,9 +116,10 @@ Rewriting a parquet file for two cells means re-encoding every column and
 reproducing the geo metadata exactly, and the next pipeline run would drop the
 edit anyway. The sidecar is one small object that can't corrupt the source,
 every write is a full record, and the pipeline can fold it into the parquet on
-its next run. The viewer merges it on read, so to a reader the item simply has
-`qc` and `date_approved` in its properties, which is also how the item JSON
-API returns them.
+its next run. The viewer merges it on read, so to a reader the collection
+simply has `qc` and `date_approved`, which is also how the collection JSON
+API returns them. The sidecar is keyed by collection id. A collection whose
+items span several parquet files keeps its record beside the first one.
 
 Writes are conditional on the sidecar's ETag (S3 `If-Match`), so two reviewers
 saving at once can't overwrite each other; the loser re-reads and retries.
