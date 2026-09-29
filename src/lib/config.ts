@@ -55,3 +55,18 @@ export const catalogDescription =
 export const refreshMs = Number(process.env.STAC_REFRESH_SECONDS || 30) * 1000;
 
 export const awsRegion = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
+
+/**
+ * A link to an S3 object in Cloud View, Dewberry's internal browser for the
+ * bucket, where people can find the file and download it. CLOUD_VIEW_URL is
+ * a template: {bucket} and {key} are filled in from the s3:// href, so it
+ * fits whatever shape Cloud View's links take. Null for anything outside S3,
+ * or while the template isn't set.
+ */
+export function cloudViewHref(href: string): string | null {
+  const template = process.env.CLOUD_VIEW_URL?.trim();
+  const m = /^s3:\/\/([^/]+)\/(.*)$/.exec(href);
+  if (!template || !m) return null;
+  const key = m[2].split("/").map(encodeURIComponent).join("/");
+  return template.replaceAll("{bucket}", encodeURIComponent(m[1])).replaceAll("{key}", key);
+}

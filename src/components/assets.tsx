@@ -2,15 +2,17 @@ import { AssetPreview, Thumbnail } from "./asset-preview";
 import { CopyButton } from "./copy-button";
 import { Grid, MetaTable } from "./meta-table";
 import { Icon, ICONS } from "./shell";
+import { cloudViewHref } from "@/lib/config";
 import { humanize, isImageType, isParquetType, mediaLabel } from "@/lib/format";
 import type { StacAsset } from "@/lib/stac";
 import { assetHref } from "@/lib/utils";
 
 /**
- * The assets of an item, one closed card each. Thumbnails open by default
- * and show their image; everything else opens to its description, its
- * actions and whatever extra fields the asset carries. A parquet asset gets
- * a preview button that pulls its first rows through the server.
+ * The assets of an item, one card each, all closed to start since an item can
+ * carry a lot of them. A card opens to its description, its image if it has
+ * one, its actions and whatever extra fields the asset carries. An asset in S3 gets a Cloud View button, and a
+ * parquet asset gets a preview button that pulls its first rows through the
+ * server.
  */
 const KNOWN = new Set(["href", "title", "description", "type", "roles"]);
 
@@ -36,8 +38,9 @@ export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
         const tables = extra.filter(([, v]) => isRowList(v)) as [string, Record<string, unknown>[]][];
         const fields = extra.filter(([, v]) => !isRowList(v));
         const s3 = a.href.startsWith("s3://");
+        const cloudView = cloudViewHref(a.href);
         return (
-          <details key={key} className="sx-asset" open={image || extra.length > 0}>
+          <details key={key} className="sx-asset">
             <summary>
               <span className="sx-asset-name">{a.title || humanize(key)}</span>
               {a.type && <span className="sx-tag">{mediaLabel(a.type)}</span>}
@@ -56,6 +59,17 @@ export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
                   <Icon d={ICONS.download} size={12} /> Download
                 </a>
                 <CopyButton text={a.href} label={s3 ? "Copy S3 URI" : "Copy URL"} />
+                {cloudView ? (
+                  <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
+                    <Icon d={ICONS.external} size={12} /> Cloud View
+                  </a>
+                ) : (
+                  s3 && (
+                    <button type="button" className="ffx-btn ffx-btn-sm" disabled title="Cloud View link isn't set up yet">
+                      <Icon d={ICONS.external} size={12} /> Cloud View
+                    </button>
+                  )
+                )}
                 {parquet && <AssetPreview href={a.href} />}
               </div>
               <div className="sx-asset-href">{a.href}</div>
