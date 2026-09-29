@@ -27,7 +27,9 @@ npm run dev
 Open http://localhost:3000. With nothing configured each environment reads its
 own folder under `.\data`, so it runs with no AWS account. The sample gages
 file is in `data\dev`, which means it shows up at http://localhost:3000/dev.
-Production, at the unprefixed URLs, stays empty until that collection is
+Beside it, `sp-gages-v1.parquet` and `sp-gages-v2.parquet` are two versions
+of a copy of it (see Versions), there so the version menu has something to
+show. Production, at the unprefixed URLs, stays empty until a collection is
 approved through Testing (see Environments). The map
 tiles come from OpenFreeMap and need the internet; without them the data still
 draws over a plain ground.
