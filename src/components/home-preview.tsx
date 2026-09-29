@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AREA_KIND_LABEL } from "@/lib/fixtures/areas";
+import { AREA_KIND_LABEL, AREA_KIND_TIME } from "@/lib/kinds";
 import { basinName } from "@/lib/basins";
 import { fmtNum } from "@/lib/format";
 import { QcChip } from "./qc-chip";
@@ -64,7 +64,7 @@ export function HomePreview({
             </div>
             <div>
               <b className="ffx-num">{years(area.temporal)}</b>
-              <span>period of record</span>
+              <span>{AREA_KIND_TIME[area.kind]}</span>
             </div>
           </div>
           <div className="sx-preview-rev">

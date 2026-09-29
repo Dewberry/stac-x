@@ -2172,3 +2172,14 @@ main:focus {
   background: var(--ffx-trace-strong);
   opacity: 0.85;
 }
+.sx-legend-area {
+  width: 11px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1.25px solid var(--ffx-trace-strong);
+  background: color-mix(in srgb, var(--ffx-trace-strong) 14%, transparent);
+}
+.sx-legend-area[data-extent="true"] {
+  border-style: dashed;
+  background: transparent;
+}

@@ -32,8 +32,12 @@ import { BASINS_URL } from "@/lib/basins";
  *
  * Under the markers, GeoJSON layers draw the USGS four-digit basins, tinted
  * where a basin has published or planned work, the state as a dashed box,
- * and the real items of every live collection as small dots. Clicking a
- * basin selects it, which zooms the map and scrolls the rail to its group.
+ * and the footprint of every live collection: small dots for point items
+ * like gages, a faint fill and an outline for the area a model covers, or a
+ * dashed box when the shapes were too heavy to send (lib/overview.ts decides
+ * which). The pin says where a collection is; the footprint says how much
+ * ground it covers. Clicking a basin selects it, which zooms the map and
+ * scrolls the rail to its group.
  */
 
 const SRC_STATE = "sx-state";
@@ -48,6 +52,9 @@ const L = {
   stateLine: "sx-state-line",
   areaFill: "sx-area-fill",
   areaLine: "sx-area-line",
+  itemFill: "sx-live-fill",
+  itemExtent: "sx-live-extent",
+  itemLine: "sx-live-line",
   items: "sx-live-items",
 };
 
@@ -149,7 +156,9 @@ function addLayers(
     id: L.stateLine, type: "line", source: SRC_STATE,
     paint: { "line-color": p.inkSec, "line-width": 1.75, "line-opacity": 0.9 },
   });
-  const isHi: ExpressionSpecification = ["==", ["get", "slug"], highlight ?? ""];
+  // A planned area has no footprint yet, so its box stands in when it's
+  // pointed at. A live one lights up its own footprint instead.
+  const isHi = plannedFilter(highlight);
   map.addLayer({
     id: L.areaFill, type: "fill", source: SRC_AREAS, filter: isHi,
     paint: { "fill-color": p.trace, "fill-opacity": 0.1 },
@@ -158,8 +167,24 @@ function addLayers(
     id: L.areaLine, type: "line", source: SRC_AREAS, filter: isHi,
     paint: { "line-color": p.trace, "line-width": 1.5, "line-dasharray": [2, 1.5] },
   });
+  const role = (r: string): ExpressionSpecification => ["==", ["get", "role"], r];
   map.addLayer({
-    id: L.items, type: "circle", source: SRC_ITEMS,
+    id: L.itemFill, type: "fill", source: SRC_ITEMS, filter: role("fill"),
+    // Antialiasing draws a seam wherever two subbasins meet; the outline
+    // layer already gives the edge.
+    paint: { "fill-color": p.trace, "fill-opacity": fillOpacity(highlight), "fill-antialias": false },
+  });
+  map.addLayer({
+    id: L.itemExtent, type: "line", source: SRC_ITEMS, filter: role("extent"),
+    paint: { "line-color": p.trace, "line-width": lineWidth(highlight), "line-dasharray": [2, 1.5] },
+  });
+  map.addLayer({
+    id: L.itemLine, type: "line", source: SRC_ITEMS, filter: role("line"),
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": p.trace, "line-width": lineWidth(highlight), "line-opacity": 0.9 },
+  });
+  map.addLayer({
+    id: L.items, type: "circle", source: SRC_ITEMS, filter: role("point"),
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.5, 9, 4.5],
       "circle-color": p.trace,
@@ -168,6 +193,19 @@ function addLayers(
       "circle-stroke-width": 0.8,
     },
   });
+}
+
+function plannedFilter(highlight: string | null): ExpressionSpecification {
+  return ["all", ["==", ["get", "slug"], highlight ?? ""], ["!", ["get", "live"]]];
+}
+
+/** Footprints stay faint so overlapping models don't muddy; the pointed-at one comes up. */
+function fillOpacity(highlight: string | null): ExpressionSpecification {
+  return ["case", ["==", ["get", "slug"], highlight ?? ""], 0.2, 0.07];
+}
+
+function lineWidth(highlight: string | null): ExpressionSpecification {
+  return ["case", ["==", ["get", "slug"], highlight ?? ""], 2.25, 1.1];
 }
 
 export function HomeMap({
@@ -182,7 +220,7 @@ export function HomeMap({
   onBasinSelect,
 }: {
   areas: HomeArea[];
-  /** Real items from every live collection, as points. */
+  /** Every live collection's footprint, from lib/overview.ts. */
   items: FeatureCollection;
   /** Which basins have published or planned work, by HUC4. */
   basinState: BasinState;
@@ -199,6 +237,8 @@ export function HomeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, { marker: Marker; el: HTMLElement }>>(new Map());
   const [credits, setCredits] = useState<Credit[]>([]);
+  // The legend lists only the kinds of footprint the map has on it.
+  const drawn = new Set(areas.map((a) => a.drawn));
   const [basemapDown, setBasemapDown] = useState(false);
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
@@ -350,10 +390,13 @@ export function HomeMap({
 
   useEffect(() => {
     const m = mapRef.current;
-    const filter: ExpressionSpecification = ["==", ["get", "slug"], highlight ?? ""];
     if (m?.getLayer(L.areaFill)) {
+      const filter = plannedFilter(highlight);
       m.setFilter(L.areaFill, filter);
       m.setFilter(L.areaLine, filter);
+      m.setPaintProperty(L.itemFill, "fill-opacity", fillOpacity(highlight));
+      m.setPaintProperty(L.itemLine, "line-width", lineWidth(highlight));
+      m.setPaintProperty(L.itemExtent, "line-width", lineWidth(highlight));
     }
     markersRef.current.forEach(({ el }, slug) => {
       el.dataset.active = String(slug === highlight);
@@ -393,9 +436,21 @@ export function HomeMap({
           <span className="sx-legend">
             <span className="sx-pin-mark" data-live="false" aria-hidden="true" /> In progress
           </span>
-          <span className="sx-legend">
-            <span className="sx-legend-dot" aria-hidden="true" /> Item
-          </span>
+          {drawn.has("points") && (
+            <span className="sx-legend">
+              <span className="sx-legend-dot" aria-hidden="true" /> Item location
+            </span>
+          )}
+          {drawn.has("areas") && (
+            <span className="sx-legend">
+              <span className="sx-legend-area" aria-hidden="true" /> Area covered
+            </span>
+          )}
+          {drawn.has("extent") && (
+            <span className="sx-legend">
+              <span className="sx-legend-area" data-extent="true" aria-hidden="true" /> Extent
+            </span>
+          )}
         </span>
         <CreditLine credits={credits} />
       </figcaption>

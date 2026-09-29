@@ -88,6 +88,8 @@ src/lib/env.ts              the three environments and the links between them
 src/lib/edits.ts            the QC sidecar: where it lives, how it is written
 src/lib/promote.ts          copies an approved collection to the next environment
 src/lib/fixtures/areas.ts   the mocked model areas on the landing page
+src/lib/overview.ts         what each collection draws on the landing page map
+src/lib/kinds.ts            collection kinds (gages, HMS, RAS...) and their labels
 data/dev/                   sample parquet; data/test and data/prod fill as you promote (ignored by git)
 scripts/vendor-maplibre.mjs copies MapLibre's worker into public/ before dev and build
 ```
@@ -167,11 +169,23 @@ collection list beside a map of Colorado showing every model area in the state. 
 collection exists as a geoparquet file (the South Platte gages). The rest come
 from `src/lib/fixtures/areas.ts`, a mocked list of basins and model domains.
 An entry there whose `collection` id the catalog holds becomes live: it links
-to the collection, its counts are real, and its items are drawn on the map.
+to the collection, its counts are real, and its footprint is drawn on the map.
 Everything else is drawn as in progress and can't be opened. A collection in the
-catalog that no entry names is added as its own live area, so nothing here
-has to change for a new file to appear. Delete mock entries as real
-collections land.
+catalog that no entry names is added as its own live area, placed in the basin
+under the middle of its extent, with its kind guessed from its id and
+keywords, so nothing here has to change for a new file to appear. Delete mock
+entries as real collections land.
+
+Every collection gets a pin; what's drawn under the pin depends on the shape
+of its items, not on what kind of collection it is. Point items, like gages,
+are drawn as dots. A model's items are usually polygons: thousands of
+simulated events sharing one domain, or subbasins that tile it, or a few 2D
+flow areas and 1D reaches. Drawing those one by one says nothing at state
+scale, so `src/lib/overview.ts` draws each distinct shape once, as a faint
+fill, and outlines the whole with the edges between neighbors removed, which
+turns a model's subbasins into its domain. When a collection's shapes are
+too heavy to send to the browser, its extent is drawn as a dashed box
+instead. The legend lists only what's on the map.
 
 Clicking a collection in the rail or a pin on the map opens a card over the
 map with the collection's description, counts, dates and review progress;

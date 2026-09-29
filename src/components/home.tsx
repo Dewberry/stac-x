@@ -3,7 +3,7 @@
 import nextDynamic from "next/dynamic";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { FeatureCollection } from "geojson";
-import { AREA_KIND_LABEL, type AreaKind } from "@/lib/fixtures/areas";
+import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { basinName } from "@/lib/basins";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { HomePreview } from "./home-preview";
@@ -38,6 +38,8 @@ export type HomeArea = {
   huc4: string;
   bbox: [number, number, number, number];
   live: boolean;
+  /** How the collection's footprint is drawn on the map; null when it isn't. See lib/overview.ts. */
+  drawn: "points" | "areas" | "extent" | null;
   href: string | null;
   jsonHref: string | null;
   itemCount: number | null;

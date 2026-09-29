@@ -1,8 +1,12 @@
 import type { FeatureCollection } from "geojson";
 import { HomeConsole, type HomeArea } from "@/components/home";
+import { basinAt } from "@/lib/basin-at";
 import { getCatalog, unionBbox } from "@/lib/catalog";
+import { basinName } from "@/lib/basins";
 import { catalogDescription } from "@/lib/config";
 import { MODEL_AREAS } from "@/lib/fixtures/areas";
+import { guessKind } from "@/lib/kinds";
+import { overview } from "@/lib/overview";
 import { pageEnv } from "@/lib/page-env";
 import { collectionHref, collectionJsonHref } from "@/lib/utils";
 
@@ -13,24 +17,40 @@ export const dynamic = "force-dynamic";
  *
  * The area list is the mock in fixtures/areas.ts joined to the catalog. An
  * area whose collection the catalog holds is live: it links to the
- * collection, its counts are real, and its items are drawn on the map. A
+ * collection, its counts are real, and its footprint is drawn on the map
+ * (points for gages, the covered area for a model; see lib/overview.ts). A
  * collection in the catalog that no mock area names is added as its own live
- * area, so a new parquet file in the bucket shows up here with no code
- * change. Everything else is planned.
+ * area, placed in the basin under the middle of its extent, so a new parquet
+ * file in the bucket shows up here with no code change. Everything else is
+ * planned.
  */
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {
   const env = await pageEnv(params);
   const catalog = await getCatalog(env);
   const byId = new Map(catalog.collections.map((c) => [c.id, c]));
 
+  // One footprint per collection, tagged with its area's slug (the
+  // collection id when no mock area names it) so the map can light it up
+  // with its pin. Biggest first, so a small model inside a big one draws on
+  // top of it.
+  const slugOf = new Map(MODEL_AREAS.map((a) => [a.collection, a.slug]));
+  const extentArea = (b: [number, number, number, number] | null) => (b ? (b[2] - b[0]) * (b[3] - b[1]) : 0);
+  const footprints = catalog.collections
+    .map((c) => ({ c, slug: slugOf.get(c.id) ?? c.id }))
+    .sort((x, y) => extentArea(y.c.bbox) - extentArea(x.c.bbox))
+    .map(({ c, slug }) => ({ slug, ...overview(c.items, slug, c.bbox) }));
+  const drawn = new Map(footprints.map((f) => [f.slug, f.shape]));
+  const items: FeatureCollection = { type: "FeatureCollection", features: footprints.flatMap((f) => f.features) };
+
   const areas: HomeArea[] = MODEL_AREAS.map((a) => {
     const c = a.collection ? byId.get(a.collection) : undefined;
-    if (!c) return { ...a, live: false, href: null, jsonHref: null, itemCount: null, temporal: null, qc: null };
+    if (!c) return { ...a, live: false, drawn: null, href: null, jsonHref: null, itemCount: null, temporal: null, qc: null };
     return {
       ...a,
       blurb: c.description ?? a.blurb,
       bbox: c.bbox ?? a.bbox,
       live: true,
+      drawn: drawn.get(a.slug) ?? null,
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
@@ -41,14 +61,17 @@ export default async function Home({ params }: { params: Promise<{ env: string }
   const named = new Set(MODEL_AREAS.map((a) => a.collection));
   for (const c of catalog.collections) {
     if (named.has(c.id)) continue;
+    const bbox = c.bbox ?? unionBbox(c.items) ?? [-109.06, 36.99, -102.04, 41.0];
+    const huc4 = (await basinAt([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2])) ?? "";
     areas.push({
       slug: c.id,
       name: c.title,
-      kind: "gages",
-      basin: "Colorado",
-      huc4: "1019",
-      bbox: c.bbox ?? unionBbox(c.items) ?? [-109.06, 36.99, -102.04, 41.0],
+      kind: guessKind(c),
+      basin: basinName(huc4),
+      huc4,
+      bbox,
       live: true,
+      drawn: drawn.get(c.id) ?? null,
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
@@ -57,15 +80,6 @@ export default async function Home({ params }: { params: Promise<{ env: string }
     });
   }
   areas.sort((a, b) => Number(b.live) - Number(a.live) || a.name.localeCompare(b.name));
-
-  const items: FeatureCollection = {
-    type: "FeatureCollection",
-    features: catalog.collections.flatMap((c) =>
-      c.items
-        .filter((i) => i.geometry)
-        .map((i) => ({ type: "Feature" as const, properties: { id: i.id, collection: c.id }, geometry: i.geometry! })),
-    ),
-  };
 
   const totals = {
     live: areas.filter((a) => a.live).length,

@@ -29,6 +29,8 @@ export const BASINS: Record<string, string> = {
 
 export const BASINS_URL = "/data/co-huc4.json";
 
+/** An empty code is a collection outside every basin above. */
 export function basinName(huc4: string): string {
+  if (!huc4) return "Outside Colorado";
   return BASINS[huc4] ?? `HUC ${huc4}`;
 }

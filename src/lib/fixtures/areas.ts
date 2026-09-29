@@ -16,15 +16,7 @@
  * comes from its items and replaces the box.
  */
 
-export type AreaKind = "gages" | "hms" | "ras" | "ressim" | "storms";
-
-export const AREA_KIND_LABEL: Record<AreaKind, string> = {
-  gages: "USGS gages",
-  hms: "HEC-HMS model",
-  ras: "HEC-RAS model",
-  ressim: "HEC-ResSim model",
-  storms: "Storm catalog",
-};
+import type { AreaKind } from "@/lib/kinds";
 
 export type ModelArea = {
   slug: string;
