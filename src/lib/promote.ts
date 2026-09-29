@@ -5,7 +5,7 @@ import { landingFolder } from "./config";
 import { logEvent, updateEdits } from "./edits";
 import { nextEnv, type EnvKey } from "./env";
 import type { Collection } from "./stac";
-import { baseName, read, write } from "./storage";
+import { baseName, parseRef, read, write } from "./storage";
 
 /**
  * Move a collection forward one environment.
@@ -21,7 +21,9 @@ import { baseName, read, write } from "./storage";
  * sidecars log the move.
  *
  * A parquet file that also holds items of another collection is refused,
- * since copying it would promote that collection too.
+ * since copying it would promote that collection too. So is one whose name
+ * is taken in the next environment by another collection, usually another
+ * version of this one.
  */
 export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
   const to = nextEnv(env);
@@ -37,7 +39,21 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
     }
   }
 
+  // Files land by name alone, so two versions whose files share a name
+  // (v1/gages.parquet, v2/gages.parquet) would replace each other there.
   const folder = landingFolder(to.key);
+  const there = await getCatalog(to.key);
+  for (const uri of c.sources) {
+    const landing = parseRef(`${folder}${baseName(uri)}`).uri;
+    const target = there.sources.find((s) => parseRef(s.uri).uri === landing);
+    const other = target?.collections.find((id) => id !== c.id);
+    if (other) {
+      throw new Error(
+        `${baseName(uri)} in ${to.label} already holds ${other}. Give this version's file its own name before sending it on.`,
+      );
+    }
+  }
+
   const at = new Date().toISOString();
   const copied: string[] = [];
   for (const uri of c.sources) {

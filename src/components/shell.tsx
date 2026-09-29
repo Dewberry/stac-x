@@ -11,7 +11,7 @@ export { Icon, ICONS } from "./icons";
  * program: a navy header bar with the wordmark alone on one line, and a
  * footer band with the app's note on the left and the palette control at its
  * right end. Both sit on the same 96rem shell and the same edge gutter.
- * Navigation is the map and the Up actions, the way every STAC viewer works.
+ * Navigation is the map and the Collection and Up actions, as in STAC Browser.
  * Signed in, the header's right end holds the environment switcher and the
  * account badge.
  */
@@ -46,19 +46,22 @@ export function SiteFooter() {
 }
 
 /**
- * The top of a collection or item page, one line so the map starts high:
- * the title with the page's facts beside it, the page's actions at the
- * right end. There is no breadcrumb trail; the Up action is the way back.
+ * The top of a collection or item page, laid out like STAC Browser's: the
+ * title (with the page's facts beside it) on the left, and at the right end
+ * the navigation group followed by the source group. There's no breadcrumb,
+ * since STAC Browser has none; Collection and Up are the way back.
  */
 export function PageHead({
   kicker,
   title,
   subtitle,
+  nav,
   actions,
 }: {
   kicker?: string;
   title: ReactNode;
   subtitle?: ReactNode;
+  nav?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
@@ -68,7 +71,16 @@ export function PageHead({
         <h1 className="sx-title">{title}</h1>
         {subtitle && <div className="sx-subtitle">{subtitle}</div>}
       </div>
-      {actions && <div className="sx-actions">{actions}</div>}
+      {(nav || actions) && (
+        <div className="sx-actions">
+          {nav && (
+            <nav className="sx-action-group" aria-label="Go to">
+              {nav}
+            </nav>
+          )}
+          {actions && <div className="sx-action-group">{actions}</div>}
+        </div>
+      )}
     </div>
   );
 }

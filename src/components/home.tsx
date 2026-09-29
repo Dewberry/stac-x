@@ -46,6 +46,9 @@ export type HomeArea = {
   temporal: [string | null, string | null] | null;
   /** The collection's QC record; null when it has none or isn't published. */
   qc: QcEdit | null;
+  /** The latest version's label, and how many versions came before it. */
+  version?: string | null;
+  earlier?: number;
   blurb?: string;
   pin?: [number, number];
   anchor?: "left" | "right" | "top" | "bottom";

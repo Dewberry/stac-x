@@ -11,12 +11,15 @@ import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { PromotionPath } from "@/components/promotion-path";
 import { QcHistory } from "@/components/qc-history";
+import { VersionMenu } from "@/components/version-menu";
+import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { ENVS } from "@/lib/env";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
 import { baseName } from "@/lib/storage";
 import { collectionJsonHref, itemHref, withEnvHome } from "@/lib/utils";
+import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +33,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * A collection: the STAC Browser layout. Map across the top, then QC,
- * description and metadata in one column and the item list in the other.
- * QC is recorded for the collection as a whole, so its form lives here.
+ * A collection: the STAC Browser layout. The left column is what describes
+ * the collection (description, license and temporal extent, the map, then
+ * metadata) and the right column is its items. QC is recorded for the
+ * collection as a whole, so its form sits in the left column under the map.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -71,17 +75,24 @@ export default async function CollectionPage({ params }: Props) {
       })),
   };
 
+  // License and temporal extent sit under the description, as in STAC Browser.
+  const facts: Entry[] = [
+    ...(c.license ? [{ key: "license", value: c.license, label: "License" }] : []),
+    ...(c.temporal[0] || c.temporal[1]
+      ? [{ key: "temporal", value: fmtRange(c.temporal[0], c.temporal[1]), label: "Temporal extent" }]
+      : []),
+  ];
+
+  const version = c.series.versions.find((v) => v.id === c.id)?.label ?? c.version;
   const meta: Entry[] = [
     { key: "id", value: c.id, label: "Id" },
+    ...(version ? [{ key: "version", value: version, label: "Version" }] : []),
     { key: "items", value: c.itemCount, label: "Items" },
-    { key: "temporal", value: fmtRange(c.temporal[0], c.temporal[1]) || null, label: "Temporal extent" },
     {
       key: "bbox",
       value: c.bbox ? c.bbox.map((n) => n.toFixed(4)).join(", ") : null,
       label: "Spatial extent",
     },
-    ...(c.license ? [{ key: "license", value: c.license, label: "License" }] : []),
-    ...(c.keywords.length ? [{ key: "keywords", value: c.keywords, label: "Keywords" }] : []),
     ...(c.providers.length
       ? [{ key: "providers", value: c.providers.map((p) => `${p.name}${p.roles?.length ? ` (${p.roles.join(", ")})` : ""}`), label: "Providers" }]
       : []),
@@ -95,6 +106,7 @@ export default async function CollectionPage({ params }: Props) {
         title={c.title}
         subtitle={
           <>
+            {c.series.versions.length < 2 && c.version && <span>{versionName(c.version)}</span>}
             <span>
               <span className="ffx-num">{fmtNum(c.itemCount)}</span> items
             </span>
@@ -105,33 +117,56 @@ export default async function CollectionPage({ params }: Props) {
             <QcChip status={c.qc?.qc} />
           </>
         }
-        actions={
+        nav={
           <>
-            <Link href={withEnvHome(env)} className="ffx-btn ffx-btn-sm">
+            <Link href={withEnvHome(env)} className="ffx-btn ffx-btn-sm" title="Go to parent: Colorado">
               <Icon d={ICONS.up} size={12} /> Up
             </Link>
-            <CopyButton currentUrl label="Copy link" icon={ICONS.link} />
+            {c.series.versions.length > 1 && <VersionMenu env={env} current={c.id} series={c.series} />}
+          </>
+        }
+        actions={
+          <>
             <a href={collectionJsonHref(env, c.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
               <Icon d={ICONS.json} size={12} /> JSON
             </a>
             <a href={`${collectionJsonHref(env, c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
               <Icon d={ICONS.download} size={12} /> Download
             </a>
+            <CopyButton currentUrl label="Copy link" icon={ICONS.link} />
           </>
         }
       />
 
-      <div className="sx-mapwide">
-        <DataMap
-          data={geo}
-          bbox={c.bbox}
-          label={`Items of ${c.title}`}
-          hint={`${fmtNum(geo.features.length)} items located. Point at one for its name, click to open it.`}
-        />
-      </div>
+      <VersionNotice env={env} c={c} />
 
       <div className="sx-cols">
         <div className="sx-col">
+          {(c.description || c.keywords.length > 0 || facts.length > 0) && (
+            <Panel title="Description" id="about">
+              {c.description && <div className="sx-desc ffx-prose">{c.description}</div>}
+              {c.keywords.length > 0 && (
+                <ul className="sx-keywords" aria-label="Keywords">
+                  {c.keywords.map((k) => (
+                    <li key={k}>{k}</li>
+                  ))}
+                </ul>
+              )}
+              {facts.length > 0 && (
+                <div className="pb-2">
+                  <MetaTable entries={facts} />
+                </div>
+              )}
+            </Panel>
+          )}
+          <div className="sx-mapcard">
+            <DataMap
+              data={geo}
+              bbox={c.bbox}
+              label={`Items of ${c.title}`}
+              hint={`${fmtNum(geo.features.length)} items located. Point at one for its name, click to open it.`}
+            />
+          </div>
           <Panel title="Quality control" id="qc">
             <div className="px-[var(--ffx-panel-pad)] pb-[var(--ffx-panel-pad)] pt-1">
               <PromotionPath current={env} stages={everywhere.map((s) => ({ env: s.env, qc: s.collection ? s.collection.qc?.qc ?? "pending" : null }))} />
@@ -141,11 +176,6 @@ export default async function CollectionPage({ params }: Props) {
           {c.history.length > 0 && (
             <Panel title="History" id="history">
               <QcHistory events={c.history} />
-            </Panel>
-          )}
-          {c.description && (
-            <Panel title="About">
-              <div className="sx-desc ffx-prose">{c.description}</div>
             </Panel>
           )}
           <Panel title="Metadata" id="meta">

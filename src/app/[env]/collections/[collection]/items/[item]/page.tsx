@@ -8,10 +8,12 @@ import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
+import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
-import { fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
-import { collectionHref, itemHref, itemJsonHref } from "@/lib/utils";
+import { fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
+import { collectionHref, itemJsonHref } from "@/lib/utils";
+import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
 
@@ -35,11 +37,9 @@ export default async function ItemPage({ params }: Props) {
   const c = await getCollection(env, decodeURIComponent(rawC));
   if (!c) return <NotInEnv env={env} collection={decodeURIComponent(rawC)} />;
   const id = decodeURIComponent(rawI);
-  const index = c.items.findIndex((x) => x.id === id);
-  if (index < 0) notFound();
-  const item = c.items[index];
-  const prev = c.items[index - 1] ?? null;
-  const next = c.items[index + 1] ?? null;
+  const item = c.items.find((x) => x.id === id);
+  if (!item) notFound();
+  const version = c.series.versions.length > 1 ? c.series.versions.find((v) => v.id === c.id)?.label ?? null : null;
 
   const label = itemLabel(item.properties);
   const title = label ? tidyCaps(label) : item.id;
@@ -54,7 +54,6 @@ export default async function ItemPage({ params }: Props) {
 
   const core: Entry[] = [
     { key: "id", value: item.id, label: "Id" },
-    { key: "collection", value: c.id, label: "Collection" },
     ...(p.start_datetime || p.end_datetime
       ? [{ key: "range", value: fmtRange(str(p.start_datetime), str(p.end_datetime)), label: "Period" }]
       : []),
@@ -83,30 +82,18 @@ export default async function ItemPage({ params }: Props) {
             {!label && str(p.description)}
           </>
         }
+        nav={
+          <>
+            <Link href={collectionHref(env, c.id)} className="ffx-btn ffx-btn-sm" title={`Go to the collection: ${c.title}`}>
+              <Icon d={ICONS.folder} size={12} /> Collection
+            </Link>
+            <Link href={collectionHref(env, c.id)} className="ffx-btn ffx-btn-sm" title={`Go to parent: ${c.title}`}>
+              <Icon d={ICONS.up} size={12} /> Up
+            </Link>
+          </>
+        }
         actions={
           <>
-            <Link href={collectionHref(env, c.id)} className="ffx-btn ffx-btn-sm">
-              <Icon d={ICONS.up} size={12} /> {c.title}
-            </Link>
-            {prev ? (
-              <Link href={itemHref(env, c.id, prev.id)} className="ffx-btn ffx-btn-sm" aria-label={`Previous item, ${prev.id}`}>
-                <Icon d={ICONS.prev} size={12} /> Prev
-              </Link>
-            ) : (
-              <button type="button" className="ffx-btn ffx-btn-sm" disabled>
-                <Icon d={ICONS.prev} size={12} /> Prev
-              </button>
-            )}
-            {next ? (
-              <Link href={itemHref(env, c.id, next.id)} className="ffx-btn ffx-btn-sm" aria-label={`Next item, ${next.id}`}>
-                Next <Icon d={ICONS.next} size={12} />
-              </Link>
-            ) : (
-              <button type="button" className="ffx-btn ffx-btn-sm" disabled>
-                Next <Icon d={ICONS.next} size={12} />
-              </button>
-            )}
-            <CopyButton currentUrl label="Copy link" icon={ICONS.link} />
             <a
               href={itemJsonHref(env, c.id, item.id)}
               className="ffx-btn ffx-btn-sm"
@@ -122,27 +109,31 @@ export default async function ItemPage({ params }: Props) {
             >
               <Icon d={ICONS.download} size={12} /> Download
             </a>
+            <CopyButton currentUrl label="Copy link" icon={ICONS.link} />
           </>
         }
       />
 
-      <div className="sx-mapwide">
-        <DataMap
-          data={geo}
-          bbox={item.bbox}
-          selected={item.id}
-          label={`Location of ${title}`}
-          hint={item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
-        />
-      </div>
+      <VersionNotice env={env} c={c} item={item.id} />
 
+      {/* STAC Browser's item layout: map, assets and other links on the
+          left; description, the parent collection and metadata on the right. */}
       <div className="sx-cols">
         <div className="sx-col">
+          <div className="sx-mapcard">
+            <DataMap
+              data={geo}
+              bbox={item.bbox}
+              selected={item.id}
+              label={`Location of ${title}`}
+              hint={item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
+            />
+          </div>
           <Panel title="Assets" note={`${Object.keys(item.assets).length}`} id="assets">
             <Assets assets={item.assets} />
           </Panel>
           {links.length > 0 && (
-            <Panel title="Links" id="links">
+            <Panel title="Additional resources" id="links">
               <ul className="divide-y divide-grid pb-1">
                 {links.map((l, i) => (
                   <li key={`${l.rel}-${i}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-[var(--ffx-panel-pad)] py-2">
@@ -158,10 +149,27 @@ export default async function ItemPage({ params }: Props) {
         </div>
         <div className="sx-col">
           {str(p.description) && label && (
-            <Panel title="About">
+            <Panel title="Description">
               <div className="sx-desc ffx-prose">{str(p.description)}</div>
             </Panel>
           )}
+          <Panel title="Collection" id="collection">
+            <Link href={collectionHref(env, c.id)} className="sx-row">
+              <div className="sx-row-main">
+                <div className="sx-row-title">{version ? `${c.title}, ${versionName(version)}` : c.title}</div>
+                <div className="sx-row-sub">
+                  {c.title !== c.id && <span className="ffx-id">{c.id}</span>}
+                  <span>
+                    <span className="ffx-num">{fmtNum(c.itemCount)}</span> items
+                  </span>
+                  {(c.temporal[0] || c.temporal[1]) && (
+                    <span className="ffx-num">{fmtRange(c.temporal[0], c.temporal[1])}</span>
+                  )}
+                </div>
+                {c.description && <p className="sx-row-desc">{c.description}</p>}
+              </div>
+            </Link>
+          </Panel>
           <Panel title="Metadata" id="meta">
             <div className="pb-2">
               <div className="sx-meta-group">General</div>

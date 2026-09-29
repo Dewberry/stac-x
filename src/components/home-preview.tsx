@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AREA_KIND_LABEL, AREA_KIND_TIME } from "@/lib/kinds";
 import { basinName } from "@/lib/basins";
 import { fmtNum } from "@/lib/format";
+import { versionName } from "@/lib/versions";
 import { QcChip } from "./qc-chip";
 import type { HomeArea } from "./home";
 
@@ -67,6 +68,19 @@ export function HomePreview({
               <span>{AREA_KIND_TIME[area.kind]}</span>
             </div>
           </div>
+          {area.version && (
+            <div className="sx-preview-rev">
+              <span className="sx-preview-l">Version</span>
+              <span className="sx-preview-qc">
+                <span className="text-ink">{versionName(area.version)}</span>
+                {area.earlier ? (
+                  <span>
+                    {area.earlier} earlier {area.earlier === 1 ? "version" : "versions"}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          )}
           <div className="sx-preview-rev">
             <span className="sx-preview-l">Quality control</span>
             <span className="sx-preview-qc">

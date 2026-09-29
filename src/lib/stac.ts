@@ -105,12 +105,36 @@ export type Collection = {
   fromDocument: boolean;
   /** Remaining fields of collection.json that have no slot above. */
   extra: Record<string, unknown>;
+  /** The Version extension's fields, from the collection metadata. */
+  version: string | null;
+  deprecated: boolean;
+  experimental: boolean;
+  /** Where the collection metadata was read from, for resolving its links. */
+  docHref: string | null;
+  /** The metadata's latest-, predecessor- and successor-version links. */
+  versionLinks: StacLink[];
+  /** The versions this collection is one of; see versions.ts. */
+  series: Series;
   /** The collection's QC record, from the sidecar. Null until someone saves one. */
   qc: QcEdit | null;
   /** What happened to the collection in this environment, newest first. */
   history: QcEvent[];
   items: CatalogItem[];
 };
+
+/**
+ * A collection's versions in one environment, oldest first. A collection
+ * with no other versions is a series of one.
+ */
+export type Series = {
+  /** The shared id, e.g. "gages" for gages-v1 and gages-v2. */
+  id: string;
+  versions: { id: string; label: string | null; deprecated: boolean; qc: QcStatus }[];
+  latest: string;
+};
+
+export const VERSION_RELS = ["latest-version", "predecessor-version", "successor-version", "version-history"];
+export const VERSION_SCHEMA = "https://stac-extensions.github.io/version/v1.2.0/schema.json";
 
 /** The item as STAC JSON for the wire and the JSON view. */
 export function toStacJson(item: CatalogItem): StacItem {

@@ -4,10 +4,9 @@ A STAC viewer for FFRD's Colorado data. It reads stac-geoparquet files
 straight from S3, draws every collection on a map of the state, and lets a
 reviewer record QC on each collection. The one thing it writes is that QC record.
 
-Collection and item pages follow STAC Browser, which is the layout people
-already know: breadcrumbs, a title row with the page's actions, a map across
-the top, then what describes the object (QC, metadata, assets) in one column
-and what it contains (items) in the other. On a phone the columns stack.
+Collection and item pages put things where STAC Browser puts them, since
+that's what people already know (see Page layout below). On a phone the
+columns stack, left column first.
 
 ![The stac-x homepage: the Colorado catalog map with every collection pinned, beside the collection list grouped by basin](docs/images/home.png)
 
@@ -87,6 +86,7 @@ src/lib/storage.ts          S3 and local disk behind one interface, with conditi
 src/lib/env.ts              the three environments and the links between them
 src/lib/edits.ts            the QC sidecar: where it lives, how it is written
 src/lib/promote.ts          copies an approved collection to the next environment
+src/lib/versions.ts         works out which collections are versions of each other
 src/lib/fixtures/areas.ts   the mocked model areas on the landing page
 src/lib/overview.ts         what each collection draws on the landing page map
 src/lib/kinds.ts            collection kinds (gages, HMS, RAS...) and their labels
@@ -104,8 +104,9 @@ back into a STAC item. After that a request costs nothing until
 a changed file is re-read. A new file in the bucket shows up on its own.
 
 Collection metadata comes from the `collection.json` the items link to, when
-the app can read it. Otherwise it is derived from the items (count, extent,
-temporal range) and the page says so.
+the app can read it, and then from the copy a stac-geoparquet 1.1 file can
+carry in its own metadata (the `stac-geoparquet` key). Otherwise it is
+derived from the items (count, extent, temporal range) and the page says so.
 
 ## QC edits
 
@@ -160,7 +161,39 @@ its own QC record and a history of every save and move, shown on the
 collection page along with where the collection stands in all three.
 
 A parquet file that also holds another collection's items can't be promoted
-on its own, since copying it would move the other collection too.
+on its own, since copying it would move the other collection too. Nor can one
+whose file name is already taken in the next environment by a different
+collection, since files land there by name and one would replace the other.
+
+## Versions
+
+A collection can have several versions, and each version is its own
+collection: its own id, page, QC record and promotion. Development can be a
+version ahead of Production, which is the usual state of things. The app
+only works out which collections belong together (`src/lib/versions.ts`),
+two ways:
+
+- The [STAC Version extension](https://github.com/stac-extensions/version).
+  When a collection's metadata has `latest-version`, `predecessor-version` or
+  `successor-version` links, they decide the grouping and the order, and its
+  `version` and `deprecated` fields are shown.
+- The id. Most public catalogs skip the extension and put the version in the
+  id (`HLSL30_2.0` in NASA's CMR, `usgs-lcmap-conus-v13` on Planetary
+  Computer), so ids that differ only by a suffix like `-v2`, `_v2` or `_2.0`
+  are grouped as well. A bare trailing number (`reach-12`) doesn't count.
+
+We don't know yet which of these the FFRD pipeline will write, so both work.
+What doesn't work is two versions sharing one id in different files: they
+merge into one collection, as any two files with the same id do.
+
+A collection page with other versions has a version menu in its actions,
+newest first, each with its review state. An older version says so under the
+title and links to the latest; on its item pages that link goes to the same
+item in the latest version when it's there. The landing page draws each
+collection once, from its latest version, and counts only latest versions in
+its totals, while the card over the map says how many earlier versions there
+are. The collection JSON API returns `version` and `deprecated`, plus version
+links that point back into this app.
 
 ## The landing page
 
@@ -199,12 +232,50 @@ touch Colorado, pulled once from the USGS Watershed Boundary Dataset and
 simplified to about 0.006 degrees. Each area in `src/lib/fixtures/areas.ts`
 names its basin by HUC4 code; `src/lib/basins.ts` maps codes to names.
 
+## Page layout
+
+The look is ours, but where things sit on a collection or item page copies
+[Radiant Earth STAC Browser](https://github.com/radiantearth/stac-browser)
+(checked against 5.1, `src/views/Item.vue` and `src/views/Catalog.vue`).
+Nearly every public STAC catalog is served through it, including USGS, NASA
+VEDA, Copernicus Data Space, eoAPI, STAC Index and FFRD's own
+`fema-ffrd/stac-browser`, which is an unmodified fork. Someone who has used
+any of those should find things in the same place here. The two columns are
+equal width.
+
+The header is STAC Browser's too, with no breadcrumb. The title is on the
+left. At the right end there are two button groups. The first is for getting
+around: Collection and Up on an item (both lead to its collection, as they do
+in STAC Browser), and Up and the version picker on a collection. The second
+is the page's source: JSON, Download, and Copy link, which sit where STAC
+Browser has Source and Share.
+
+On an item page the left column is the map, then the assets, then additional
+resources (the item's other links). The right column is the description,
+a card for the parent collection, then the metadata.
+
+On a collection page the left column is the description with its keywords,
+license and temporal extent, then the map, then the metadata. The right
+column is the item list. QC has no counterpart in STAC Browser, so its panel
+and the history go in the left column between the map and the metadata,
+which keeps it near the top without moving anything a STAC Browser user
+would look for.
+
+Panel names follow STAC Browser's too: Description, Assets, Additional
+resources, Collection, Metadata, Items. Inside an asset row the name is on
+the left and its roles and format are at the right end.
+
+Before moving a panel, check where STAC Browser has it. Portolan's fork is
+the one well-known browser that moves the map to a full-width band above the
+columns; the map-first apps (Planetary Computer Explorer, Earth Search's
+FilmDrop console, stac-map) put everything in a side panel beside a
+full-screen map, which is a different kind of app.
+
 ## Design
 
 The map is the app. The landing page gives most of the screen to a map of
-Colorado with the collection list beside it; collection and item pages put a
-map card under the title and the other cards below it, which is the layout
-STAC Browser and Portolan use. Cards are white on a pale canvas, lifted by a
+Colorado with the collection list beside it. Collection and item pages keep
+STAC Browser's placement (see Page layout). Cards are white on a pale canvas, lifted by a
 shadow rather than a border, and they all share one corner radius. Every page
 keeps its content on the same edges as the header's. River blue is for data on the map and for links; green means
 published or approved, amber needs revision, red rejected.

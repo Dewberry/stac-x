@@ -29,13 +29,52 @@ const TOP_LEVEL = new Set([
   "assets",
 ]);
 
-export async function readItems(uri: string): Promise<StacItem[]> {
+export type ParquetStac = {
+  items: StacItem[];
+  /** Collection objects the file carries in its own metadata, by id. */
+  collections: Record<string, Record<string, unknown>>;
+};
+
+export async function readItems(uri: string): Promise<ParquetStac> {
   const { bytes } = await read(uri);
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const file: AsyncBuffer = { byteLength: ab.byteLength, slice: (a, b) => ab.slice(a, b) };
-  const rows = await parquetReadObjects({ file, compressors, rowFormat: "object" });
+  const metadata = await parquetMetadataAsync(file);
+  const rows = await parquetReadObjects({ file, metadata, compressors, rowFormat: "object" });
   const fallbackCollection = uri.split("/").pop()?.replace(/\.(geo)?parquet$|\.pq$/i, "") ?? "items";
-  return rows.map((row) => rowToItem(row as Record<string, unknown>, fallbackCollection));
+  return {
+    items: rows.map((row) => rowToItem(row as Record<string, unknown>, fallbackCollection)),
+    collections: embeddedCollections(metadata),
+  };
+}
+
+/**
+ * stac-geoparquet 1.1 keeps the collections a file holds in its key-value
+ * metadata, under "stac-geoparquet": a map of id to Collection, or a single
+ * "collection" in files written before 1.1. Most files don't have either.
+ */
+function embeddedCollections(metadata: FileMetaData): ParquetStac["collections"] {
+  const raw = metadata.key_value_metadata?.find((kv) => kv.key === "stac-geoparquet")?.value;
+  if (!raw) return {};
+  let meta: unknown;
+  try {
+    meta = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  if (!meta || typeof meta !== "object") return {};
+  const { collections, collection } = meta as { collections?: unknown; collection?: unknown };
+  const out: ParquetStac["collections"] = {};
+  if (collections && typeof collections === "object") {
+    for (const [id, doc] of Object.entries(collections)) {
+      if (doc && typeof doc === "object") out[id] = doc as Record<string, unknown>;
+    }
+  }
+  if (collection && typeof collection === "object") {
+    const doc = collection as Record<string, unknown>;
+    if (typeof doc.id === "string" && !out[doc.id]) out[doc.id] = doc;
+  }
+  return out;
 }
 
 function rowToItem(row: Record<string, unknown>, fallbackCollection: string): StacItem {

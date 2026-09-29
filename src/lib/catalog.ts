@@ -4,8 +4,9 @@ import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { readItems } from "./parquet";
-import type { CatalogItem, Collection, Provider, QcEdit, QcEvent, StacItem } from "./stac";
+import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacItem, type StacLink } from "./stac";
 import { awsLooksConfigured, head, isS3, listParquet, readJson } from "./storage";
+import { groupVersions } from "./versions";
 
 /**
  * The in-memory catalog.
@@ -26,6 +27,8 @@ type SourceState = {
   uri: string;
   etag: string;
   items: StacItem[];
+  /** Collection objects embedded in the file's metadata, by id. */
+  embedded: Record<string, Record<string, unknown>>;
   editsEtag: string | null;
   /** QC records and history from the sidecar, by collection id. */
   qc: Record<string, QcEdit>;
@@ -45,7 +48,7 @@ type Cache = {
 
 export type Catalog = {
   collections: Collection[];
-  sources: { uri: string; itemCount: number; error: string | null }[];
+  sources: { uri: string; itemCount: number; collections: string[]; error: string | null }[];
   errors: string[];
   refreshedAt: string;
 };
@@ -106,7 +109,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   const sourcesOut: Catalog["sources"] = [];
   for (const uri of uris) {
     const s = cache.sources.get(uri)!;
-    sourcesOut.push({ uri, itemCount: s.items.length, error: s.error });
+    sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(new Set(s.items.map((i) => i.collection))), error: s.error });
     if (s.error) errors.push(`${uri}: ${s.error}`);
     for (const item of s.items) {
       const list = byCollection.get(item.collection) ?? [];
@@ -120,6 +123,8 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([id, items]) => describeCollection(cache, id, items, now)),
   );
+  const series = groupVersions(collections);
+  for (const c of collections) c.series = series.get(c.id)!;
 
   return { collections, sources: sourcesOut, errors, refreshedAt: new Date(now).toISOString() };
 }
@@ -147,6 +152,7 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
     uri,
     etag: "",
     items: [],
+    embedded: {},
     editsEtag: null,
     qc: {},
     history: {},
@@ -156,8 +162,11 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
   try {
     const h = await head(uri);
     if (!h) throw new Error("object not found");
-    if (h.etag !== state.etag) {
-      state.items = await readItems(uri);
+    // No `embedded` means the state was cached before this code read it.
+    if (h.etag !== state.etag || !state.embedded) {
+      const read = await readItems(uri);
+      state.items = read.items;
+      state.embedded = read.collections;
       state.etag = h.etag;
     }
     const { edits, etag } = await readEdits(uri);
@@ -175,12 +184,16 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
 
 /**
  * A collection's metadata comes from its collection.json when the items link
- * to one we can read, and is derived from the items otherwise. The derived
- * form is honest about being derived: fromDocument is false and the page
- * says so.
+ * to one we can read, then from the copy embedded in the parquet file's
+ * metadata, and is derived from the items otherwise. The derived form is
+ * honest about being derived: fromDocument is false and the page says so.
  */
 async function describeCollection(cache: Cache, id: string, items: CatalogItem[], now: number): Promise<Collection> {
-  const doc = await collectionDoc(cache, items, now);
+  const docHref = items[0]?.links.find((l) => l.rel === "collection")?.href ?? null;
+  const doc =
+    (await collectionDoc(cache, docHref, now)) ??
+    items.map((i) => cache.sources.get(i.source)?.embedded?.[id]).find((d) => d) ??
+    null;
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
   const sources = Array.from(new Set(items.map((i) => i.source)));
@@ -194,10 +207,11 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     const docBbox = ext?.spatial?.bbox?.[0];
     const docInterval = ext?.temporal?.interval?.[0];
     const {
-      id: _id, title, description, license, keywords, providers, extent: _extent, links: _links,
-      stac_version: _v, stac_extensions: _x, type: _t, assets: _assets, ...extra
+      id: _id, title, description, license, keywords, providers, extent: _extent, links,
+      stac_version: _v, stac_extensions: _x, type: _t, assets: _assets,
+      version, deprecated, experimental, ...extra
     } = doc;
-    void _id; void _extent; void _links; void _v; void _x; void _t; void _assets;
+    void _id; void _extent; void _v; void _x; void _t; void _assets;
     return {
       id,
       title: typeof title === "string" && title ? title : id,
@@ -211,6 +225,14 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       sources,
       fromDocument: true,
       extra,
+      version: typeof version === "string" || typeof version === "number" ? String(version) : null,
+      deprecated: deprecated === true,
+      experimental: experimental === true,
+      docHref,
+      versionLinks: Array.isArray(links)
+        ? (links as StacLink[]).filter((l) => l && typeof l.href === "string" && VERSION_RELS.includes(l.rel))
+        : [],
+      series: lone(id),
       qc,
       history,
       items,
@@ -230,10 +252,21 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     sources,
     fromDocument: false,
     extra: {},
+    version: null,
+    deprecated: false,
+    experimental: false,
+    docHref,
+    versionLinks: [],
+    series: lone(id),
     qc,
     history,
     items,
   };
+}
+
+/** A placeholder until build() groups the versions. */
+function lone(id: string): Collection["series"] {
+  return { id, latest: id, versions: [] };
 }
 
 /** The newest QC record for a collection across the sidecars of its files. */
@@ -246,8 +279,7 @@ function qcFor(cache: Cache, id: string, sources: string[]): QcEdit | null {
   return best;
 }
 
-async function collectionDoc(cache: Cache, items: CatalogItem[], now: number): Promise<CollectionDoc> {
-  const href = items[0]?.links.find((l) => l.rel === "collection")?.href;
+async function collectionDoc(cache: Cache, href: string | null, now: number): Promise<CollectionDoc> {
   if (!href) return null;
   if (isS3(href) && !awsLooksConfigured()) return null;
   const hit = cache.docs.get(href);
