@@ -203,9 +203,10 @@ names its basin by HUC4 code; `src/lib/basins.ts` maps codes to names.
 
 The map is the app. The landing page gives most of the screen to a map of
 Colorado with the collection list beside it; collection and item pages put a
-full-width map under the title and the cards below it, which is the layout
-STAC Browser and Portolan use. Cards are white on a pale canvas, lifted by a shadow rather
-than a border. River blue is for data on the map and for links; green means
+map card under the title and the other cards below it, which is the layout
+STAC Browser and Portolan use. Cards are white on a pale canvas, lifted by a
+shadow rather than a border, and they all share one corner radius. Every page
+keeps its content on the same edges as the header's. River blue is for data on the map and for links; green means
 published or approved, amber needs revision, red rejected.
 
 Type is Bricolage Grotesque for headings, Instrument Sans for everything

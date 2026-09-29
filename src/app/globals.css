@@ -160,7 +160,6 @@
   --ffx-radius-xs: 6px;
   --ffx-radius-sm: 8px;
   --ffx-radius-md: 12px;
-  --ffx-radius-lg: 14px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1620,12 +1619,13 @@ main:focus {
   color: var(--ffx-ink-sec);
 }
 
-/* The map on a collection or item page: edge to edge, straight under the
-   title, the way Portolan does it, with the readout as a strip beneath. */
+/* The map on a collection or item page: a card as wide as the columns
+   under it, straight under the title, with the readout as a strip beneath. */
 .sx-mapwide {
-  margin-inline: calc(-1 * var(--ffx-edge));
   background: var(--ffx-surface);
-  border-block: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-md);
+  box-shadow: var(--ffx-shadow-card);
+  overflow: hidden;
 }
 .sx-mapwide .ffx-map-canvas {
   height: 16rem;
@@ -1639,9 +1639,6 @@ main:focus {
   .sx-mapwide .ffx-map-canvas {
     height: clamp(22rem, 46vh, 32rem);
   }
-}
-.sx-mapwide .ffx-map-readout {
-  padding-inline: var(--ffx-edge);
 }
 
 /* ============================== landing page ==============================
@@ -1751,7 +1748,7 @@ main:focus {
   position: relative;
   height: 52vh;
   min-height: 18rem;
-  border-radius: var(--ffx-radius-lg);
+  border-radius: var(--ffx-radius-md);
   overflow: hidden;
   background: var(--ffx-surface-inset);
   box-shadow: var(--ffx-shadow-card);
@@ -1790,7 +1787,7 @@ main:focus {
 .sx-rail {
   display: flex;
   flex-direction: column;
-  border-radius: var(--ffx-radius-lg);
+  border-radius: var(--ffx-radius-md);
   background: var(--ffx-surface);
   box-shadow: var(--ffx-shadow-card);
   overflow: hidden;
@@ -1901,7 +1898,7 @@ main:focus {
   background: var(--ffx-glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-radius: var(--ffx-radius-lg);
+  border-radius: var(--ffx-radius-md);
   box-shadow: var(--ffx-shadow-float);
   color: var(--ffx-ink);
 }
@@ -2048,7 +2045,7 @@ main:focus {
     flex-direction: row-reverse;
     gap: 0;
     height: clamp(30rem, calc(100dvh - 17rem), 48rem);
-    border-radius: var(--ffx-radius-lg);
+    border-radius: var(--ffx-radius-md);
     overflow: hidden;
     background: var(--ffx-surface);
     box-shadow: var(--ffx-shadow-card);
