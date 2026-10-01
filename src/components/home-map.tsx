@@ -3,7 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
-import type { FeatureCollection } from "geojson";
+import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import {
   applyBasemap,
   blankStyle,
@@ -18,10 +18,11 @@ import {
   type Palette,
 } from "./map-core";
 import type { HomeArea } from "./home";
-import { BASINS_URL } from "@/lib/basins";
+import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
 
 /**
- * The landing page map: Colorado, with every model area named on it.
+ * The landing page map: the South Platte basin, with every model area named
+ * on it.
  *
  * Follows the Alaska Ground Watch home map. Each area is an HTML marker with
  * its name beside it, so it is focusable and named for assistive tech, and
@@ -30,13 +31,15 @@ import { BASINS_URL } from "@/lib/basins";
  * the way into a collection. A planned area is drawn quieter and its card
  * says it is not yet published.
  *
- * Under the markers, GeoJSON layers draw the USGS four-digit basins, tinted
- * where a basin has published or planned work, the state as a dashed box,
- * and the footprint of every live collection: small dots for point items
+ * The South Platte is the only basin the program cares about, so the map
+ * opens on it, outlines it, and washes out everything beyond its edge. The
+ * state border stays as a quieter line for orientation; no other basin is
+ * drawn. Under the markers, GeoJSON layers also draw the footprint of every
+ * live collection: small dots for point items
  * like gages, a faint fill and an outline for the area a model covers, or a
  * dashed box when the shapes were too heavy to send (lib/overview.ts decides
  * which). The pin says where a collection is; the footprint says how much
- * ground it covers. Clicking a basin selects it, which zooms the map and
+ * ground it covers. Clicking the basin selects it, which zooms the map and
  * scrolls the rail to its group.
  */
 
@@ -58,9 +61,7 @@ const L = {
   items: "sx-live-items",
 };
 
-export type BasinState = Record<string, "live" | "planned">;
-
-/** Even room around the state, a little more at the bottom for the legend. */
+/** Even room around the basin, a little more at the bottom for the legend. */
 function fitPadding() {
   return { padding: { top: 28, right: 28, bottom: 56, left: 28 } };
 }
@@ -73,20 +74,31 @@ function box(b: [number, number, number, number]) {
   };
 }
 
+type Shape = Polygon | MultiPolygon;
+
 /**
- * Everything but Colorado: the world as an outer ring with the state cut out
- * as a hole. Painted as a translucent wash so the neighbors stay readable
- * (gages and collections run past the border) but the state is the subject.
+ * Everything but the South Platte: the world as an outer ring with the basin
+ * cut out as a hole. Painted as a translucent wash so the rest of Colorado
+ * stays readable (gages and collections run past the edge) but the basin is
+ * the subject. Until the basin's polygon arrives, the state is cut out instead.
  */
-function outside(b: [number, number, number, number]) {
-  const [w, s, e, n] = b;
+function outside(shape: Shape | null): Polygon {
+  const holes = !shape
+    ? box(COLORADO).coordinates
+    : shape.type === "Polygon"
+      ? [shape.coordinates[0]]
+      : shape.coordinates.map((poly) => poly[0]);
   return {
-    type: "Polygon" as const,
-    coordinates: [
-      [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]],
-      [[w, s], [w, n], [e, n], [e, s], [w, s]],
-    ],
+    type: "Polygon",
+    coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], ...holes],
   };
+}
+
+/** The South Platte out of the file of every basin that touches Colorado. */
+function focusBasin(fc: FeatureCollection): Feature<Shape> | null {
+  const f = fc.features.find((x) => String(x.properties?.huc4) === FOCUS_BASIN);
+  if (!f || (f.geometry.type !== "Polygon" && f.geometry.type !== "MultiPolygon")) return null;
+  return f as Feature<Shape>;
 }
 
 function areasFc(areas: HomeArea[]): FeatureCollection {
@@ -101,61 +113,41 @@ function areasFc(areas: HomeArea[]): FeatureCollection {
   };
 }
 
-/** The basin polygons with each one's state stamped on, so the paint can read it. */
-function stampBasins(fc: FeatureCollection, state: BasinState): FeatureCollection {
-  return {
-    ...fc,
-    features: fc.features.map((f) => ({
-      ...f,
-      id: String(f.properties?.huc4),
-      properties: { ...f.properties, state: state[String(f.properties?.huc4)] ?? "none" },
-    })),
-  };
-}
-
 function addLayers(
   map: MapLibreMap,
   p: Palette,
   areas: HomeArea[],
   items: FeatureCollection,
-  basins: FeatureCollection | null,
+  basin: Feature<Shape> | null,
   highlight: string | null,
   basinHighlight: string | null,
 ) {
   map.addSource(SRC_STATE, { type: "geojson", data: { type: "Feature", properties: {}, geometry: box(COLORADO) } });
-  map.addSource(SRC_MASK, { type: "geojson", data: { type: "Feature", properties: {}, geometry: outside(COLORADO) } });
+  map.addSource(SRC_MASK, { type: "geojson", data: { type: "Feature", properties: {}, geometry: outside(basin?.geometry ?? null) } });
   map.addSource(SRC_AREAS, { type: "geojson", data: areasFc(areas), promoteId: "slug" });
   map.addSource(SRC_ITEMS, { type: "geojson", data: items });
-  map.addSource(SRC_BASINS, { type: "geojson", data: basins ?? { type: "FeatureCollection", features: [] }, promoteId: "huc4" });
+  map.addSource(SRC_BASINS, { type: "geojson", data: basinData(basin) });
 
-  // The wash goes under the basins so a basin that crosses the border keeps
-  // its tint outside, just dimmer.
   map.addLayer({
     id: L.mask, type: "fill", source: SRC_MASK,
     paint: { "fill-color": p.ground, "fill-opacity": 0.55 },
   });
-
-  const isBasinHi: ExpressionSpecification = ["==", ["get", "huc4"], basinHighlight ?? ""];
+  // The fill is barely there; it's mostly the click target.
   map.addLayer({
     id: L.basinFill, type: "fill", source: SRC_BASINS,
-    paint: {
-      "fill-color": ["match", ["get", "state"], "live", p.verified, "planned", p.planned, p.inkDim],
-      "fill-opacity": ["case", isBasinHi, 0.3, ["match", ["get", "state"], "live", 0.16, "planned", 0.1, 0.035]],
-    },
+    paint: { "fill-color": p.trace, "fill-opacity": basinFillOpacity(basinHighlight) },
+  });
+  // The state sits under the basin's outline, which shares its northern edge.
+  map.addLayer({
+    id: L.stateLine, type: "line", source: SRC_STATE,
+    paint: { "line-color": p.inkMut, "line-width": 1.25, "line-opacity": 0.8 },
   });
   map.addLayer({
     id: L.basinLine, type: "line", source: SRC_BASINS,
-    paint: {
-      "line-color": ["match", ["get", "state"], "live", p.verified, "planned", p.planned, p.inkDim],
-      "line-width": ["case", isBasinHi, 2.5, ["match", ["get", "state"], "live", 1.8, 1.1]],
-      "line-opacity": ["match", ["get", "state"], "none", 0.5, 1],
-    },
+    layout: { "line-join": "round" },
+    paint: { "line-color": p.ink, "line-width": basinLineWidth(basinHighlight), "line-opacity": 0.85 },
   });
 
-  map.addLayer({
-    id: L.stateLine, type: "line", source: SRC_STATE,
-    paint: { "line-color": p.inkSec, "line-width": 1.75, "line-opacity": 0.9 },
-  });
   // A planned area has no footprint yet, so its box stands in when it's
   // pointed at. A live one lights up its own footprint instead.
   const isHi = plannedFilter(highlight);
@@ -208,10 +200,21 @@ function lineWidth(highlight: string | null): ExpressionSpecification {
   return ["case", ["==", ["get", "slug"], highlight ?? ""], 2.25, 1.1];
 }
 
+function basinData(basin: Feature<Shape> | null): FeatureCollection {
+  return { type: "FeatureCollection", features: basin ? [basin] : [] };
+}
+
+function basinFillOpacity(basinHighlight: string | null) {
+  return basinHighlight === FOCUS_BASIN ? 0.08 : 0.03;
+}
+
+function basinLineWidth(basinHighlight: string | null) {
+  return basinHighlight === FOCUS_BASIN ? 3.25 : 2.5;
+}
+
 export function HomeMap({
   areas,
   items,
-  basinState,
   highlight,
   basinHighlight,
   focus,
@@ -222,8 +225,6 @@ export function HomeMap({
   areas: HomeArea[];
   /** Every live collection's footprint, from lib/overview.ts. */
   items: FeatureCollection;
-  /** Which basins have published or planned work, by HUC4. */
-  basinState: BasinState;
   highlight: string | null;
   basinHighlight: string | null;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
@@ -246,8 +247,7 @@ export function HomeMap({
   const itemsRef = useRef(items);
   const highlightRef = useRef(highlight);
   const basinHighlightRef = useRef(basinHighlight);
-  const basinStateRef = useRef(basinState);
-  const basinsRef = useRef<FeatureCollection | null>(null);
+  const basinRef = useRef<Feature<Shape> | null>(null);
   const onHoverRef = useRef(onHover);
   const onSelectRef = useRef(onSelect);
   const onBasinSelectRef = useRef(onBasinSelect);
@@ -256,7 +256,6 @@ export function HomeMap({
     itemsRef.current = items;
     highlightRef.current = highlight;
     basinHighlightRef.current = basinHighlight;
-    basinStateRef.current = basinState;
     onHoverRef.current = onHover;
     onSelectRef.current = onSelect;
     onBasinSelectRef.current = onBasinSelect;
@@ -278,7 +277,7 @@ export function HomeMap({
         container: host,
         style: blankStyle(p),
         attributionControl: false,
-        bounds: [[COLORADO[0], COLORADO[1]], [COLORADO[2], COLORADO[3]]],
+        bounds: [[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]],
         fitBoundsOptions: fitPadding(),
         maxZoom: 14,
         minZoom: 4,
@@ -289,24 +288,24 @@ export function HomeMap({
       // A handle for the console while developing: __sxMap.getStyle(), etc.
       if (process.env.NODE_ENV !== "production") (window as unknown as { __sxMap?: unknown }).__sxMap = m;
 
-      const fit = () => m.fitBounds([[COLORADO[0], COLORADO[1]], [COLORADO[2], COLORADO[3]]], { ...fitPadding(), duration: 300 });
-      m.addControl(new Controls(m, frame, fit, "Fit to Colorado"), "top-right");
+      const fit = () => m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration: 300 });
+      m.addControl(new Controls(m, frame, fit, "Fit to the South Platte"), "top-right");
 
       const draw = () => {
         if (m.getSource(SRC_AREAS)) return;
-        const basins = basinsRef.current ? stampBasins(basinsRef.current, basinStateRef.current) : null;
-        addLayers(m, palette(frame), areasRef.current, itemsRef.current, basins, highlightRef.current, basinHighlightRef.current);
+        addLayers(m, palette(frame), areasRef.current, itemsRef.current, basinRef.current, highlightRef.current, basinHighlightRef.current);
         setCredits(creditsOf(m));
       };
-      // The basin polygons are a static file; they arrive once and are added
-      // to the source whenever the layers are (re)drawn.
+      // The basin polygon comes from a static file; it arrives once and is
+      // added to the sources whenever the layers are (re)drawn.
       void fetch(BASINS_URL)
         .then((r) => (r.ok ? r.json() : null))
         .then((fc: FeatureCollection | null) => {
-          if (disposed || !fc) return;
-          basinsRef.current = fc;
-          const src = m.getSource(SRC_BASINS) as GeoJSONSource | undefined;
-          if (src) src.setData(stampBasins(fc, basinStateRef.current));
+          const basin = fc && focusBasin(fc);
+          if (disposed || !basin) return;
+          basinRef.current = basin;
+          (m.getSource(SRC_BASINS) as GeoJSONSource | undefined)?.setData(basinData(basin));
+          (m.getSource(SRC_MASK) as GeoJSONSource | undefined)?.setData({ type: "Feature", properties: {}, geometry: outside(basin.geometry) });
         })
         .catch(() => {});
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
@@ -411,9 +410,8 @@ export function HomeMap({
   useEffect(() => {
     const m = mapRef.current;
     if (!m?.getLayer(L.basinFill)) return;
-    const isBasinHi: ExpressionSpecification = ["==", ["get", "huc4"], basinHighlight ?? ""];
-    m.setPaintProperty(L.basinFill, "fill-opacity", ["case", isBasinHi, 0.3, ["match", ["get", "state"], "live", 0.16, "planned", 0.1, 0.035]]);
-    m.setPaintProperty(L.basinLine, "line-width", ["case", isBasinHi, 2.5, ["match", ["get", "state"], "live", 1.8, 1.1]]);
+    m.setPaintProperty(L.basinFill, "fill-opacity", basinFillOpacity(basinHighlight));
+    m.setPaintProperty(L.basinLine, "line-width", basinLineWidth(basinHighlight));
   }, [basinHighlight]);
 
   useEffect(() => {
@@ -425,7 +423,7 @@ export function HomeMap({
   }, [focus]);
 
   return (
-    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Collections across Colorado">
+    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Collections in the South Platte basin">
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">

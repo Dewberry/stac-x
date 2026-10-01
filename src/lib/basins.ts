@@ -34,3 +34,12 @@ export function basinName(huc4: string): string {
   if (!huc4) return "Outside Colorado";
   return BASINS[huc4] ?? `HUC ${huc4}`;
 }
+
+/**
+ * The basin the program is about. The landing page map outlines it and
+ * opens on it; the rest of Colorado is context.
+ */
+export const FOCUS_BASIN = "1019";
+
+/** The South Platte's extent from co-huc4.json. It runs into Wyoming and Nebraska. */
+export const FOCUS_BBOX: [number, number, number, number] = [-106.21, 38.75, -100.68, 41.49];

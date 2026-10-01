@@ -1268,6 +1268,237 @@
   }
 }
 
+/* ============================== admin ============================== */
+
+/* The queue takes most of the width, activity sits beside it; below 64rem
+   activity drops under the queue. */
+.sx-admin {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  align-items: start;
+}
+@media (min-width: 64rem) {
+  .sx-admin {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+.sx-admin .ffx-tabs {
+  padding-top: 0.25rem;
+}
+/* Always in the page so screen readers hear what a save did; empty, it takes no room. */
+.sx-admin-flash:not(:empty) {
+  margin: 0.625rem var(--ffx-panel-pad) 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-verified-pale);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-verified-text);
+}
+
+.sx-queue td {
+  vertical-align: middle;
+  padding-block: 0.5rem;
+}
+.sx-queue td:first-child,
+.sx-queue th:first-child {
+  padding-left: var(--ffx-panel-pad);
+}
+.sx-queue td:last-child,
+.sx-queue th:last-child {
+  padding-right: var(--ffx-panel-pad);
+}
+.sx-queue-name {
+  white-space: normal;
+  min-width: 14rem;
+}
+.sx-queue-title {
+  display: block;
+  font-weight: 600;
+  color: var(--ffx-ink);
+  text-decoration: none;
+}
+.sx-queue-title:hover {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-queue-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.15rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-queue-when {
+  display: block;
+  margin-top: 0.15rem;
+  padding-left: 0.5rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+
+/* Dev, Test, Prod as three small marks, filled where the collection is. */
+.sx-minipath {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.sx-minipath-step {
+  display: inline-grid;
+  place-items: center;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: var(--ffx-radius-xs);
+  border: 1px dashed var(--ffx-rule-strong);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--ffx-ink-dim);
+}
+.sx-minipath-step[data-here="true"] {
+  border: 1px solid transparent;
+  background: var(--ffx-ink);
+  color: var(--ffx-surface);
+}
+.sx-minipath-step[data-here="true"][data-env="dev"] {
+  background: var(--ffx-env-dev);
+}
+.sx-minipath-step[data-here="true"][data-env="test"] {
+  background: var(--ffx-env-test);
+}
+
+/* The review dialog. */
+.sx-dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ffx-radius-md);
+  background: var(--ffx-surface-raised);
+  color: var(--ffx-ink);
+  box-shadow: var(--ffx-shadow-overlay);
+}
+.sx-dialog::backdrop {
+  background: rgb(19 26 34 / 0.45);
+}
+.sx-dialog-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.125rem 1.25rem 1.25rem;
+}
+.sx-dialog-body .sx-path {
+  margin: 0;
+}
+.sx-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.sx-dialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+/* Decisions as large radio rows, each marked with its QC color. */
+.sx-choices {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sx-choices legend {
+  margin-bottom: 0.3rem;
+}
+.sx-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  cursor: pointer;
+}
+.sx-choice:hover {
+  border-color: var(--ffx-rule-strong);
+  background: var(--ffx-surface-sunken);
+}
+.sx-choice input {
+  margin-top: 0.2rem;
+  accent-color: var(--ffx-ink);
+}
+.sx-choice:has(input:checked) {
+  border-color: var(--sx-choice-mark, var(--ffx-ink));
+  box-shadow: inset 3px 0 0 var(--sx-choice-mark, var(--ffx-ink));
+}
+.sx-choice:has(input:focus-visible) {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+}
+.sx-choice[data-tone="verified"] {
+  --sx-choice-mark: var(--ffx-verified);
+}
+.sx-choice[data-tone="attn"] {
+  --sx-choice-mark: var(--ffx-attn);
+}
+.sx-choice[data-tone="bad"] {
+  --sx-choice-mark: var(--ffx-bad);
+}
+.sx-choice-label {
+  display: block;
+  font-size: var(--ffx-t-base);
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-choice-hint {
+  display: block;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+
+/* Recent activity across every collection. */
+.sx-activity {
+  margin: 0;
+  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
+  list-style: none;
+  display: grid;
+}
+.sx-activity li {
+  display: grid;
+  gap: 0.1rem;
+  padding-block: 0.625rem;
+  border-top: 1px solid var(--ffx-grid);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-activity li:first-child {
+  border-top: 0;
+  padding-top: 0.25rem;
+}
+.sx-activity-title {
+  font-weight: 600;
+  color: var(--ffx-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.sx-activity-title:hover {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The Admin link marks itself when you're on the page. */
+.sx-header .ffx-btn[aria-current="page"] {
+  background: color-mix(in srgb, var(--ffx-header-ink) 14%, transparent);
+  border-color: var(--ffx-header-ink-mut);
+}
+
 .sx-callout {
   padding: 0.625rem var(--ffx-panel-pad);
   border-left: 3px solid var(--ffx-attn);
@@ -1858,8 +2089,7 @@ main:focus {
 .sx-rail-head .ffx-field {
   height: 2.125rem;
 }
-.sx-rail-list,
-.sx-rail-list ul {
+.sx-rail-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1876,58 +2106,6 @@ main:focus {
 }
 .sx-rail-item .sx-row:focus-visible {
   outline-offset: -2px;
-}
-/* Group headers in the rail, one per basin. */
-.sx-group {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.55rem 1rem 0.35rem;
-  border: 0;
-  border-block: 1px solid var(--ffx-rule);
-  background: var(--ffx-surface-sunken);
-  font: inherit;
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
-  text-align: left;
-  cursor: pointer;
-}
-.sx-basin-group:first-child .sx-group {
-  border-top: 0;
-}
-.sx-group b {
-  color: var(--ffx-ink);
-  font-weight: 600;
-  font-size: var(--ffx-t-small);
-}
-.sx-group:hover,
-.sx-group[data-active="true"] {
-  background: var(--ffx-verified-pale);
-}
-.sx-group:focus-visible {
-  outline-offset: -2px;
-}
-/* The Basins / Flat list switch. */
-.sx-seg {
-  display: inline-flex;
-  gap: 0.25rem;
-  margin-left: auto;
-}
-.sx-seg button {
-  height: 1.5rem;
-  padding: 0 0.6rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ffx-surface-sunken);
-  font: 500 var(--ffx-t-micro) var(--ffx-sans);
-  color: var(--ffx-ink-sec);
-  cursor: pointer;
-}
-.sx-seg button[aria-pressed="true"] {
-  background: var(--ffx-ink);
-  color: var(--ffx-surface);
 }
 /* The preview card over the map. */
 .sx-preview {

@@ -7,7 +7,6 @@ import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { basinName } from "@/lib/basins";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { HomePreview } from "./home-preview";
-import type { BasinState } from "./home-map";
 import type { QcEdit } from "@/lib/stac";
 
 /**
@@ -17,8 +16,8 @@ import type { QcEdit } from "@/lib/stac";
  * shared hover joins the list and the pins, so pointing at a name finds its
  * mark and pointing at a mark finds its name. Clicking either selects the
  * collection, which opens a preview card over the map; the card is the way
- * in. The rail groups collections by USGS basin, with a flat list one click
- * away, and clicking a basin on the map zooms to it and scrolls the rail.
+ * in. Every collection is in the South Platte, so the rail is one flat list,
+ * and clicking the basin on the map zooms to its collections.
  *
  * On a phone the hero stacks, the map becomes a card, and the list flows
  * under it. The map is first in the DOM because that is the phone's order;
@@ -70,7 +69,6 @@ export function HomeConsole({
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [basin, setBasin] = useState<string | null>(null);
-  const [grouped, setGrouped] = useState(true);
   const [focus, setFocus] = useState<{ bbox: [number, number, number, number]; key: number } | null>(null);
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
@@ -83,31 +81,6 @@ export function HomeConsole({
   );
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
   const current = selected ? bySlug.get(selected) ?? null : null;
-
-  // Which basins carry work, for the map tint. Published wins over planned.
-  const basinState = useMemo<BasinState>(() => {
-    const out: BasinState = {};
-    for (const a of areas) {
-      if (a.live) out[a.huc4] = "live";
-      else if (!out[a.huc4]) out[a.huc4] = "planned";
-    }
-    return out;
-  }, [areas]);
-
-  // Rail groups: basins in the order of most published, then most planned.
-  const groups = useMemo(() => {
-    const m = new Map<string, HomeArea[]>();
-    for (const a of shown) (m.get(a.huc4) ?? m.set(a.huc4, []).get(a.huc4)!).push(a);
-    return Array.from(m.entries())
-      .map(([huc4, list]) => ({
-        huc4,
-        name: basinName(huc4),
-        live: list.filter((a) => a.live).length,
-        planned: list.filter((a) => !a.live).length,
-        list,
-      }))
-      .sort((x, y) => y.live - x.live || y.planned - x.planned || x.name.localeCompare(y.name));
-  }, [shown]);
 
   const select = useCallback(
     (slug: string | null) => {
@@ -136,10 +109,6 @@ export function HomeConsole({
         ];
         setFocus({ bbox, key: Date.now() });
       }
-      // Scroll the rail, not the page: the hero above must stay put.
-      const el = document.getElementById(`basin-${huc4}`);
-      const rail = el?.closest(".sx-rail-list");
-      if (el && rail instanceof HTMLElement) rail.scrollTo({ top: el.offsetTop - rail.offsetTop, behavior: "smooth" });
     },
     [areas],
   );
@@ -175,7 +144,6 @@ export function HomeConsole({
           <HomeMap
             areas={areas}
             items={items}
-            basinState={basinState}
             highlight={selected ?? hovered}
             basinHighlight={highlightedBasin}
             focus={focus}
@@ -194,14 +162,6 @@ export function HomeConsole({
               <span className="ffx-num">
                 {totals.live} published · {areas.length - totals.live} in progress
               </span>
-              <span className="sx-seg" role="group" aria-label="Group the list">
-                <button type="button" aria-pressed={grouped} onClick={() => setGrouped(true)}>
-                  Basins
-                </button>
-                <button type="button" aria-pressed={!grouped} onClick={() => setGrouped(false)}>
-                  Flat list
-                </button>
-              </span>
             </div>
             <label className="ffx-field">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -219,32 +179,9 @@ export function HomeConsole({
           </div>
           <ul className="sx-rail-list ffx-scroll">
             {shown.length === 0 && <li className="sx-empty">No collections match.</li>}
-            {grouped
-              ? groups.map((g) => (
-                  <li key={g.huc4} className="sx-basin-group" id={`basin-${g.huc4}`}>
-                    <button
-                      type="button"
-                      className="sx-group"
-                      data-active={basin === g.huc4}
-                      onClick={() => selectBasin(g.huc4)}
-                      onMouseEnter={() => setBasin(g.huc4)}
-                      onMouseLeave={() => !selected && setBasin(null)}
-                    >
-                      <b>{g.name}</b>
-                      <span className="ffx-num">
-                        {[g.live && `${g.live} published`, g.planned && `${g.planned} in progress`].filter(Boolean).join(" · ")}
-                      </span>
-                    </button>
-                    <ul>
-                      {g.list.map((a) => (
-                        <AreaRow key={a.slug} area={a} active={(selected ?? hovered) === a.slug} grouped onHover={setHovered} onSelect={select} />
-                      ))}
-                    </ul>
-                  </li>
-                ))
-              : shown.map((a) => (
-                  <AreaRow key={a.slug} area={a} active={(selected ?? hovered) === a.slug} onHover={setHovered} onSelect={select} />
-                ))}
+            {shown.map((a) => (
+              <AreaRow key={a.slug} area={a} active={(selected ?? hovered) === a.slug} onHover={setHovered} onSelect={select} />
+            ))}
           </ul>
         </aside>
       </div>
@@ -255,13 +192,11 @@ export function HomeConsole({
 function AreaRow({
   area,
   active,
-  grouped = false,
   onHover,
   onSelect,
 }: {
   area: HomeArea;
   active: boolean;
-  grouped?: boolean;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string) => void;
 }) {
@@ -286,7 +221,7 @@ function AreaRow({
         <div className="sx-row-main">
           <div className="sx-row-title">{area.name}</div>
           <div className="sx-row-sub">
-            <span>{grouped ? AREA_KIND_LABEL[area.kind] : `${AREA_KIND_LABEL[area.kind]} · ${basinName(area.huc4)}`}</span>
+            <span>{AREA_KIND_LABEL[area.kind]}</span>
             {area.live && area.temporal && (area.temporal[0] || area.temporal[1]) && (
               <span className="ffx-num">{fmtRange(area.temporal[0], area.temporal[1])}</span>
             )}

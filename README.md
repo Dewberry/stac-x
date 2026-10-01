@@ -8,7 +8,7 @@ Collection and item pages put things where STAC Browser puts them, since
 that's what people already know (see Page layout below). On a phone the
 columns stack, left column first.
 
-![The stac-x homepage: the Colorado catalog map with every collection pinned, beside the collection list grouped by basin](docs/images/home.png)
+![The stac-x homepage: a map outlining the South Platte basin with every collection pinned, beside the collection list](docs/images/home.png)
 
 ## Running it
 
@@ -200,9 +200,10 @@ links that point back into this app.
 ## The landing page
 
 The question and three counts run across the top, then one card holds the
-collection list beside a map of Colorado showing every model area in the state. Today one
+collection list beside a map of the South Platte basin, the only basin the
+program covers. Today one
 collection exists as a geoparquet file (the South Platte gages). The rest come
-from `src/lib/fixtures/areas.ts`, a mocked list of basins and model domains.
+from `src/lib/fixtures/areas.ts`, a mocked list of South Platte model domains.
 An entry there whose `collection` id the catalog holds becomes live: it links
 to the collection, its counts are real, and its footprint is drawn on the map.
 Everything else is drawn as in progress and can't be opened. A collection in the
@@ -224,14 +225,19 @@ instead. The legend lists only what's on the map.
 
 Clicking a collection in the rail or a pin on the map opens a card over the
 map with the collection's description, counts, dates and review progress;
-"Open collection" is the way in. The rail groups collections by USGS
-four-digit hydrologic basin, with a flat list one click away, and the
-basins are drawn on the map, tinted where a basin has published or planned
-work. Clicking a basin zooms to it and scrolls the rail to its group.
+"Open collection" is the way in. Every collection is in the South Platte, so
+the rail is one flat list.
+
+The map opens on the South Platte. Its outline is the strongest line on the
+map and everything outside it is washed out; the Colorado border stays as a
+quieter line for orientation, and no other basin is drawn. Clicking the basin
+zooms to its collections.
 
 The basin polygons are `public/data/co-huc4.json`: the HUC4 units that
 touch Colorado, pulled once from the USGS Watershed Boundary Dataset and
-simplified to about 0.006 degrees. Each area in `src/lib/fixtures/areas.ts`
+simplified to about 0.006 degrees. The map draws only the South Platte
+(`FOCUS_BASIN` in `src/lib/basins.ts`); the rest are still used to place a
+collection the fixtures don't name. Each area in `src/lib/fixtures/areas.ts`
 names its basin by HUC4 code; `src/lib/basins.ts` maps codes to names.
 
 ## Page layout
@@ -276,7 +282,7 @@ full-screen map, which is a different kind of app.
 ## Design
 
 The map is the app. The landing page gives most of the screen to a map of
-Colorado with the collection list beside it. Collection and item pages keep
+the South Platte with the collection list beside it. Collection and item pages keep
 STAC Browser's placement (see Page layout). Cards are white on a pale canvas, lifted by a
 shadow rather than a border, and they all share one corner radius. Every page
 keeps its content on the same edges as the header's. River blue is for data on the map and for links; green means
