@@ -14,5 +14,6 @@ edits go to a sidecar rather than into the parquet.
 - Fonts: Bricolage Grotesque (headings), Instrument Sans (body), DM Mono (ids).
 - Writing style for comments, docs and UI copy: plain, contractions, US
   spelling, no em dashes.
-- `src/lib/fixtures/areas.ts` is mock data for the landing page. Remove entries
-  as real collections land in the bucket.
+- The landing page shows only real collections from the catalog; don't add
+  placeholder or mock areas to it. `src/lib/fixtures/review.ts` is mock data
+  for the Admin queue. Remove entries as real collections land in the bucket.

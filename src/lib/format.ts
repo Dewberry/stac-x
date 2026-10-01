@@ -152,3 +152,24 @@ export function tidyCaps(s: string): string {
     .replace(/\b(At|Near|Below|Above|Of|And|The|In|On|Nr)\b/g, (m) => m.toLowerCase())
     .replace(/^([a-z])/, (m) => m.toUpperCase());
 }
+
+/** How long ago, roughly, in one unit: "40 minutes", "5 hours", "3 days", "6 weeks". */
+export function fmtAge(iso: string | null | undefined, now: number): string {
+  if (!iso) return "";
+  const ms = now - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return "";
+  const n = (v: number, unit: string) => `${v} ${unit}${v === 1 ? "" : "s"}`;
+  const min = Math.max(0, Math.round(ms / 60_000));
+  if (min < 60) return min < 1 ? "just now" : n(min, "minute");
+  const h = Math.round(min / 60);
+  if (h < 48) return n(h, "hour");
+  const d = Math.round(h / 24);
+  if (d < 21) return n(d, "day");
+  return n(Math.round(d / 7), "week");
+}
+
+/** fmtAge as a phrase: "5 hours ago", or "just now". */
+export function fmtAgo(iso: string | null | undefined, now: number): string {
+  const age = fmtAge(iso, now);
+  return !age || age === "just now" ? age : `${age} ago`;
+}

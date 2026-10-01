@@ -4,7 +4,7 @@
  * The polygons live in public/data/co-huc4.json, pulled once from the USGS
  * Watershed Boundary Dataset and simplified to about 0.006 degrees so the
  * whole state is 138 KB. Names here match that file's properties. Every
- * collection is placed in one of these basins (see fixtures/areas.ts), and
+ * collection is placed in one of these basins (see app/[env]/page.tsx), and
  * the landing page groups the rail by them and tints the ones with work.
  */
 export const BASINS: Record<string, string> = {

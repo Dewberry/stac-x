@@ -15,8 +15,8 @@ import type { QcEdit } from "@/lib/stac";
  * one console card holding the list of collections beside the map. One
  * shared hover joins the list and the pins, so pointing at a name finds its
  * mark and pointing at a mark finds its name. Clicking either selects the
- * collection, which opens a preview card over the map; the card is the way
- * in. Every collection is in the South Platte, so the rail is one flat list,
+ * collection, which opens a preview card over the map and draws the
+ * collection's footprint; the card is the way in. Every collection is in the South Platte, so the rail is one flat list,
  * and clicking the basin on the map zooms to its collections.
  *
  * On a phone the hero stacks, the map becomes a card, and the list flows
@@ -33,15 +33,13 @@ export type HomeArea = {
   slug: string;
   name: string;
   kind: AreaKind;
-  basin: string;
   huc4: string;
   bbox: [number, number, number, number];
-  live: boolean;
   /** How the collection's footprint is drawn on the map; null when it isn't. See lib/overview.ts. */
   drawn: "points" | "areas" | "extent" | null;
-  href: string | null;
-  jsonHref: string | null;
-  itemCount: number | null;
+  href: string;
+  jsonHref: string;
+  itemCount: number;
   temporal: [string | null, string | null] | null;
   /** The collection's QC record; null when it has none or isn't published. */
   qc: QcEdit | null;
@@ -49,8 +47,6 @@ export type HomeArea = {
   version?: string | null;
   earlier?: number;
   blurb?: string;
-  pin?: [number, number];
-  anchor?: "left" | "right" | "top" | "bottom";
 };
 
 export function HomeConsole({
@@ -64,7 +60,7 @@ export function HomeConsole({
   items: FeatureCollection;
   title: string;
   lead: string;
-  totals: { live: number; items: number; approved: number };
+  totals: { published: number; items: number; approved: number };
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -75,7 +71,7 @@ export function HomeConsole({
   const shown = useMemo(
     () =>
       q
-        ? areas.filter((a) => `${a.name} ${a.basin} ${basinName(a.huc4)} ${AREA_KIND_LABEL[a.kind]}`.toLowerCase().includes(q))
+        ? areas.filter((a) => `${a.name} ${basinName(a.huc4)} ${AREA_KIND_LABEL[a.kind]}`.toLowerCase().includes(q))
         : areas,
     [areas, q],
   );
@@ -119,20 +115,20 @@ export function HomeConsole({
     <div className="sx-home">
       <section className="sx-hero">
         <div className="sx-hero-text">
-          <p className="sx-eyebrow">FFRD · Colorado</p>
+          <p className="sx-eyebrow">FFRD · South Platte</p>
           <h1 className="sx-hero-title">{title}</h1>
           <p className="sx-hero-lead">{lead}</p>
         </div>
         <dl className="sx-stats">
-          <div className="sx-stat" data-tone="verified">
-            <dd className="ffx-num">{totals.live}</dd>
+          <div className="sx-stat">
+            <dd className="ffx-num">{totals.published}</dd>
             <dt>Published</dt>
           </div>
           <div className="sx-stat">
             <dd className="ffx-num">{fmtNum(totals.items)}</dd>
             <dt>Items</dt>
           </div>
-          <div className="sx-stat">
+          <div className="sx-stat" data-tone={totals.approved > 0 ? "verified" : undefined}>
             <dd className="ffx-num">{fmtNum(totals.approved)}</dd>
             <dt>Approved</dt>
           </div>
@@ -145,6 +141,7 @@ export function HomeConsole({
             areas={areas}
             items={items}
             highlight={selected ?? hovered}
+            shown={selected}
             basinHighlight={highlightedBasin}
             focus={focus}
             onHover={setHovered}
@@ -159,9 +156,7 @@ export function HomeConsole({
           <div className="sx-rail-head">
             <div className="sx-rail-title">
               <h2>Collections</h2>
-              <span className="ffx-num">
-                {totals.live} published · {areas.length - totals.live} in progress
-              </span>
+              <span className="ffx-num">{totals.published} published</span>
             </div>
             <label className="ffx-field">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -178,7 +173,9 @@ export function HomeConsole({
             </label>
           </div>
           <ul className="sx-rail-list ffx-scroll">
-            {shown.length === 0 && <li className="sx-empty">No collections match.</li>}
+            {shown.length === 0 && (
+              <li className="sx-empty">{areas.length ? "No collections match." : "No collections published yet."}</li>
+            )}
             {shown.map((a) => (
               <AreaRow key={a.slug} area={a} active={(selected ?? hovered) === a.slug} onHover={setHovered} onSelect={select} />
             ))}
@@ -208,7 +205,7 @@ function AreaRow({
   }, [active]);
 
   return (
-    <li ref={ref} className="sx-rail-item" data-active={active} data-live={area.live}>
+    <li ref={ref} className="sx-rail-item" data-active={active}>
       <button
         type="button"
         className="sx-row"
@@ -222,13 +219,13 @@ function AreaRow({
           <div className="sx-row-title">{area.name}</div>
           <div className="sx-row-sub">
             <span>{AREA_KIND_LABEL[area.kind]}</span>
-            {area.live && area.temporal && (area.temporal[0] || area.temporal[1]) && (
+            {area.temporal && (area.temporal[0] || area.temporal[1]) && (
               <span className="ffx-num">{fmtRange(area.temporal[0], area.temporal[1])}</span>
             )}
           </div>
         </div>
         <div className="sx-row-aside">
-          {area.live ? <span className="ffx-num">{fmtNum(area.itemCount ?? 0)}</span> : <span>in progress</span>}
+          <span className="ffx-num">{fmtNum(area.itemCount)}</span>
         </div>
       </button>
     </li>

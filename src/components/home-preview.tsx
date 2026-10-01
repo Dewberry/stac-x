@@ -31,16 +31,12 @@ export function HomePreview({
   area: HomeArea;
   onClose: () => void;
 }) {
-  const total = area.itemCount ?? 0;
+  const total = area.itemCount;
   return (
     <div className="sx-preview" role="dialog" aria-label={area.name}>
       <div className="sx-preview-head">
         <div className="sx-preview-top">
-          {area.live ? (
-            <span className="sx-chip" data-tone="verified">Published</span>
-          ) : (
-            <span className="sx-chip">In progress</span>
-          )}
+          <span className="sx-chip">Published</span>
           <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
@@ -49,62 +45,48 @@ export function HomePreview({
         </div>
         <div className="sx-preview-title">{area.name}</div>
         <div className="sx-preview-basin">
-          <i aria-hidden="true" data-live={area.live} />
+          <i aria-hidden="true" />
           {basinName(area.huc4)} basin · HUC {area.huc4} · {AREA_KIND_LABEL[area.kind]}
         </div>
-        <p className="sx-preview-sub">
-          {area.blurb ?? (area.live ? "" : "This collection is in progress and hasn't been published yet.")}
-        </p>
+        {area.blurb && <p className="sx-preview-sub">{area.blurb}</p>}
       </div>
-      {area.live && (
-        <>
-          <div className="sx-preview-figs">
-            <div>
-              <b className="ffx-num">{fmtNum(total)}</b>
-              <span>items</span>
-            </div>
-            <div>
-              <b className="ffx-num">{years(area.temporal)}</b>
-              <span>{AREA_KIND_TIME[area.kind]}</span>
-            </div>
-          </div>
-          {area.version && (
-            <div className="sx-preview-rev">
-              <span className="sx-preview-l">Version</span>
-              <span className="sx-preview-qc">
-                <span className="text-ink">{versionName(area.version)}</span>
-                {area.earlier ? (
-                  <span>
-                    {area.earlier} earlier {area.earlier === 1 ? "version" : "versions"}
-                  </span>
-                ) : null}
+      <div className="sx-preview-figs">
+        <div>
+          <b className="ffx-num">{fmtNum(total)}</b>
+          <span>items</span>
+        </div>
+        <div>
+          <b className="ffx-num">{years(area.temporal)}</b>
+          <span>{AREA_KIND_TIME[area.kind]}</span>
+        </div>
+      </div>
+      {area.version && (
+        <div className="sx-preview-rev">
+          <span className="sx-preview-l">Version</span>
+          <span className="sx-preview-qc">
+            <span className="text-ink">{versionName(area.version)}</span>
+            {area.earlier ? (
+              <span>
+                {area.earlier} earlier {area.earlier === 1 ? "version" : "versions"}
               </span>
-            </div>
-          )}
-          <div className="sx-preview-rev">
-            <span className="sx-preview-l">Quality control</span>
-            <span className="sx-preview-qc">
-              <QcChip status={area.qc?.qc} />
-              {area.qc?.date_approved && <span className="ffx-num">{area.qc.date_approved}</span>}
-            </span>
-          </div>
-        </>
+            ) : null}
+          </span>
+        </div>
       )}
+      <div className="sx-preview-rev">
+        <span className="sx-preview-l">Quality control</span>
+        <span className="sx-preview-qc">
+          <QcChip status={area.qc?.qc} />
+          {area.qc?.date_approved && <span className="ffx-num">{area.qc.date_approved}</span>}
+        </span>
+      </div>
       <div className="sx-preview-btns">
-        {area.live && area.jsonHref && (
-          <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
-            JSON
-          </a>
-        )}
-        {area.live && area.href ? (
-          <Link href={area.href} className="ffx-btn ffx-btn-primary">
-            Open collection →
-          </Link>
-        ) : (
-          <button type="button" className="ffx-btn ffx-btn-primary" disabled>
-            Not available yet
-          </button>
-        )}
+        <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
+          JSON
+        </a>
+        <Link href={area.href} className="ffx-btn ffx-btn-primary">
+          Open collection →
+        </Link>
       </div>
     </div>
   );

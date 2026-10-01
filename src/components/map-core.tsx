@@ -14,6 +14,15 @@ export const STYLE_LIGHT =
 export const STYLE_DARK =
   process.env.NEXT_PUBLIC_MAP_STYLE_DARK || "https://tiles.openfreemap.org/styles/dark";
 
+/**
+ * Elevation tiles for the relief on the landing map: Mapzen's terrarium set,
+ * open data on AWS, no key. Set the variable to nothing to turn relief off.
+ */
+export const TERRAIN_URL =
+  process.env.NEXT_PUBLIC_MAP_TERRAIN ?? "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+const TERRAIN_CREDIT =
+  '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen terrain</a>';
+
 export const WORKER_URL = "/vendor/maplibre-gl/maplibre-gl-worker.mjs";
 
 export type Theme = "light" | "dark";
@@ -54,6 +63,11 @@ export function palette(host: HTMLElement) {
     trace: c("--ffx-trace-strong"),
     traceSoft: c("--ffx-trace"),
     planned: c("--ffx-planned"),
+    mapLand: c("--ffx-map-land"),
+    mapSurround: c("--ffx-map-surround"),
+    mapWater: c("--ffx-map-water"),
+    mapShade: c("--ffx-map-shade"),
+    mapLight: c("--ffx-map-light"),
   };
   probe.remove();
   return p;
@@ -74,6 +88,50 @@ export function blankStyle(p: Palette): StyleSpecification {
     sources: {},
     layers: [{ id: "ground", type: "background", paint: { "background-color": p.ground } }],
   };
+}
+
+export const SRC_TERRAIN = "ffx-terrain";
+export const LAYER_RELIEF = "ffx-relief";
+
+/**
+ * Give a gray basemap some life: land in the app's paper color, water and
+ * rivers in a pale river blue, and shaded relief under the roads and labels.
+ * Layers are found by what they draw rather than by id, so another
+ * OpenMapTiles style works too; on the blank fallback this only adds relief.
+ */
+export function dressBasemap(map: MapLibreMap, p: Palette) {
+  const layers = map.getStyle().layers;
+  for (const l of layers) {
+    const of = (l as { "source-layer"?: string })["source-layer"];
+    if (l.type === "background") map.setPaintProperty(l.id, "background-color", p.mapLand);
+    else if (l.type === "fill" && of === "water") map.setPaintProperty(l.id, "fill-color", p.mapWater);
+    else if (l.type === "line" && of === "waterway") map.setPaintProperty(l.id, "line-color", p.mapWater);
+  }
+  if (!TERRAIN_URL || map.getSource(SRC_TERRAIN)) return;
+  map.addSource(SRC_TERRAIN, {
+    type: "raster-dem",
+    tiles: [TERRAIN_URL],
+    encoding: "terrarium",
+    tileSize: 256,
+    maxzoom: 12,
+    attribution: TERRAIN_CREDIT,
+  });
+  // Over the land and its cover, under the first line or label.
+  const above = layers.find((l) => l.type !== "background" && l.type !== "fill" && l.type !== "raster");
+  map.addLayer(
+    {
+      id: LAYER_RELIEF,
+      type: "hillshade",
+      source: SRC_TERRAIN,
+      paint: {
+        "hillshade-exaggeration": 0.5,
+        "hillshade-shadow-color": p.mapShade,
+        "hillshade-highlight-color": p.mapLight,
+        "hillshade-accent-color": p.mapShade,
+      },
+    },
+    above?.id,
+  );
 }
 
 /**
@@ -245,6 +303,3 @@ export function CreditLine({ credits }: { credits: Credit[] }) {
     </span>
   );
 }
-
-/** Colorado's borders are lines of latitude and longitude, so a box is the state. */
-export const COLORADO: [number, number, number, number] = [-109.06, 36.99, -102.04, 41.0];

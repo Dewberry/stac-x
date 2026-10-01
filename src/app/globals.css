@@ -48,7 +48,6 @@
   --ffx-moss: #2f8f6a;
   --ffx-moss-deep: #1f5f45;
   --ffx-moss-pale: #d5eee2;
-  --ffx-dune: #b8a27a;
   --ffx-amber: #b8781a;
   --ffx-amber-deep: #8a5a10;
   --ffx-amber-pale: #f5e7cc;
@@ -71,6 +70,16 @@
   --ffx-surface-sunken: var(--ffx-n-100);
   --ffx-surface-inset: #e2e8ee;
   --ffx-glass: rgba(255, 255, 255, 0.9);
+
+  /* The landing map. Land is brighter than the page and the wash outside the
+     basin is darker than it, so the basin comes off the card. The ground is
+     warm (paper, sand, a brown-gray shade for the relief) so it doesn't run
+     into the cool page, and blue is left to mean water and data. */
+  --ffx-map-land: #fdfcf9;
+  --ffx-map-surround: #cdc6b8;
+  --ffx-map-water: #a9c4ee;
+  --ffx-map-shade: #6a6053;
+  --ffx-map-light: #ffffff;
 
   /* ---------- 2. semantic: structure ---------- */
   --ffx-rule: var(--ffx-n-250);
@@ -113,7 +122,7 @@
   --ffx-neutral-text: var(--ffx-n-600);
   --ffx-idle: var(--ffx-n-200);
   --ffx-idle-text: var(--ffx-n-600);
-  --ffx-planned: var(--ffx-dune);
+  --ffx-planned: var(--ffx-n-600);
 
   /* Data on the map: river blue at three steps. */
   --ffx-trace: var(--ffx-river-pale);
@@ -176,6 +185,11 @@
     --ffx-surface-sunken: #141a20;
     --ffx-surface-inset: #10161c;
     --ffx-glass: rgba(26, 32, 39, 0.92);
+    --ffx-map-land: #262522;
+    --ffx-map-surround: #0b0a09;
+    --ffx-map-water: #2b4674;
+    --ffx-map-shade: #05080b;
+    --ffx-map-light: #504d47;
     --ffx-rule: #2a333d;
     --ffx-rule-strong: #3a4550;
     --ffx-control-edge: #4a5661;
@@ -202,7 +216,7 @@
     --ffx-neutral-text: #a3adb8;
     --ffx-idle: #2f3944;
     --ffx-idle-text: #a3adb8;
-    --ffx-planned: #a99569;
+    --ffx-planned: #7f8a96;
     --ffx-trace: #3d5f9a;
     --ffx-trace-strong: #6b9cf0;
     --ffx-trace-median: #c4d7f8;
@@ -226,6 +240,11 @@
   --ffx-surface-sunken: #141a20;
   --ffx-surface-inset: #10161c;
   --ffx-glass: rgba(26, 32, 39, 0.92);
+  --ffx-map-land: #262522;
+  --ffx-map-surround: #0b0a09;
+  --ffx-map-water: #2b4674;
+  --ffx-map-shade: #05080b;
+  --ffx-map-light: #504d47;
   --ffx-rule: #2a333d;
   --ffx-rule-strong: #3a4550;
   --ffx-control-edge: #4a5661;
@@ -252,7 +271,7 @@
   --ffx-neutral-text: #a3adb8;
   --ffx-idle: #2f3944;
   --ffx-idle-text: #a3adb8;
-  --ffx-planned: #a99569;
+  --ffx-planned: #7f8a96;
   --ffx-trace: #3d5f9a;
   --ffx-trace-strong: #6b9cf0;
   --ffx-trace-median: #c4d7f8;
@@ -589,7 +608,7 @@
   border-radius: var(--ffx-radius-sm);
 }
 .ffx-input::placeholder {
-  color: var(--ffx-ink-dim);
+  color: var(--ffx-ink-mut);
 }
 .ffx-input:focus {
   background: var(--ffx-surface);
@@ -643,7 +662,7 @@
   outline: none;
 }
 .ffx-field input::placeholder {
-  color: var(--ffx-ink-dim);
+  color: var(--ffx-ink-mut);
 }
 .ffx-field-label {
   flex: none;
@@ -1270,6 +1289,30 @@
 
 /* ============================== admin ============================== */
 
+.sx-admin-stack {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+}
+/* Four counts across the top, two by two on a phone. The label sits under
+   the figure, as on the landing page, while dt still comes first in the
+   markup. */
+.sx-stats.sx-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ffx-deck-gap);
+}
+@media (min-width: 40rem) {
+  .sx-stats.sx-admin-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.sx-admin-stats .sx-stat {
+  padding: 0.625rem 0.875rem;
+}
+.sx-admin-stats .sx-stat dt {
+  order: 1;
+}
+
 /* The queue takes most of the width, activity sits beside it; below 64rem
    activity drops under the queue. */
 .sx-admin {
@@ -1279,11 +1322,16 @@
 }
 @media (min-width: 64rem) {
   .sx-admin {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
   }
 }
 .sx-admin .ffx-tabs {
   padding-top: 0.25rem;
+  border-bottom: 0;
+}
+.sx-queue-tools {
+  padding-top: 0;
+  border-bottom: 1px solid var(--ffx-rule);
 }
 /* Always in the page so screen readers hear what a save did; empty, it takes no room. */
 .sx-admin-flash:not(:empty) {
@@ -1294,10 +1342,47 @@
   font-size: var(--ffx-t-small);
   color: var(--ffx-verified-text);
 }
+.sx-admin-flash[data-tone="bad"]:not(:empty) {
+  background: var(--ffx-bad-pale);
+  color: var(--ffx-bad-text);
+}
 
+/* With rows selected: what to do with them. */
+.sx-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem var(--ffx-panel-pad);
+  background: var(--ffx-surface-sunken);
+  border-bottom: 1px solid var(--ffx-rule);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-bulk b {
+  color: var(--ffx-ink);
+}
+.sx-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.sx-bulk-clear {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sx-queue tbody tr {
+  cursor: pointer;
+}
 .sx-queue td {
   vertical-align: middle;
-  padding-block: 0.5rem;
+  padding-block: 0.55rem;
+}
+.sx-queue tbody tr[data-selected] td {
+  background: color-mix(in srgb, var(--ffx-river) 7%, var(--ffx-surface));
 }
 .sx-queue td:first-child,
 .sx-queue th:first-child {
@@ -1307,9 +1392,20 @@
 .sx-queue th:last-child {
   padding-right: var(--ffx-panel-pad);
 }
+.sx-queue-check {
+  width: 1px;
+  padding-right: 0.25rem;
+}
+.sx-queue-check input,
+.sx-choice input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--ffx-ink);
+  cursor: pointer;
+}
 .sx-queue-name {
   white-space: normal;
-  min-width: 14rem;
+  min-width: 13rem;
 }
 .sx-queue-title {
   display: block;
@@ -1317,7 +1413,7 @@
   color: var(--ffx-ink);
   text-decoration: none;
 }
-.sx-queue-title:hover {
+a.sx-queue-title:hover {
   color: var(--ffx-active-text);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -1328,13 +1424,6 @@
   align-items: center;
   gap: 0.25rem 0.5rem;
   margin-top: 0.15rem;
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
-}
-.sx-queue-when {
-  display: block;
-  margin-top: 0.15rem;
-  padding-left: 0.5rem;
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
 }
@@ -1367,42 +1456,154 @@
   background: var(--ffx-env-test);
 }
 
-/* The review dialog. */
-.sx-dialog {
-  width: min(34rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem);
-  margin: auto;
+/* The review sheet: a native dialog pinned to the right edge, full height,
+   sliding in. The head and foot stay put while the middle scrolls. */
+.sx-sheet {
+  inset: 0 0 0 auto;
+  width: min(32rem, 100vw);
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  margin: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--ffx-radius-md);
   background: var(--ffx-surface-raised);
   color: var(--ffx-ink);
   box-shadow: var(--ffx-shadow-overlay);
+  transition:
+    translate 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    display 220ms allow-discrete,
+    overlay 220ms allow-discrete;
 }
-.sx-dialog::backdrop {
-  background: rgb(19 26 34 / 0.45);
+.sx-sheet[open] {
+  translate: 0 0;
 }
-.sx-dialog-body {
+@starting-style {
+  .sx-sheet[open] {
+    translate: 100% 0;
+  }
+}
+.sx-sheet::backdrop {
+  background: rgb(19 26 34 / 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-sheet {
+    transition: none;
+  }
+}
+.sx-sheet-body {
   display: grid;
-  gap: 1rem;
-  padding: 1.125rem 1.25rem 1.25rem;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
 }
-.sx-dialog-body .sx-path {
-  margin: 0;
-}
-.sx-dialog-head {
+.sx-sheet-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding: 1rem 1.25rem 0.875rem;
+  border-bottom: 1px solid var(--ffx-rule);
 }
-.sx-dialog-foot {
+.sx-sheet-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+.sx-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-stepper > span {
+  margin-right: 0.25rem;
+}
+.sx-stepper .ffx-btn {
+  width: 1.875rem;
+  padding: 0;
+}
+.sx-sheet-scroll {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-y: auto;
+}
+.sx-sheet-scroll .sx-path {
+  margin: 0;
+}
+.sx-sheet-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding-top: 0.25rem;
+  padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-raised);
+}
+.sx-sheet-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem 1rem;
+  margin: 0;
+}
+.sx-sheet-facts dt {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-sheet-facts dd {
+  margin: 0;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+/* The last thing a reviewer said, quoted, so the next one starts from it. */
+.sx-lastnote {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+}
+.sx-lastnote figcaption {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-lastnote blockquote {
+  margin: 0.25rem 0 0;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+}
+.sx-sheet-history summary {
+  cursor: pointer;
+  font-size: var(--ffx-t-small);
+  font-weight: 500;
+  color: var(--ffx-ink-sec);
+}
+.sx-sheet-history[open] summary {
+  margin-bottom: 0.5rem;
+}
+.sx-bulk-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+}
+.sx-bulk-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--ffx-grid);
+  font-size: var(--ffx-t-small);
+}
+.sx-bulk-list li:first-child {
+  border-top: 0;
 }
 
 /* Decisions as large radio rows, each marked with its QC color. */
@@ -1431,7 +1632,6 @@
 }
 .sx-choice input {
   margin-top: 0.2rem;
-  accent-color: var(--ffx-ink);
 }
 .sx-choice:has(input:checked) {
   border-color: var(--sx-choice-mark, var(--ffx-ink));
@@ -1462,24 +1662,62 @@
   color: var(--ffx-ink-mut);
 }
 
-/* Recent activity across every collection. */
+/* Recent activity: a timeline, each event marked with its QC color, moves
+   between environments in ink. */
 .sx-activity {
   margin: 0;
-  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
+  padding: 0.25rem var(--ffx-panel-pad) var(--ffx-panel-pad);
   list-style: none;
   display: grid;
 }
+.sx-activity[data-bare] {
+  padding: 0;
+}
 .sx-activity li {
+  position: relative;
   display: grid;
   gap: 0.1rem;
-  padding-block: 0.625rem;
-  border-top: 1px solid var(--ffx-grid);
+  padding: 0 0 0.875rem 1.125rem;
   font-size: var(--ffx-t-small);
   color: var(--ffx-ink-sec);
 }
-.sx-activity li:first-child {
-  border-top: 0;
-  padding-top: 0.25rem;
+/* The rail between marks. */
+.sx-activity li::after {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 1rem;
+  bottom: 0.1rem;
+  width: 1px;
+  background: var(--ffx-rule);
+}
+.sx-activity li:last-child {
+  padding-bottom: 0;
+}
+.sx-activity li:last-child::after {
+  display: none;
+}
+.sx-activity li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: 50%;
+  background: var(--sx-mark, var(--ffx-ink-dim));
+}
+.sx-activity li[data-tone="verified"] {
+  --sx-mark: var(--ffx-verified);
+}
+.sx-activity li[data-tone="attn"] {
+  --sx-mark: var(--ffx-attn);
+}
+.sx-activity li[data-tone="bad"] {
+  --sx-mark: var(--ffx-bad);
+}
+.sx-activity li[data-tone="move"] {
+  --sx-mark: var(--ffx-ink);
 }
 .sx-activity-title {
   font-weight: 600;
@@ -1487,16 +1725,21 @@
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-.sx-activity-title:hover {
+a.sx-activity-title:hover {
   color: var(--ffx-active-text);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-
-/* The Admin link marks itself when you're on the page. */
-.sx-header .ffx-btn[aria-current="page"] {
-  background: color-mix(in srgb, var(--ffx-header-ink) 14%, transparent);
-  border-color: var(--ffx-header-ink-mut);
+.sx-activity-what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 0.75rem;
+}
+.sx-activity-when {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
 }
 
 .sx-callout {
@@ -1874,7 +2117,7 @@ main:focus {
   margin-left: auto;
   display: inline-flex;
   gap: 0.375rem;
-  color: var(--ffx-ink-dim);
+  color: var(--ffx-ink-mut);
 }
 .ffx-map-credit a {
   color: inherit;
@@ -2165,11 +2408,7 @@ main:focus {
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: var(--ffx-planned);
-  opacity: 0.7;
-}
-.sx-preview-basin i[data-live="true"] {
-  background: var(--ffx-verified);
+  background: var(--ffx-ink);
 }
 .sx-preview-sub {
   font-size: var(--ffx-t-small);
@@ -2237,26 +2476,14 @@ main:focus {
     display: none;
   }
 }
-.sx-rail-item[data-live="true"] .sx-row {
-  background: linear-gradient(90deg, var(--ffx-verified-pale), transparent 65%);
-}
+/* Counts are set in weight, not a color: green is kept for approved, so a
+   collection nobody has reviewed is never drawn in it. */
 .sx-rail-item[data-active="true"] .sx-row {
   background: var(--ffx-surface-sunken);
   box-shadow: inset 3px 0 0 var(--ffx-river);
 }
-.sx-rail-item[data-live="true"][data-active="true"] .sx-row {
-  background: var(--ffx-verified-pale);
-}
-.sx-rail-item[data-live="false"] .sx-row-title {
-  color: var(--ffx-ink-sec);
-  font-weight: 500;
-}
-.sx-rail-item[data-live="false"] .sx-row-aside {
-  font-family: var(--ffx-mono);
-  font-size: var(--ffx-t-micro);
-}
-.sx-rail-item[data-live="true"] .sx-row-aside {
-  color: var(--ffx-verified-text);
+.sx-rail-item .sx-row-aside {
+  color: var(--ffx-ink);
   font-weight: 600;
 }
 @media (min-width: 64rem) {
@@ -2303,8 +2530,7 @@ main:focus {
 }
 
 /* Pins on the landing map: a mark and the name beside it, one focusable
-   control. Published pins are green and open the collection; planned pins are
-   quiet and just show their outline. */
+   control: a solid mark with a bold name. */
 .sx-pin {
   pointer-events: none;
 }
@@ -2318,20 +2544,12 @@ main:focus {
   border-radius: 999px;
   background: var(--ffx-glass);
   box-shadow: 0 1px 2px rgb(19 26 34 / 0.12), 0 3px 10px rgb(19 26 34 / 0.1);
-  font: 500 var(--ffx-t-micro) / 1.4 var(--ffx-sans);
+  font: 600 var(--ffx-t-micro) / 1.4 var(--ffx-sans);
   color: var(--ffx-ink);
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition: transform 90ms ease-out, background-color 90ms linear;
-}
-.sx-pin[data-live="true"] .sx-pin-btn {
-  color: var(--ffx-verified-text);
-  font-weight: 600;
-}
-.sx-pin[data-live="false"] .sx-pin-btn {
-  color: var(--ffx-ink-sec);
-  cursor: default;
 }
 .sx-pin[data-anchor="right"] .sx-pin-btn {
   flex-direction: row-reverse;
@@ -2351,19 +2569,7 @@ main:focus {
   height: 9px;
   flex: none;
   border-radius: 50%;
-  background: var(--ffx-verified);
-}
-.sx-pin[data-live="false"] .sx-pin-mark,
-.sx-pin-mark[data-live="false"] {
-  background: transparent;
-  border: 1.5px dashed var(--ffx-planned);
-}
-.sx-home-map[data-dense="true"] .sx-pin[data-live="false"]:not([data-active="true"]) .sx-pin-label {
-  display: none;
-}
-.sx-home-map[data-dense="true"] .sx-pin[data-live="false"]:not([data-active="true"]) .sx-pin-btn {
-  padding: 0.3rem;
-  gap: 0;
+  background: var(--ffx-ink);
 }
 .sx-legend {
   display: inline-flex;

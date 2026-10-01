@@ -13,8 +13,11 @@ export { Icon, ICONS } from "./icons";
  * right end. Both sit on the same 96rem shell and the same edge gutter.
  * Navigation is the map and the Collection and Up actions, as in STAC Browser.
  * Signed in, the header's right end holds the environment switcher and the
- * account badge.
+ * account badge, whose menu is the way to Admin.
  */
+
+/** Pages reached from the account menu rather than the bar. */
+const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
 
 export function SiteHeader({ session }: { session: Session | null }) {
   return (
@@ -25,7 +28,7 @@ export function SiteHeader({ session }: { session: Session | null }) {
       <div className="ffx-shell sx-header-inner">
         <BrandLink className="sx-brand" />
         <div className="ml-auto flex items-center gap-2">
-          <HeaderControls session={session} home="/" homeLabel="Home" signOut="/signin" />
+          <HeaderControls session={session} home="/" homeLabel="Home" signOut="/signin" links={ACCOUNT_LINKS} />
         </div>
       </div>
     </header>

@@ -1,8 +1,8 @@
 # stac-x
 
 A STAC viewer for FFRD's Colorado data. It reads stac-geoparquet files
-straight from S3, draws every collection on a map of the state, and lets a
-reviewer record QC on each collection. The one thing it writes is that QC record.
+straight from S3, draws every collection on a map of the South Platte basin,
+and lets a reviewer record QC on each collection. The one thing it writes is that QC record.
 
 Collection and item pages put things where STAC Browser puts them, since
 that's what people already know (see Page layout below). On a phone the
@@ -31,8 +31,9 @@ Beside it, `sp-gages-v1.parquet` and `sp-gages-v2.parquet` are two versions
 of a copy of it (see Versions), there so the version menu has something to
 show. Production, at the unprefixed URLs, stays empty until a collection is
 approved through Testing (see Environments). The map
-tiles come from OpenFreeMap and need the internet; without them the data still
-draws over a plain ground.
+tiles come from OpenFreeMap, and the homepage's relief from open elevation
+tiles on AWS; both need the internet. Without them the data still draws over
+a plain ground.
 
 To point it at the bucket, make a `.env` file from the example:
 
@@ -78,7 +79,7 @@ it rewrites Unix-style paths before Node sees them.
 
 ```
 src/proxy.ts                maps unprefixed URLs to Production, /dev and /test to theirs
-src/app/[env]/              routes per environment: landing page, collection, item, JSON APIs
+src/app/[env]/              routes per environment: landing page, collection, item, admin, JSON APIs
 src/app/signin/             the stand-in sign-in
 src/app/actions.ts          the server action that saves QC and sends a collection on
 src/components/             UI: shell, maps, item list, assets, QC form, metadata table
@@ -89,7 +90,7 @@ src/lib/env.ts              the three environments and the links between them
 src/lib/edits.ts            the QC sidecar: where it lives, how it is written
 src/lib/promote.ts          copies an approved collection to the next environment
 src/lib/versions.ts         works out which collections are versions of each other
-src/lib/fixtures/areas.ts   the mocked model areas on the landing page
+src/lib/fixtures/review.ts  mocked review queue rows for the Admin page
 src/lib/overview.ts         what each collection draws on the landing page map
 src/lib/kinds.ts            collection kinds (gages, HMS, RAS...) and their labels
 data/dev/                   sample parquet; data/test and data/prod fill as you promote (ignored by git)
@@ -133,6 +134,25 @@ its next run. The viewer merges it on read, so to a reader the collection
 simply has `qc` and `date_approved`, which is also how the collection JSON
 API returns them. The sidecar is keyed by collection id. A collection whose
 items span several parquet files keeps its record beside the first one.
+
+The Admin page (`/admin`, `/dev/admin`, `/test/admin`, reached from the
+account menu) is the review queue for one environment. Four counts sit across
+the top (waiting, oldest waiting, sent back, approved in the last 30 days).
+The queue opens on what nobody has reviewed yet, oldest first, with tabs for
+the other states, a search, and the filter in the URL so a filtered view can
+be linked. Review opens a sheet from the right with where the collection
+stands, its last note and its history; after a decision it moves on to the
+next one, and J and K step through the queue. Selecting rows decides on
+several at once, with a result per collection. Every save goes through the
+same server action as the collection page's form, so approving still
+promotes. The sheet asks for a note on Needs revision and Reject; back-dating
+an approval or resetting to Not reviewed still happens on the collection
+page. Recent activity beside the queue merges every collection's history.
+
+Until there are more collections, the queue is filled out from
+`src/lib/fixtures/review.ts`, the South Platte models from the landing page's
+mock at different points in review. A decision on one of those only changes
+the page in front of you. Delete entries as real collections land.
 
 Writes are conditional on the sidecar's ETag (S3 `If-Match`), so two reviewers
 saving at once can't overwrite each other; the loser re-reads and retries.
@@ -201,18 +221,15 @@ links that point back into this app.
 
 The question and three counts run across the top, then one card holds the
 collection list beside a map of the South Platte basin, the only basin the
-program covers. Today one
-collection exists as a geoparquet file (the South Platte gages). The rest come
-from `src/lib/fixtures/areas.ts`, a mocked list of South Platte model domains.
-An entry there whose `collection` id the catalog holds becomes live: it links
-to the collection, its counts are real, and its footprint is drawn on the map.
-Everything else is drawn as in progress and can't be opened. A collection in the
-catalog that no entry names is added as its own live area, placed in the basin
-under the middle of its extent, with its kind guessed from its id and
-keywords, so nothing here has to change for a new file to appear. Delete mock
-entries as real collections land.
+program covers. Only what's in the catalog is shown, with no placeholders for
+work that hasn't landed. Each collection links to its page, its counts are
+real, and its footprint is drawn on the map once it's selected. It's placed in the basin under
+the middle of its extent, with its kind guessed from its id and keywords, so
+nothing here has to change for a new file to appear.
 
-Every collection gets a pin; what's drawn under the pin depends on the shape
+Every collection gets a pin, and until one is selected the pins are all the
+map shows, so it stays readable as collections are added. Selecting a
+collection draws its footprint; what that looks like depends on the shape
 of its items, not on what kind of collection it is. Point items, like gages,
 are drawn as dots. A model's items are usually polygons: thousands of
 simulated events sharing one domain, or subbasins that tile it, or a few 2D
@@ -221,24 +238,31 @@ scale, so `src/lib/overview.ts` draws each distinct shape once, as a faint
 fill, and outlines the whole with the edges between neighbors removed, which
 turns a model's subbasins into its domain. When a collection's shapes are
 too heavy to send to the browser, its extent is drawn as a dashed box
-instead. The legend lists only what's on the map.
+instead. The legend lists only what's on the map, so the footprint's entry
+appears with the footprint.
 
 Clicking a collection in the rail or a pin on the map opens a card over the
 map with the collection's description, counts, dates and review progress;
 "Open collection" is the way in. Every collection is in the South Platte, so
 the rail is one flat list.
 
-The map opens on the South Platte. Its outline is the strongest line on the
-map and everything outside it is washed out; the Colorado border stays as a
-quieter line for orientation, and no other basin is drawn. Clicking the basin
-zooms to its collections.
+The map opens on the South Platte, and the basin's outline is the only
+boundary drawn on it: no state border, no other basin. Inside the line the
+basemap is at full strength, with near-white land, shaded relief and rivers
+in a pale blue. Everything outside sits under a sand-colored wash that's
+darker than the page, so the basin is the brightest thing on the card
+instead of blending into the canvas behind it. The ground is warm on purpose:
+the page is a cool gray, and blue is left to mean water and data. The colors are the `--ffx-map-` tokens in
+`globals.css`; the relief comes from Mapzen's terrarium elevation tiles
+(`NEXT_PUBLIC_MAP_TERRAIN`, set it to nothing to turn relief off). Clicking
+the basin zooms to its collections.
 
 The basin polygons are `public/data/co-huc4.json`: the HUC4 units that
 touch Colorado, pulled once from the USGS Watershed Boundary Dataset and
 simplified to about 0.006 degrees. The map draws only the South Platte
 (`FOCUS_BASIN` in `src/lib/basins.ts`); the rest are still used to place a
-collection the fixtures don't name. Each area in `src/lib/fixtures/areas.ts`
-names its basin by HUC4 code; `src/lib/basins.ts` maps codes to names.
+collection that falls outside it. `src/lib/basins.ts` maps HUC4 codes to
+names.
 
 ## Page layout
 
@@ -285,8 +309,11 @@ The map is the app. The landing page gives most of the screen to a map of
 the South Platte with the collection list beside it. Collection and item pages keep
 STAC Browser's placement (see Page layout). Cards are white on a pale canvas, lifted by a
 shadow rather than a border, and they all share one corner radius. Every page
-keeps its content on the same edges as the header's. River blue is for data on the map and for links; green means
-published or approved, amber needs revision, red rejected.
+keeps its content on the same edges as the header's. River blue is for data on the map and for links. Green,
+amber and red are QC states and nothing else: approved, needs revision,
+rejected. A published collection that nobody has reviewed is drawn in ink, so
+green on the homepage always means approved. The homepage map's ground is warm
+(see the landing page section) and everything around it is a cool gray.
 
 Type is Bricolage Grotesque for headings, Instrument Sans for everything
 else, DM Mono for identifiers. Tokens live in `src/app/globals.css`; the

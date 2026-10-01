@@ -21,7 +21,8 @@ import type { Session } from "@/lib/session";
  * the switcher and the account menu fold into one menu button, which keeps
  * the environment's name and color, so on a phone it's still never a
  * question which environment you're in. Changing environment keeps you on
- * the same page in the other one.
+ * the same page in the other one. The account menu can carry app pages
+ * (stac-x's Admin) under Home, each kept in the current environment.
  */
 
 const SIGN_IN = "/signin";
@@ -31,6 +32,7 @@ export function HeaderControls({
   home,
   homeLabel,
   signOut,
+  links = [],
   children,
 }: {
   session: Session | null;
@@ -38,6 +40,8 @@ export function HeaderControls({
   home: string;
   homeLabel: string;
   signOut: string;
+  /** Pages for the account menu, without an environment prefix: [{ href: "/admin", label: "Admin" }]. */
+  links?: MenuLink[];
   /** App-specific controls between the switcher and the badge. */
   children?: ReactNode;
 }) {
@@ -50,7 +54,13 @@ export function HeaderControls({
     );
   }
   const { env } = splitEnv(pathname);
-  const account = { session, home: withEnv(env, home), homeLabel, signOut };
+  const account = {
+    session,
+    home: withEnv(env, home),
+    homeLabel,
+    signOut,
+    links: links.map((l) => ({ ...l, href: withEnv(env, l.href) })),
+  };
   return (
     <>
       <div className="hidden sm:block">
@@ -87,7 +97,8 @@ export function EnvBand() {
   );
 }
 
-type Account = { session: Session; home: string; homeLabel: string; signOut: string };
+type MenuLink = { href: string; label: string };
+type Account = { session: Session; home: string; homeLabel: string; signOut: string; links: MenuLink[] };
 
 function EnvSwitcher({ env }: { env: EnvKey }) {
   const current = envMeta(env);
@@ -107,7 +118,8 @@ function EnvSwitcher({ env }: { env: EnvKey }) {
   );
 }
 
-function AccountMenu({ session, home, homeLabel, signOut }: Account) {
+function AccountMenu(account: Account) {
+  const { session } = account;
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
@@ -118,7 +130,7 @@ function AccountMenu({ session, home, homeLabel, signOut }: Account) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="ffx-menu" align="end" sideOffset={6}>
-          <AccountItems session={session} home={home} homeLabel={homeLabel} signOut={signOut} />
+          <AccountItems {...account} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -169,7 +181,7 @@ function EnvItems({ env }: { env: EnvKey }) {
   );
 }
 
-function AccountItems({ session, home, homeLabel, signOut }: Account) {
+function AccountItems({ session, home, homeLabel, signOut, links }: Account) {
   return (
     <>
       <DropdownMenu.Label className="px-2.5 pb-1.5 pt-1 text-micro text-ink-mut">
@@ -181,6 +193,13 @@ function AccountItems({ session, home, homeLabel, signOut }: Account) {
           {homeLabel}
         </Link>
       </DropdownMenu.Item>
+      {links.map((l) => (
+        <DropdownMenu.Item key={l.href} asChild>
+          <Link href={l.href} className="ffx-menu-item">
+            {l.label}
+          </Link>
+        </DropdownMenu.Item>
+      ))}
       <DropdownMenu.Item asChild>
         <Link href={signOut} className="ffx-menu-item">
           Sign out

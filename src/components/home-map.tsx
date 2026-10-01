@@ -7,11 +7,13 @@ import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson"
 import {
   applyBasemap,
   blankStyle,
-  COLORADO,
   Controls,
   CreditLine,
   creditsOf,
+  dressBasemap,
+  LAYER_RELIEF,
   palette,
+  SRC_TERRAIN,
   watchTheme,
   WORKER_URL,
   type Credit,
@@ -28,23 +30,24 @@ import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
  * its name beside it, so it is focusable and named for assistive tech, and
  * pointing at one lights up its row in the rail (and the other way round).
  * Clicking a pin selects the area, which opens the preview card; the card is
- * the way into a collection. A planned area is drawn quieter and its card
- * says it is not yet published.
+ * the way into a collection.
  *
  * The South Platte is the only basin the program cares about, so the map
- * opens on it, outlines it, and washes out everything beyond its edge. The
- * state border stays as a quieter line for orientation; no other basin is
- * drawn. Under the markers, GeoJSON layers also draw the footprint of every
- * live collection: small dots for point items
- * like gages, a faint fill and an outline for the area a model covers, or a
- * dashed box when the shapes were too heavy to send (lib/overview.ts decides
- * which). The pin says where a collection is; the footprint says how much
- * ground it covers. Clicking the basin selects it, which zooms the map and
+ * opens on it and its outline is the only boundary drawn. Inside the line
+ * the basemap is at full strength: paper-white land, shaded relief, rivers
+ * in blue. Everything beyond it sits under a darker, sand-colored wash, so
+ * the basin reads as the lit shape on the card.
+ *
+ * Until something is selected the map holds only the pins, so it stays
+ * readable however many collections there are. Selecting a collection draws
+ * its footprint under the markers: small dots for point items like gages, a
+ * faint fill and an outline for the area a model covers, or a dashed box
+ * when the shapes were too heavy to send (lib/overview.ts decides which).
+ * The pin says where a collection is; the footprint says how much ground it
+ * covers. Clicking the basin selects it, which zooms the map and
  * scrolls the rail to its group.
  */
 
-const SRC_STATE = "sx-state";
-const SRC_AREAS = "sx-areas";
 const SRC_ITEMS = "sx-items";
 const SRC_BASINS = "sx-basins";
 const SRC_MASK = "sx-mask";
@@ -52,9 +55,6 @@ const L = {
   mask: "sx-outside-mask",
   basinFill: "sx-basin-fill",
   basinLine: "sx-basin-line",
-  stateLine: "sx-state-line",
-  areaFill: "sx-area-fill",
-  areaLine: "sx-area-line",
   itemFill: "sx-live-fill",
   itemExtent: "sx-live-extent",
   itemLine: "sx-live-line",
@@ -78,13 +78,14 @@ type Shape = Polygon | MultiPolygon;
 
 /**
  * Everything but the South Platte: the world as an outer ring with the basin
- * cut out as a hole. Painted as a translucent wash so the rest of Colorado
- * stays readable (gages and collections run past the edge) but the basin is
- * the subject. Until the basin's polygon arrives, the state is cut out instead.
+ * cut out as a hole. Painted as a translucent wash so the country around
+ * it stays readable (gages and collections run past the edge) but the basin
+ * is the subject. Until the basin's polygon arrives, its extent is cut out
+ * instead.
  */
 function outside(shape: Shape | null): Polygon {
   const holes = !shape
-    ? box(COLORADO).coordinates
+    ? box(FOCUS_BBOX).coordinates
     : shape.type === "Polygon"
       ? [shape.coordinates[0]]
       : shape.coordinates.map((poly) => poly[0]);
@@ -101,46 +102,28 @@ function focusBasin(fc: FeatureCollection): Feature<Shape> | null {
   return f as Feature<Shape>;
 }
 
-function areasFc(areas: HomeArea[]): FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: areas.map((a) => ({
-      type: "Feature",
-      id: a.slug,
-      properties: { slug: a.slug, live: a.live },
-      geometry: box(a.bbox),
-    })),
-  };
-}
-
 function addLayers(
   map: MapLibreMap,
   p: Palette,
-  areas: HomeArea[],
   items: FeatureCollection,
   basin: Feature<Shape> | null,
-  highlight: string | null,
+  shown: string | null,
   basinHighlight: string | null,
 ) {
-  map.addSource(SRC_STATE, { type: "geojson", data: { type: "Feature", properties: {}, geometry: box(COLORADO) } });
+  dressBasemap(map, p);
   map.addSource(SRC_MASK, { type: "geojson", data: { type: "Feature", properties: {}, geometry: outside(basin?.geometry ?? null) } });
-  map.addSource(SRC_AREAS, { type: "geojson", data: areasFc(areas), promoteId: "slug" });
   map.addSource(SRC_ITEMS, { type: "geojson", data: items });
   map.addSource(SRC_BASINS, { type: "geojson", data: basinData(basin) });
 
   map.addLayer({
     id: L.mask, type: "fill", source: SRC_MASK,
-    paint: { "fill-color": p.ground, "fill-opacity": 0.55 },
+    paint: { "fill-color": p.mapSurround, "fill-opacity": 0.6 },
   });
-  // The fill is barely there; it's mostly the click target.
+  // The fill can't be seen; it's the click target. A selected basin is
+  // marked by its outline alone, so the land stays paper white.
   map.addLayer({
     id: L.basinFill, type: "fill", source: SRC_BASINS,
-    paint: { "fill-color": p.trace, "fill-opacity": basinFillOpacity(basinHighlight) },
-  });
-  // The state sits under the basin's outline, which shares its northern edge.
-  map.addLayer({
-    id: L.stateLine, type: "line", source: SRC_STATE,
-    paint: { "line-color": p.inkMut, "line-width": 1.25, "line-opacity": 0.8 },
+    paint: { "fill-color": p.mapLand, "fill-opacity": 0.01 },
   });
   map.addLayer({
     id: L.basinLine, type: "line", source: SRC_BASINS,
@@ -148,35 +131,23 @@ function addLayers(
     paint: { "line-color": p.ink, "line-width": basinLineWidth(basinHighlight), "line-opacity": 0.85 },
   });
 
-  // A planned area has no footprint yet, so its box stands in when it's
-  // pointed at. A live one lights up its own footprint instead.
-  const isHi = plannedFilter(highlight);
   map.addLayer({
-    id: L.areaFill, type: "fill", source: SRC_AREAS, filter: isHi,
-    paint: { "fill-color": p.trace, "fill-opacity": 0.1 },
-  });
-  map.addLayer({
-    id: L.areaLine, type: "line", source: SRC_AREAS, filter: isHi,
-    paint: { "line-color": p.trace, "line-width": 1.5, "line-dasharray": [2, 1.5] },
-  });
-  const role = (r: string): ExpressionSpecification => ["==", ["get", "role"], r];
-  map.addLayer({
-    id: L.itemFill, type: "fill", source: SRC_ITEMS, filter: role("fill"),
+    id: L.itemFill, type: "fill", source: SRC_ITEMS, filter: footprintFilter("fill", shown),
     // Antialiasing draws a seam wherever two subbasins meet; the outline
     // layer already gives the edge.
-    paint: { "fill-color": p.trace, "fill-opacity": fillOpacity(highlight), "fill-antialias": false },
+    paint: { "fill-color": p.trace, "fill-opacity": 0.16, "fill-antialias": false },
   });
   map.addLayer({
-    id: L.itemExtent, type: "line", source: SRC_ITEMS, filter: role("extent"),
-    paint: { "line-color": p.trace, "line-width": lineWidth(highlight), "line-dasharray": [2, 1.5] },
+    id: L.itemExtent, type: "line", source: SRC_ITEMS, filter: footprintFilter("extent", shown),
+    paint: { "line-color": p.trace, "line-width": 1.75, "line-dasharray": [2, 1.5] },
   });
   map.addLayer({
-    id: L.itemLine, type: "line", source: SRC_ITEMS, filter: role("line"),
+    id: L.itemLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("line", shown),
     layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": p.trace, "line-width": lineWidth(highlight), "line-opacity": 0.9 },
+    paint: { "line-color": p.trace, "line-width": 1.75, "line-opacity": 0.9 },
   });
   map.addLayer({
-    id: L.items, type: "circle", source: SRC_ITEMS, filter: role("point"),
+    id: L.items, type: "circle", source: SRC_ITEMS, filter: footprintFilter("point", shown),
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.5, 9, 4.5],
       "circle-color": p.trace,
@@ -187,25 +158,21 @@ function addLayers(
   });
 }
 
-function plannedFilter(highlight: string | null): ExpressionSpecification {
-  return ["all", ["==", ["get", "slug"], highlight ?? ""], ["!", ["get", "live"]]];
-}
+/** Which layer draws which part of a footprint. */
+const FOOTPRINT_ROLES = [
+  [L.itemFill, "fill"],
+  [L.itemExtent, "extent"],
+  [L.itemLine, "line"],
+  [L.items, "point"],
+] as const;
 
-/** Footprints stay faint so overlapping models don't muddy; the pointed-at one comes up. */
-function fillOpacity(highlight: string | null): ExpressionSpecification {
-  return ["case", ["==", ["get", "slug"], highlight ?? ""], 0.2, 0.07];
-}
-
-function lineWidth(highlight: string | null): ExpressionSpecification {
-  return ["case", ["==", ["get", "slug"], highlight ?? ""], 2.25, 1.1];
+/** One part of the selected collection's footprint; nothing when none is selected. */
+function footprintFilter(role: string, shown: string | null): ExpressionSpecification {
+  return ["all", ["==", ["get", "role"], role], ["==", ["get", "slug"], shown ?? ""]];
 }
 
 function basinData(basin: Feature<Shape> | null): FeatureCollection {
   return { type: "FeatureCollection", features: basin ? [basin] : [] };
-}
-
-function basinFillOpacity(basinHighlight: string | null) {
-  return basinHighlight === FOCUS_BASIN ? 0.08 : 0.03;
 }
 
 function basinLineWidth(basinHighlight: string | null) {
@@ -216,6 +183,7 @@ export function HomeMap({
   areas,
   items,
   highlight,
+  shown,
   basinHighlight,
   focus,
   onHover,
@@ -223,9 +191,12 @@ export function HomeMap({
   onBasinSelect,
 }: {
   areas: HomeArea[];
-  /** Every live collection's footprint, from lib/overview.ts. */
+  /** Every collection's footprint, from lib/overview.ts. */
   items: FeatureCollection;
+  /** The pin to mark as active: the selected collection, or the one pointed at. */
   highlight: string | null;
+  /** The collection whose footprint is drawn: the selected one. */
+  shown: string | null;
   basinHighlight: string | null;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
   focus: { bbox: [number, number, number, number]; key: number } | null;
@@ -238,14 +209,14 @@ export function HomeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, { marker: Marker; el: HTMLElement }>>(new Map());
   const [credits, setCredits] = useState<Credit[]>([]);
-  // The legend lists only the kinds of footprint the map has on it.
-  const drawn = new Set(areas.map((a) => a.drawn));
+  // The legend lists only what the map has on it: the selected collection's footprint.
+  const drawn = areas.find((a) => a.slug === shown)?.drawn ?? null;
   const [basemapDown, setBasemapDown] = useState(false);
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
   const areasRef = useRef(areas);
   const itemsRef = useRef(items);
-  const highlightRef = useRef(highlight);
+  const shownRef = useRef(shown);
   const basinHighlightRef = useRef(basinHighlight);
   const basinRef = useRef<Feature<Shape> | null>(null);
   const onHoverRef = useRef(onHover);
@@ -254,7 +225,7 @@ export function HomeMap({
   useEffect(() => {
     areasRef.current = areas;
     itemsRef.current = items;
-    highlightRef.current = highlight;
+    shownRef.current = shown;
     basinHighlightRef.current = basinHighlight;
     onHoverRef.current = onHover;
     onSelectRef.current = onSelect;
@@ -292,8 +263,8 @@ export function HomeMap({
       m.addControl(new Controls(m, frame, fit, "Fit to the South Platte"), "top-right");
 
       const draw = () => {
-        if (m.getSource(SRC_AREAS)) return;
-        addLayers(m, palette(frame), areasRef.current, itemsRef.current, basinRef.current, highlightRef.current, basinHighlightRef.current);
+        if (m.getSource(SRC_ITEMS)) return;
+        addLayers(m, palette(frame), itemsRef.current, basinRef.current, shownRef.current, basinHighlightRef.current);
         setCredits(creditsOf(m));
       };
       // The basin polygon comes from a static file; it arrives once and is
@@ -314,11 +285,10 @@ export function HomeMap({
       for (const a of areasRef.current) {
         const el = document.createElement("div");
         el.className = "sx-pin";
-        el.dataset.live = String(a.live);
         const btn = document.createElement("button");
         btn.className = "sx-pin-btn";
         btn.type = "button";
-        btn.setAttribute("aria-label", a.live ? `${a.name}, published collection` : `${a.name}, in progress`);
+        btn.setAttribute("aria-label", `${a.name}, published collection`);
         btn.innerHTML = `<span class="sx-pin-mark" aria-hidden="true"></span><span class="sx-pin-label">${a.name}</span>`;
         el.appendChild(btn);
         let downX = 0, downY = 0;
@@ -334,25 +304,14 @@ export function HomeMap({
         btn.addEventListener("focus", () => onHoverRef.current(a.slug));
         btn.addEventListener("blur", () => onHoverRef.current(null));
         const [w, s, e, n] = a.bbox;
-        const anchor = a.anchor ?? "left";
-        const offset: [number, number] =
-          anchor === "left" ? [-7, 0] : anchor === "right" ? [7, 0] : anchor === "top" ? [0, -4] : [0, 4];
-        el.dataset.anchor = anchor;
-        const marker = new maplibregl.Marker({ element: el, anchor, offset })
-          .setLngLat(a.pin ?? [(w + e) / 2, (s + n) / 2])
+        el.dataset.anchor = "left";
+        const marker = new maplibregl.Marker({ element: el, anchor: "left", offset: [-7, 0] })
+          .setLngLat([(w + e) / 2, (s + n) / 2])
           .addTo(m);
         markersRef.current.set(a.slug, { marker, el });
       }
 
-      // Sixteen names on a phone-width state are a pile. Below the zoom where
-      // they fit, planned areas keep their mark and drop their name; the rail
-      // has every name, and a tap on a mark brings its name back.
-      const dense = () => {
-        frame.dataset.dense = String(m.getZoom() < 5.8);
-      };
-      m.on("zoom", dense);
       m.on("load", () => {
-        dense();
         draw();
         basemap();
       });
@@ -368,8 +327,8 @@ export function HomeMap({
       m.on("mouseleave", L.basinFill, () => (m.getCanvas().style.cursor = ""));
 
       unwatch = watchTheme(() => {
-        for (const id of Object.values(L)) if (m.getLayer(id)) m.removeLayer(id);
-        for (const id of [SRC_STATE, SRC_MASK, SRC_AREAS, SRC_ITEMS, SRC_BASINS]) if (m.getSource(id)) m.removeSource(id);
+        for (const id of [...Object.values(L), LAYER_RELIEF]) if (m.getLayer(id)) m.removeLayer(id);
+        for (const id of [SRC_MASK, SRC_ITEMS, SRC_BASINS, SRC_TERRAIN]) if (m.getSource(id)) m.removeSource(id);
         basemap();
       });
     });
@@ -388,19 +347,16 @@ export function HomeMap({
   }, []);
 
   useEffect(() => {
-    const m = mapRef.current;
-    if (m?.getLayer(L.areaFill)) {
-      const filter = plannedFilter(highlight);
-      m.setFilter(L.areaFill, filter);
-      m.setFilter(L.areaLine, filter);
-      m.setPaintProperty(L.itemFill, "fill-opacity", fillOpacity(highlight));
-      m.setPaintProperty(L.itemLine, "line-width", lineWidth(highlight));
-      m.setPaintProperty(L.itemExtent, "line-width", lineWidth(highlight));
-    }
     markersRef.current.forEach(({ el }, slug) => {
       el.dataset.active = String(slug === highlight);
     });
   }, [highlight]);
+
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m?.getLayer(L.itemFill)) return;
+    for (const [id, role] of FOOTPRINT_ROLES) m.setFilter(id, footprintFilter(role, shown));
+  }, [shown]);
 
   useEffect(() => {
     const src = mapRef.current?.getSource(SRC_ITEMS) as GeoJSONSource | undefined;
@@ -410,7 +366,6 @@ export function HomeMap({
   useEffect(() => {
     const m = mapRef.current;
     if (!m?.getLayer(L.basinFill)) return;
-    m.setPaintProperty(L.basinFill, "fill-opacity", basinFillOpacity(basinHighlight));
     m.setPaintProperty(L.basinLine, "line-width", basinLineWidth(basinHighlight));
   }, [basinHighlight]);
 
@@ -429,22 +384,19 @@ export function HomeMap({
       <figcaption className="ffx-map-readout">
         <span className="sx-legend-box">
           <span className="sx-legend">
-            <span className="sx-pin-mark" data-live="true" aria-hidden="true" /> Published collection
+            <span className="sx-pin-mark" aria-hidden="true" /> Published collection
           </span>
-          <span className="sx-legend">
-            <span className="sx-pin-mark" data-live="false" aria-hidden="true" /> In progress
-          </span>
-          {drawn.has("points") && (
+          {drawn === "points" && (
             <span className="sx-legend">
               <span className="sx-legend-dot" aria-hidden="true" /> Item location
             </span>
           )}
-          {drawn.has("areas") && (
+          {drawn === "areas" && (
             <span className="sx-legend">
               <span className="sx-legend-area" aria-hidden="true" /> Area covered
             </span>
           )}
-          {drawn.has("extent") && (
+          {drawn === "extent" && (
             <span className="sx-legend">
               <span className="sx-legend-area" data-extent="true" aria-hidden="true" /> Extent
             </span>
