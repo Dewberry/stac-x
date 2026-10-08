@@ -17,6 +17,16 @@ export const AREA_KIND_LABEL: Record<AreaKind, string> = {
   other: "Collection",
 };
 
+/** Group headings in the landing page rail, in the program's order. */
+export const AREA_KIND_GROUP: [AreaKind, string][] = [
+  ["gages", "USGS gages"],
+  ["hms", "HEC-HMS models"],
+  ["ras", "HEC-RAS models"],
+  ["ressim", "HEC-ResSim models"],
+  ["storms", "Storm catalogs"],
+  ["other", "Other"],
+];
+
 /** What the collection's temporal extent means, for the preview card. */
 export const AREA_KIND_TIME: Record<AreaKind, string> = {
   gages: "period of record",

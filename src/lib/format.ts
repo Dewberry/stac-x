@@ -173,3 +173,11 @@ export function fmtAgo(iso: string | null | undefined, now: number): string {
   const age = fmtAge(iso, now);
   return !age || age === "just now" ? age : `${age} ago`;
 }
+
+/** "1979–2022" from a temporal extent; one year when both ends match, null when there's neither. */
+export function fmtYears(t: [string | null, string | null] | null | undefined): string | null {
+  const a = t?.[0]?.slice(0, 4);
+  const b = t?.[1]?.slice(0, 4);
+  if (a && b) return a === b ? a : `${a}–${b}`;
+  return a ?? b ?? null;
+}

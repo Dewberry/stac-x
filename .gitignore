@@ -53,3 +53,6 @@ next-env.d.ts
 
 # IDE
 /.idea
+
+# Local seed data for Development (see data/seed/make-dev-seed.mjs)
+/data/seed/

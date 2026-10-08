@@ -234,32 +234,50 @@ links that point back into this app.
 
 ## The landing page
 
-The question and three counts run across the top, then one card holds the
-collection list beside a map of the South Platte basin, the only basin the
-program covers. Only what's in the catalog is shown, with no placeholders for
-work that hasn't landed. Each collection links to its page, its counts are
-real, and its footprint is drawn on the map once it's selected. It's placed in the basin under
-the middle of its extent, with its kind guessed from its id and keywords, so
-nothing here has to change for a new file to appear.
+The question runs across the top beside one slim figures card: how many
+collections there are, a bar of where their review stands, and a button
+per state (approved, needs revision, rejected, not reviewed). A state's
+button filters the rail to that state and dims the other pins; clicking it
+again clears it. Below that, one card holds the collection list beside a
+map of the South Platte basin, the only basin the program covers. Only
+what's in the catalog is shown, with no placeholders for work that hasn't
+landed. Each collection links to its page and its counts are real. Its kind
+is guessed from its id and keywords, so nothing here has to change for a
+new file to appear.
 
-Every collection gets a pin, and until one is selected the pins are all the
-map shows, so it stays readable as collections are added. Selecting a
-collection draws its footprint; what that looks like depends on the shape
-of its items, not on what kind of collection it is. Point items, like gages,
-are drawn as dots. A model's items are usually polygons: thousands of
-simulated events sharing one domain, or subbasins that tile it, or a few 2D
-flow areas and 1D reaches. Drawing those one by one says nothing at state
-scale, so `src/lib/overview.ts` draws each distinct shape once, as a faint
-fill, and outlines the whole with the edges between neighbors removed, which
-turns a model's subbasins into its domain. When a collection's shapes are
-too heavy to send to the browser, its extent is drawn as a dashed box
-instead. The legend lists only what's on the map, so the footprint's entry
-appears with the footprint.
+A collection's pin sits under the middle of its extent, and its mark is its
+review state: filled green, amber or red, or a hollow ring when nobody has
+reviewed it. A collection whose extent covers most of the basin (70% of the
+basin's area, in `src/app/[env]/page.tsx`), such as the gages or a storm
+catalog, gets no pin, since its middle is the basin's middle and every such
+pin would stack on one spot; its row says "Whole basin" instead. A pin's name
+sits on whichever side of its mark is clear of other pins, the map's edge
+and its controls, or hides and leaves the mark. On a phone the pins are
+marks only.
 
-Clicking a collection in the rail or a pin on the map opens a card over the
-map with the collection's description, counts, dates and review progress;
-"Open collection" is the way in. Every collection is in the South Platte, so
-the rail is one flat list.
+Selecting a collection draws its footprint; what that looks like depends on
+the shape of its items, not on what kind of collection it is. Point items,
+like gages, are drawn as dots. A model's items are usually polygons:
+thousands of simulated events sharing one domain, or subbasins that tile
+it, or a few 2D flow areas and 1D reaches. Drawing those one by one says
+nothing at state scale, so `src/lib/overview.ts` draws each distinct shape
+once, as a faint fill, and outlines the whole with the edges between
+neighbors removed, which turns a model's subbasins into its domain. When
+there are more than 40 distinct polygons and they mostly sit on top of each
+other, like a storm catalog's transposition areas, it counts how many cover
+each spot on a grid of about 2 km and draws that in three steps of blue,
+split at the terciles, with the legend saying what each step means. When a
+collection's shapes are too heavy to send to the browser, its extent is
+drawn as a dashed box instead.
+
+Selecting a collection, from its row or its pin, opens the row in place
+with its description, counts, years, review state, version, the last
+reviewer's note when it was sent back, and "Open collection", which is the
+way in. Nothing covers the map. Enter on a row opens the collection, Escape
+closes the row, and clicking the open row or its pin again closes it too.
+On a phone the same details open as a sheet over the map. The rail groups by
+kind or by review state (the choice is remembered in the browser), and
+search matches titles, ids and kinds.
 
 The map opens on the South Platte, and the basin's outline is the only
 boundary drawn on it: no state border, no other basin. Inside the line the
@@ -326,8 +344,8 @@ STAC Browser's placement (see Page layout). Cards are white on a pale canvas, li
 shadow rather than a border, and they all share one corner radius. Every page
 keeps its content on the same edges as the header's. River blue is for data on the map and for links. Green,
 amber and red are QC states and nothing else: approved, needs revision,
-rejected. A published collection that nobody has reviewed is drawn in ink, so
-green on the homepage always means approved. The homepage map's ground is warm
+rejected. A collection nobody has reviewed is a hollow ring, so a filled
+green mark on the homepage always means approved. The homepage map's ground is warm
 (see the landing page section) and everything around it is a cool gray.
 
 Type is Bricolage Grotesque for headings and large figures, Instrument Sans

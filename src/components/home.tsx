@@ -1,27 +1,35 @@
 "use client";
 
 import nextDynamic from "next/dynamic";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection } from "geojson";
-import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
-import { basinName } from "@/lib/basins";
-import { fmtNum, fmtRange } from "@/lib/format";
-import { HomePreview } from "./home-preview";
-import type { QcEdit } from "@/lib/stac";
+import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
+import { fmtNum, fmtYears } from "@/lib/format";
+import { versionName } from "@/lib/versions";
+import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
+import { HomePreview, PreviewBody } from "./home-preview";
+import { QcMark, stateOf } from "./qc-mark";
 
 /**
- * The landing page, after Alaska Ground Watch: a hero row that runs the
- * full width (the question on the left, three figures on the right), then
- * one console card holding the list of collections beside the map. One
- * shared hover joins the list and the pins, so pointing at a name finds its
- * mark and pointing at a mark finds its name. Clicking either selects the
- * collection, which opens a preview card over the map and draws the
- * collection's footprint; the card is the way in. Every collection is in the South Platte, so the rail is one flat list,
- * and clicking the basin on the map zooms to its collections.
+ * The landing page, after Alaska Ground Watch: one hero line (the question
+ * on the left, one figures card on the right), then one console card
+ * holding the list of collections beside the map. One shared hover joins the
+ * list and the pins, so pointing at a name finds its mark and pointing at a
+ * mark finds its name.
+ *
+ * The figures card is also the review filter: each state's button narrows
+ * the rail to that state and dims the other pins. The rail groups by kind
+ * or by review state. Selecting a collection expands its row in place with
+ * enough to decide whether to open it, and draws its footprint on the map;
+ * nothing covers the map. Enter on a row opens the collection, Escape
+ * closes the row.
  *
  * On a phone the hero stacks, the map becomes a card, and the list flows
- * under it. The map is first in the DOM because that is the phone's order;
- * on a wide screen the row is reversed so the rail sits on the left.
+ * under it, and a selection opens a sheet over the map instead. The map is
+ * first in the DOM because that is the phone's order; on a wide screen the
+ * row is reversed so the rail sits on the left.
  */
 
 const HomeMap = nextDynamic(() => import("./home-map").then((m) => m.HomeMap), {
@@ -32,11 +40,17 @@ const HomeMap = nextDynamic(() => import("./home-map").then((m) => m.HomeMap), {
 export type HomeArea = {
   slug: string;
   name: string;
+  /** True when the collection has no title of its own and `name` is its id. */
+  untitled?: boolean;
   kind: AreaKind;
   huc4: string;
   bbox: [number, number, number, number];
+  /** Covers most of the basin: no pin, and "Whole basin" in the rail. */
+  wide?: boolean;
   /** How the collection's footprint is drawn on the map; null when it isn't. See lib/overview.ts. */
-  drawn: "points" | "areas" | "extent" | null;
+  drawn: "points" | "areas" | "density" | "extent" | null;
+  /** For a density footprint, the count range of each of its three steps. */
+  steps?: [number, number][];
   href: string;
   jsonHref: string;
   itemCount: number;
@@ -49,45 +63,113 @@ export type HomeArea = {
   blurb?: string;
 };
 
+export type GroupBy = "kind" | "review";
+
+/** The order of the review bar and the filter buttons. */
+const BAR_ORDER: QcStatus[] = ["approved", "needs_revision", "rejected", "pending"];
+/** The order of the rail's review groups: what needs someone first. */
+const REVIEW_GROUPS: QcStatus[] = ["needs_revision", "rejected", "pending", "approved"];
+const QC_LABEL = Object.fromEntries(QC_STATUSES.map((s) => [s.value, s.label])) as Record<QcStatus, string>;
+const GROUP_KEY = "sx-home-group";
+const WIDE_SCREEN = "(min-width: 64rem)";
+
+/**
+ * The rail's grouping, a per-viewer preference kept in localStorage. Read
+ * through useSyncExternalStore so the server render (always by kind) and
+ * the browser's agree, and so a change in another tab carries over.
+ */
+const GROUP_EVENT = "sx-home-group";
+// Kept here too, for when storage is blocked.
+let groupInMemory: GroupBy = "kind";
+function readGroup(): GroupBy {
+  try {
+    const v = localStorage.getItem(GROUP_KEY);
+    return v === "review" || v === "kind" ? v : groupInMemory;
+  } catch {
+    return groupInMemory;
+  }
+}
+function subscribeGroup(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(GROUP_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(GROUP_EVENT, onChange);
+  };
+}
+function regroup(v: GroupBy) {
+  groupInMemory = v;
+  try {
+    localStorage.setItem(GROUP_KEY, v);
+  } catch {}
+  window.dispatchEvent(new Event(GROUP_EVENT));
+}
+
 export function HomeConsole({
   areas,
   items,
   title,
-  lead,
   totals,
+  adminHref,
+  emptyText,
 }: {
   areas: HomeArea[];
   items: FeatureCollection;
   title: string;
-  lead: string;
-  totals: { published: number; items: number; approved: number };
+  totals: { collections: number; byState: Record<QcStatus, number> };
+  adminHref: string;
+  /** What the rail says when the environment has no collections. */
+  emptyText: string;
 }) {
+  const router = useRouter();
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [filter, setFilter] = useState<QcStatus | null>(null);
+  const groupBy = useSyncExternalStore(subscribeGroup, readGroup, () => "kind");
   const [basin, setBasin] = useState<string | null>(null);
   const [focus, setFocus] = useState<{ bbox: [number, number, number, number]; key: number } | null>(null);
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
+  const listRef = useRef<HTMLUListElement>(null);
+
+
   const shown = useMemo(
     () =>
-      q
-        ? areas.filter((a) => `${a.name} ${basinName(a.huc4)} ${AREA_KIND_LABEL[a.kind]}`.toLowerCase().includes(q))
-        : areas,
-    [areas, q],
+      areas.filter(
+        (a) =>
+          (!filter || stateOf(a) === filter) &&
+          (!q || `${a.name} ${a.slug} ${AREA_KIND_LABEL[a.kind]}`.toLowerCase().includes(q)),
+      ),
+    [areas, filter, q],
   );
+  const groups = useMemo(() => {
+    const list =
+      groupBy === "kind"
+        ? AREA_KIND_GROUP.map(([kind, label]) => ({ key: kind, label, rows: shown.filter((a) => a.kind === kind) }))
+        : REVIEW_GROUPS.map((s) => ({ key: s, label: QC_LABEL[s], rows: shown.filter((a) => stateOf(a) === s) }));
+    return list.filter((g) => g.rows.length);
+  }, [shown, groupBy]);
+
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
   const current = selected ? bySlug.get(selected) ?? null : null;
 
+  const mapBoxRef = useRef<HTMLDivElement>(null);
   const select = useCallback(
-    (slug: string | null) => {
-      setSelected(slug);
-      const a = slug ? bySlug.get(slug) : null;
+    (slug: string | null, fromList = false) => {
+      const next = slug && slug === selected ? null : slug;
+      setSelected(next);
+      const a = next ? bySlug.get(next) : null;
       if (!a) return;
+      // On a phone the list is under the map, and the sheet opens on the map.
+      if (fromList && !matchMedia(WIDE_SCREEN).matches) {
+        const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+        mapBoxRef.current?.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "auto" });
+      }
       // Selecting a collection zooms to it, the same as selecting a basin.
       setBasin(a.huc4);
       setFocus({ bbox: a.bbox, key: Date.now() });
     },
-    [bySlug],
+    [bySlug, selected],
   );
 
   const selectBasin = useCallback(
@@ -109,6 +191,32 @@ export function HomeConsole({
     [areas],
   );
 
+  // Escape closes the open row from anywhere on the page.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) setSelected(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selected]);
+
+  // Scroll the list so the whole open row is in view, below its sticky group
+  // heading. Done by hand rather than scrollIntoView, which would scroll the
+  // page too.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!selected || !list || !matchMedia(WIDE_SCREEN).matches) return;
+    const row = list.querySelector<HTMLElement>(`[data-slug="${CSS.escape(selected)}"]`);
+    if (!row) return;
+    const head = row.closest(".sx-group")?.querySelector<HTMLElement>(".sx-group-head");
+    const headH = head?.offsetHeight ?? 0;
+    const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    const bottom = top + row.offsetHeight;
+    if (top - headH < list.scrollTop) list.scrollTop = top - headH;
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = Math.min(top - headH, bottom - list.clientHeight);
+  }, [selected, groupBy]);
+
   const highlightedBasin = basin ?? (hovered ? bySlug.get(hovered)?.huc4 ?? null : null);
 
   return (
@@ -117,46 +225,41 @@ export function HomeConsole({
         <div className="sx-hero-text">
           <p className="sx-eyebrow">FFRD · South Platte</p>
           <h1 className="sx-hero-title">{title}</h1>
-          <p className="sx-hero-lead">{lead}</p>
+          <p className="sx-hero-count">
+            <span className="ffx-num">{fmtNum(totals.collections)}</span> {totals.collections === 1 ? "collection" : "collections"}
+          </p>
         </div>
-        <dl className="sx-stats">
-          <div className="sx-stat">
-            <dd className="ffx-num">{totals.published}</dd>
-            <dt>Published</dt>
-          </div>
-          <div className="sx-stat">
-            <dd className="ffx-num">{fmtNum(totals.items)}</dd>
-            <dt>Items</dt>
-          </div>
-          <div className="sx-stat" data-tone={totals.approved > 0 ? "verified" : undefined}>
-            <dd className="ffx-num">{fmtNum(totals.approved)}</dd>
-            <dt>Approved</dt>
-          </div>
-        </dl>
+        <Figures totals={totals} filter={filter} onFilter={setFilter} adminHref={adminHref} />
       </section>
 
       <div className="sx-console">
-        <div className="sx-console-map">
+        <div ref={mapBoxRef} className="sx-console-map">
           <HomeMap
             areas={areas}
             items={items}
             highlight={selected ?? hovered}
             shown={selected}
+            filter={filter}
             basinHighlight={highlightedBasin}
             focus={focus}
             onHover={setHovered}
             onSelect={select}
             onBasinSelect={selectBasin}
           />
-          {current && (
-            <HomePreview area={current} onClose={() => select(null)} />
-          )}
+          {current && <HomePreview area={current} onClose={() => setSelected(null)} />}
         </div>
         <aside className="sx-rail" aria-label="Collections">
           <div className="sx-rail-head">
             <div className="sx-rail-title">
               <h2>Collections</h2>
-              <span className="ffx-num">{totals.published} published</span>
+              <div className="sx-group-switch" role="group" aria-label="Group by">
+                <span className="sx-group-switch-l" aria-hidden="true">Group by</span>
+                {(["kind", "review"] as const).map((v) => (
+                  <button key={v} type="button" aria-pressed={groupBy === v} onClick={() => regroup(v)}>
+                    {v === "kind" ? "Kind" : "Review"}
+                  </button>
+                ))}
+              </div>
             </div>
             <label className="ffx-field">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -171,13 +274,41 @@ export function HomeConsole({
                 onChange={(e) => setQuery(e.target.value)}
               />
             </label>
-          </div>
-          <ul className="sx-rail-list ffx-scroll">
-            {shown.length === 0 && (
-              <li className="sx-empty">{areas.length ? "No collections match." : "No collections published yet."}</li>
+            {filter && (
+              <p className="sx-filter-line" role="status">
+                <span>
+                  Showing <b>{QC_LABEL[filter]}</b> · <span className="ffx-num">{shown.length}</span> of{" "}
+                  <span className="ffx-num">{areas.length}</span>
+                </span>
+                <button type="button" onClick={() => setFilter(null)}>
+                  Show all
+                </button>
+              </p>
             )}
-            {shown.map((a) => (
-              <AreaRow key={a.slug} area={a} active={(selected ?? hovered) === a.slug} onHover={setHovered} onSelect={select} />
+          </div>
+          <ul ref={listRef} className="sx-rail-list ffx-scroll">
+            {groups.length === 0 && <li className="sx-empty">{areas.length ? "No collections match." : emptyText}</li>}
+            {groups.map((g) => (
+              <li key={g.key} className="sx-group">
+                <div className="sx-group-head">
+                  <h3>{g.label}</h3>
+                  <span className="ffx-num">{g.rows.length}</span>
+                </div>
+                <ul>
+                  {g.rows.map((a) => (
+                    <AreaRow
+                      key={a.slug}
+                      area={a}
+                      showKind={groupBy === "review"}
+                      active={(selected ?? hovered) === a.slug}
+                      open={selected === a.slug}
+                      onHover={setHovered}
+                      onSelect={(slug) => select(slug, true)}
+                      onOpen={() => router.push(a.href)}
+                    />
+                  ))}
+                </ul>
+              </li>
             ))}
           </ul>
         </aside>
@@ -186,48 +317,124 @@ export function HomeConsole({
   );
 }
 
+/**
+ * The figures card: how many collections, a bar of where review stands, and
+ * one button per state that filters the rail and the pins. The bar doubles
+ * as the pins' legend, since it uses the same marks.
+ */
+function Figures({
+  totals,
+  filter,
+  onFilter,
+  adminHref,
+}: {
+  totals: { collections: number; byState: Record<QcStatus, number> };
+  filter: QcStatus | null;
+  onFilter: (s: QcStatus | null) => void;
+  adminHref: string;
+}) {
+  const waiting = totals.byState.pending;
+  return (
+    <div className="sx-figs">
+      <p className="sx-figs-count">
+        <b className="ffx-num">{fmtNum(totals.collections)}</b>
+        <span>{totals.collections === 1 ? "collection" : "collections"}</span>
+      </p>
+      <span className="sx-figs-rule" aria-hidden="true" />
+      <div className="sx-figs-bar">
+        <span className="sx-bar" role="img" aria-label={BAR_ORDER.map((s) => `${totals.byState[s]} ${QC_LABEL[s].toLowerCase()}`).join(", ")}>
+          {BAR_ORDER.map((s) =>
+            totals.byState[s] ? <i key={s} data-qc={s} style={{ flexGrow: totals.byState[s] }} /> : null,
+          )}
+        </span>
+        {waiting > 0 && (
+          <Link href={adminHref} className="sx-figs-waiting">
+            <span className="ffx-num">{fmtNum(waiting)}</span> waiting →
+          </Link>
+        )}
+      </div>
+      <div className="sx-figs-states" role="group" aria-label="Filter by review state">
+        {BAR_ORDER.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className="sx-state-btn"
+            aria-pressed={filter === s}
+            onClick={() => onFilter(filter === s ? null : s)}
+          >
+            <QcMark state={s} />
+            <b className="ffx-num">{fmtNum(totals.byState[s])}</b>
+            <span>{QC_LABEL[s]}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AreaRow({
   area,
+  showKind,
   active,
+  open,
   onHover,
   onSelect,
+  onOpen,
 }: {
   area: HomeArea;
+  showKind: boolean;
   active: boolean;
+  open: boolean;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string) => void;
+  onOpen: () => void;
 }) {
-  const ref = useRef<HTMLLIElement>(null);
-  useEffect(() => {
-    if (!active || !ref.current) return;
-    if (!window.matchMedia("(min-width: 64rem)").matches) return;
-    ref.current.scrollIntoView({ block: "nearest" });
-  }, [active]);
-
+  const meta = [
+    showKind ? AREA_KIND_LABEL[area.kind] : null,
+    fmtYears(area.temporal) ?? "No dates",
+    area.wide ? "Whole basin" : null,
+  ].filter(Boolean);
   return (
-    <li ref={ref} className="sx-rail-item" data-active={active}>
+    <li className="sx-rail-item" data-active={active} data-open={open} data-slug={area.slug}>
       <button
         type="button"
         className="sx-row"
+        aria-expanded={open}
         onClick={() => onSelect(area.slug)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          onOpen();
+        }}
         onMouseEnter={() => onHover(area.slug)}
         onMouseLeave={() => onHover(null)}
         onFocus={() => onHover(area.slug)}
         onBlur={() => onHover(null)}
       >
-        <div className="sx-row-main">
-          <div className="sx-row-title">{area.name}</div>
-          <div className="sx-row-sub">
-            <span>{AREA_KIND_LABEL[area.kind]}</span>
-            {area.temporal && (area.temporal[0] || area.temporal[1]) && (
-              <span className="ffx-num">{fmtRange(area.temporal[0], area.temporal[1])}</span>
+        <QcMark state={stateOf(area)} />
+        <span className="sx-row-main">
+          <span className="sx-row-title">
+            {area.untitled ? (
+              <>
+                <span className="sx-row-id">{area.name}</span>
+                <span className="sx-notitle">No title</span>
+              </>
+            ) : (
+              area.name
             )}
-          </div>
-        </div>
-        <div className="sx-row-aside">
-          <span className="ffx-num">{fmtNum(area.itemCount)}</span>
-        </div>
+          </span>
+          <span className="sx-row-sub">
+            <span className="ffx-num">{meta.join(" · ")}</span>
+            {area.version && <span className="sx-tag">{versionName(area.version)}</span>}
+          </span>
+        </span>
+        <span className="sx-row-aside ffx-num">{fmtNum(area.itemCount)}</span>
       </button>
+      {open && (
+        <div className="sx-row-more">
+          <PreviewBody area={area} />
+        </div>
+      )}
     </li>
   );
 }

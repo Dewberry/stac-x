@@ -62,6 +62,7 @@ export function palette(host: HTMLElement) {
     neutral: c("--ffx-neutral"),
     trace: c("--ffx-trace-strong"),
     traceSoft: c("--ffx-trace"),
+    traceDeep: c("--ffx-trace-deep"),
     planned: c("--ffx-planned"),
     mapLand: c("--ffx-map-land"),
     mapSurround: c("--ffx-map-surround"),

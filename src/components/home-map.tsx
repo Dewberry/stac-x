@@ -21,6 +21,8 @@ import {
 } from "./map-core";
 import type { HomeArea } from "./home";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
+import { QC_STATUSES, type QcStatus } from "@/lib/stac";
+import { QcMark, stateOf } from "./qc-mark";
 
 /**
  * The landing page map: the South Platte basin, with every model area named
@@ -29,8 +31,15 @@ import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
  * Follows the Alaska Ground Watch home map. Each area is an HTML marker with
  * its name beside it, so it is focusable and named for assistive tech, and
  * pointing at one lights up its row in the rail (and the other way round).
- * Clicking a pin selects the area, which opens the preview card; the card is
- * the way into a collection.
+ * Clicking a pin selects the area, which opens its row in the rail; the row
+ * is the way into a collection. The mark carries the collection's review
+ * state: filled green, amber or red, or a hollow ring when nobody has
+ * reviewed it.
+ *
+ * A collection that covers most of the basin gets no pin: its middle is the
+ * basin's middle, so every such pin would stack on the same spot. Names
+ * that would overlap another pin, or run off the map, move to the other
+ * side of their mark or hide, leaving the mark (placeLabels below).
  *
  * The South Platte is the only basin the program cares about, so the map
  * opens on it and its outline is the only boundary drawn. Inside the line
@@ -41,8 +50,10 @@ import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
  * Until something is selected the map holds only the pins, so it stays
  * readable however many collections there are. Selecting a collection draws
  * its footprint under the markers: small dots for point items like gages, a
- * faint fill and an outline for the area a model covers, or a dashed box
- * when the shapes were too heavy to send (lib/overview.ts decides which).
+ * faint fill and an outline for the area a model covers, three steps of
+ * blue for how many shapes cover each spot when they overlap heavily, or a
+ * dashed box when the shapes were too heavy to send (lib/overview.ts
+ * decides which).
  * The pin says where a collection is; the footprint says how much ground it
  * covers. Clicking the basin selects it, which zooms the map and
  * scrolls the rail to its group.
@@ -58,6 +69,8 @@ const L = {
   itemFill: "sx-live-fill",
   itemExtent: "sx-live-extent",
   itemLine: "sx-live-line",
+  density: "sx-live-density",
+  densityLine: "sx-live-density-line",
   items: "sx-live-items",
 };
 
@@ -137,6 +150,20 @@ function addLayers(
     // layer already gives the edge.
     paint: { "fill-color": p.trace, "fill-opacity": 0.16, "fill-antialias": false },
   });
+  // Overlap density: three steps of river blue, palest for the fewest.
+  map.addLayer({
+    id: L.density, type: "fill", source: SRC_ITEMS, filter: footprintFilter("density", shown),
+    paint: {
+      "fill-color": ["match", ["get", "step"], 1, p.traceSoft, 2, p.trace, p.traceDeep],
+      "fill-opacity": ["match", ["get", "step"], 1, 0.5, 2, 0.42, 0.62],
+      "fill-antialias": false,
+    },
+  });
+  // Each shape's own outline, once the map is close enough to tell them apart.
+  map.addLayer({
+    id: L.densityLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("outline", shown), minzoom: 9,
+    paint: { "line-color": p.trace, "line-width": 0.6, "line-opacity": 0.6 },
+  });
   map.addLayer({
     id: L.itemExtent, type: "line", source: SRC_ITEMS, filter: footprintFilter("extent", shown),
     paint: { "line-color": p.trace, "line-width": 1.75, "line-dasharray": [2, 1.5] },
@@ -163,6 +190,8 @@ const FOOTPRINT_ROLES = [
   [L.itemFill, "fill"],
   [L.itemExtent, "extent"],
   [L.itemLine, "line"],
+  [L.density, "density"],
+  [L.densityLine, "outline"],
   [L.items, "point"],
 ] as const;
 
@@ -179,11 +208,65 @@ function basinLineWidth(basinHighlight: string | null) {
   return basinHighlight === FOCUS_BASIN ? 3.25 : 2.5;
 }
 
+type Pin = { slug: string; lngLat: [number, number]; el: HTMLElement; btn: HTMLElement; width?: number };
+type Rect = [number, number, number, number];
+
+/** From the pin's left edge to the middle of its mark: padding plus half the mark. */
+const MARK_INSET = 11;
+const MARK_HALF = 6;
+
+const overlaps = (a: Rect, b: Rect) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+
+/**
+ * Where each pin's name goes: to the right of its mark, to the left, or
+ * nowhere, so no name covers another name or another mark and none runs off
+ * the map or under its controls and legend. The active pin is placed first,
+ * so its name always shows. The marks themselves never move or hide.
+ */
+function placeLabels(map: MapLibreMap, frame: HTMLElement, pins: Pin[], active: string | null, marksOnly: boolean) {
+  const box = map.getContainer().getBoundingClientRect();
+  const blocked: Rect[] = [];
+  for (const sel of [".ffx-map-ctl", ".sx-legend-box", ".sx-credit"]) {
+    const r = frame.querySelector(sel)?.getBoundingClientRect();
+    if (r && r.width) blocked.push([r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top]);
+  }
+  const at = new Map(pins.map((p) => [p.slug, map.project(p.lngLat)]));
+  const marks: [string, Rect][] = pins.map((p) => {
+    const { x, y } = at.get(p.slug)!;
+    return [p.slug, [x - MARK_HALF, y - MARK_HALF, x + MARK_HALF, y + MARK_HALF]];
+  });
+  const order = [...pins].sort((a, b) => Number(b.slug === active) - Number(a.slug === active));
+  for (const p of order) {
+    if (marksOnly) {
+      p.el.dataset.place = "none";
+      continue;
+    }
+    if (p.width === undefined) {
+      p.el.dataset.place = "right";
+      p.width = p.btn.offsetWidth;
+    }
+    const h = p.btn.offsetHeight || 22;
+    const { x, y } = at.get(p.slug)!;
+    const sides: [string, Rect][] = [
+      ["right", [x - MARK_INSET, y - h / 2, x - MARK_INSET + p.width, y + h / 2]],
+      ["left", [x + MARK_INSET - p.width, y - h / 2, x + MARK_INSET, y + h / 2]],
+    ];
+    const fits = ([, r]: [string, Rect]) =>
+      r[0] >= 0 && r[2] <= box.width && r[1] >= 0 && r[3] <= box.height &&
+      !blocked.some((b) => overlaps(r, b)) &&
+      !marks.some(([slug, m]) => slug !== p.slug && overlaps(r, m));
+    const side = sides.find(fits);
+    p.el.dataset.place = side ? side[0] : "none";
+    if (side) blocked.push(side[1]);
+  }
+}
+
 export function HomeMap({
   areas,
   items,
   highlight,
   shown,
+  filter,
   basinHighlight,
   focus,
   onHover,
@@ -197,6 +280,8 @@ export function HomeMap({
   highlight: string | null;
   /** The collection whose footprint is drawn: the selected one. */
   shown: string | null;
+  /** The review state the rail is filtered to; pins in other states dim. */
+  filter: QcStatus | null;
   basinHighlight: string | null;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
   focus: { bbox: [number, number, number, number]; key: number } | null;
@@ -207,16 +292,20 @@ export function HomeMap({
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const markersRef = useRef<Map<string, { marker: Marker; el: HTMLElement }>>(new Map());
+  const markersRef = useRef<Map<string, { marker: Marker; pin: Pin }>>(new Map());
   const [credits, setCredits] = useState<Credit[]>([]);
-  // The legend lists only what the map has on it: the selected collection's footprint.
-  const drawn = areas.find((a) => a.slug === shown)?.drawn ?? null;
+  const [creditsOpen, setCreditsOpen] = useState(false);
+  const current = areas.find((a) => a.slug === shown) ?? null;
+  const dense = current?.drawn === "density" ? current : null;
   const [basemapDown, setBasemapDown] = useState(false);
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
   const areasRef = useRef(areas);
   const itemsRef = useRef(items);
   const shownRef = useRef(shown);
+  const highlightRef = useRef(highlight);
+  const denseRef = useRef(!!dense);
+  const placeRef = useRef<() => void>(() => {});
   const basinHighlightRef = useRef(basinHighlight);
   const basinRef = useRef<Feature<Shape> | null>(null);
   const onHoverRef = useRef(onHover);
@@ -226,6 +315,8 @@ export function HomeMap({
     areasRef.current = areas;
     itemsRef.current = items;
     shownRef.current = shown;
+    highlightRef.current = highlight;
+    denseRef.current = !!dense;
     basinHighlightRef.current = basinHighlight;
     onHoverRef.current = onHover;
     onSelectRef.current = onSelect;
@@ -281,15 +372,27 @@ export function HomeMap({
         .catch(() => {});
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
 
-      // Markers: one per area, name beside the mark. Built once.
+      // Markers: one per local collection, name beside the mark. Built once.
+      // A basin-wide collection has none (see above).
       for (const a of areasRef.current) {
+        if (a.wide) continue;
         const el = document.createElement("div");
         el.className = "sx-pin";
+        el.dataset.place = "right";
         const btn = document.createElement("button");
         btn.className = "sx-pin-btn";
         btn.type = "button";
-        btn.setAttribute("aria-label", `${a.name}, published collection`);
-        btn.innerHTML = `<span class="sx-pin-mark" aria-hidden="true"></span><span class="sx-pin-label">${a.name}</span>`;
+        const state = stateOf(a);
+        const label = QC_STATUSES.find((x) => x.value === state)?.label.toLowerCase() ?? "";
+        btn.setAttribute("aria-label", `${a.name}, ${label}`);
+        const mark = document.createElement("span");
+        mark.className = "sx-qc-mark";
+        mark.dataset.qc = state;
+        mark.setAttribute("aria-hidden", "true");
+        const name = document.createElement("span");
+        name.className = "sx-pin-label";
+        name.textContent = a.name;
+        btn.append(mark, name);
         el.appendChild(btn);
         let downX = 0, downY = 0;
         btn.addEventListener("pointerdown", (e) => { downX = e.clientX; downY = e.clientY; });
@@ -304,16 +407,34 @@ export function HomeMap({
         btn.addEventListener("focus", () => onHoverRef.current(a.slug));
         btn.addEventListener("blur", () => onHoverRef.current(null));
         const [w, s, e, n] = a.bbox;
-        el.dataset.anchor = "left";
-        const marker = new maplibregl.Marker({ element: el, anchor: "left", offset: [-7, 0] })
-          .setLngLat([(w + e) / 2, (s + n) / 2])
-          .addTo(m);
-        markersRef.current.set(a.slug, { marker, el });
+        const lngLat: [number, number] = [(w + e) / 2, (s + n) / 2];
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(m);
+        markersRef.current.set(a.slug, { marker, pin: { slug: a.slug, lngLat, el, btn } });
       }
+
+      // Labels are re-placed once per frame while the map moves.
+      let frameReq = 0;
+      placeRef.current = () => {
+        cancelAnimationFrame(frameReq);
+        frameReq = requestAnimationFrame(() => {
+          if (disposed) return;
+          const pins = Array.from(markersRef.current.values(), (x) => x.pin);
+          // On a phone the pins are marks only (see globals.css).
+          const marksOnly = denseRef.current || !matchMedia("(min-width: 64rem)").matches;
+          placeLabels(m, frame, pins, highlightRef.current, marksOnly);
+        });
+      };
+      m.on("move", () => placeRef.current());
+      m.on("resize", () => placeRef.current());
+      void document.fonts?.ready.then(() => {
+        markersRef.current.forEach(({ pin }) => (pin.width = undefined));
+        placeRef.current();
+      });
 
       m.on("load", () => {
         draw();
         basemap();
+        placeRef.current();
       });
       m.on("sourcedata", () => setCredits(creditsOf(m)));
       // A click on a basin selects it; a click on bare map clears the hover.
@@ -347,10 +468,14 @@ export function HomeMap({
   }, []);
 
   useEffect(() => {
-    markersRef.current.forEach(({ el }, slug) => {
-      el.dataset.active = String(slug === highlight);
+    markersRef.current.forEach(({ pin }, slug) => {
+      const a = areas.find((x) => x.slug === slug);
+      pin.el.dataset.active = String(slug === highlight);
+      // While something is selected or filtered, everything else steps back.
+      pin.el.dataset.dim = String(!!a && slug !== highlight && ((!!shown && slug !== shown) || (!!filter && stateOf(a) !== filter)));
     });
-  }, [highlight]);
+    placeRef.current();
+  }, [areas, highlight, shown, filter, dense]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -373,8 +498,9 @@ export function HomeMap({
     const m = mapRef.current;
     if (!m || !focus) return;
     const [w, s, e, n] = focus.bbox;
+    // On a phone the sheet covers the bottom of the map.
     const wide = matchMedia("(min-width: 64rem)").matches;
-    m.fitBounds([[w, s], [e, n]], { padding: { top: 40, bottom: 60, left: 40, right: wide ? 400 : 40 }, maxZoom: 9, duration: 500 });
+    m.fitBounds([[w, s], [e, n]], { padding: { top: 40, bottom: wide ? 60 : 220, left: 40, right: 56 }, maxZoom: 9, duration: 500 });
   }, [focus]);
 
   return (
@@ -382,27 +508,44 @@ export function HomeMap({
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
-        <span className="sx-legend-box">
-          <span className="sx-legend">
-            <span className="sx-pin-mark" aria-hidden="true" /> Published collection
+        {credits.length > 0 && (
+          <span className="sx-credit" data-open={creditsOpen}>
+            <button
+              type="button"
+              className="sx-credit-btn"
+              aria-expanded={creditsOpen}
+              aria-label={creditsOpen ? "Hide map credits" : "Map credits"}
+              onClick={() => setCreditsOpen((v) => !v)}
+            >
+              i
+            </button>
+            {creditsOpen && <CreditLine credits={credits} />}
           </span>
-          {drawn === "points" && (
-            <span className="sx-legend">
-              <span className="sx-legend-dot" aria-hidden="true" /> Item location
+        )}
+        {areas.length > 0 && (
+          <span className="sx-legend-box">
+            {dense?.steps && (
+              <span className="sx-legend sx-legend-density">
+                <span>{dense.kind === "storms" ? "Storms" : "Items"} covering each spot</span>
+                {dense.steps.map(([lo, hi], i) => (
+                  <span key={i} className="sx-legend">
+                    <i className="sx-legend-step" data-step={i + 1} aria-hidden="true" />
+                    <span className="ffx-num">{i === 2 ? `${lo}+` : lo === hi ? lo : `${lo}–${hi}`}</span>
+                  </span>
+                ))}
+              </span>
+            )}
+            <span className="sx-legend sx-legend-states">
+              {(["approved", "needs_revision", "rejected", "pending"] as const).map((s) => (
+                <span key={s} className="sx-legend">
+                  <QcMark state={s} />
+                  <span className="sx-legend-l">{QC_STATUSES.find((x) => x.value === s)!.label}</span>
+                </span>
+              ))}
+              <span className="sx-legend-short">Review state</span>
             </span>
-          )}
-          {drawn === "areas" && (
-            <span className="sx-legend">
-              <span className="sx-legend-area" aria-hidden="true" /> Area covered
-            </span>
-          )}
-          {drawn === "extent" && (
-            <span className="sx-legend">
-              <span className="sx-legend-area" data-extent="true" aria-hidden="true" /> Extent
-            </span>
-          )}
-        </span>
-        <CreditLine credits={credits} />
+          </span>
+        )}
       </figcaption>
     </figure>
   );

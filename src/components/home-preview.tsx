@@ -1,86 +1,65 @@
 "use client";
 
 import Link from "next/link";
-import { AREA_KIND_LABEL, AREA_KIND_TIME } from "@/lib/kinds";
-import { basinName } from "@/lib/basins";
-import { fmtNum } from "@/lib/format";
+import { AREA_KIND_TIME } from "@/lib/kinds";
+import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import { QcChip } from "./qc-chip";
+import { stateOf } from "./qc-mark";
 import type { HomeArea } from "./home";
 
 /**
- * The card that opens over the map when a collection is selected. It says
- * enough to decide whether to open the collection: what it is, its basin,
- * its counts and dates, and where its QC stands. "Open
- * collection" is the only way into a collection from the landing page.
- * On a phone it sits at the bottom of the map as a sheet.
+ * What a selected collection shows: enough to decide whether to open it.
+ * Its description, its counts and dates, where its QC stands, the last
+ * reviewer's note when it was sent back, and the way in. On a wide screen
+ * this opens inside the collection's row in the rail; on a phone it's a
+ * sheet at the bottom of the map (HomePreview).
  */
-/** "1900–2026" from a temporal extent; one year when both ends match. */
-function years(t: HomeArea["temporal"]): string {
-  if (!t) return "n/a";
-  const a = t[0]?.slice(0, 4);
-  const b = t[1]?.slice(0, 4);
-  if (a && b) return a === b ? a : `${a}–${b}`;
-  return a ?? b ?? "n/a";
-}
-
-export function HomePreview({
-  area,
-  onClose,
-}: {
-  area: HomeArea;
-  onClose: () => void;
-}) {
-  const total = area.itemCount;
+export function PreviewBody({ area }: { area: HomeArea }) {
+  const state = stateOf(area);
+  const note = (state === "needs_revision" || state === "rejected") && area.qc?.note ? area.qc.note : null;
   return (
-    <div className="sx-preview" role="dialog" aria-label={area.name}>
-      <div className="sx-preview-head">
-        <div className="sx-preview-top">
-          <span className="sx-chip">Published</span>
-          <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
-            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-              <path d="M4 4l8 8M12 4l-8 8" />
-            </svg>
-          </button>
-        </div>
-        <div className="sx-preview-title">{area.name}</div>
-        <div className="sx-preview-basin">
-          <i aria-hidden="true" />
-          {basinName(area.huc4)} basin · HUC {area.huc4} · {AREA_KIND_LABEL[area.kind]}
-        </div>
-        {area.blurb && <p className="sx-preview-sub">{area.blurb}</p>}
-      </div>
-      <div className="sx-preview-figs">
+    <div className="sx-pv">
+      {area.blurb && <p className="sx-pv-desc">{area.blurb}</p>}
+      <div className="sx-pv-figs">
         <div>
-          <b className="ffx-num">{fmtNum(total)}</b>
+          <b className="ffx-num">{fmtNum(area.itemCount)}</b>
           <span>items</span>
         </div>
         <div>
-          <b className="ffx-num">{years(area.temporal)}</b>
+          <b className="ffx-num">{fmtYears(area.temporal) ?? "No dates"}</b>
           <span>{AREA_KIND_TIME[area.kind]}</span>
         </div>
       </div>
-      {area.version && (
-        <div className="sx-preview-rev">
-          <span className="sx-preview-l">Version</span>
-          <span className="sx-preview-qc">
-            <span className="text-ink">{versionName(area.version)}</span>
-            {area.earlier ? (
-              <span>
-                {area.earlier} earlier {area.earlier === 1 ? "version" : "versions"}
-              </span>
-            ) : null}
-          </span>
+      <dl className="sx-pv-facts">
+        <div>
+          <dt>Quality control</dt>
+          <dd>
+            <QcChip status={state} />
+            {area.qc?.date_approved && <span className="ffx-num">{area.qc.date_approved}</span>}
+          </dd>
         </div>
+        {area.version && (
+          <div>
+            <dt>Version</dt>
+            <dd>
+              <span className="text-ink">{versionName(area.version)}</span>
+              {area.earlier ? (
+                <span>
+                  · {area.earlier} earlier {area.earlier === 1 ? "version" : "versions"}
+                </span>
+              ) : null}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {note && (
+        <figure className="sx-pv-note">
+          <figcaption>Last review note</figcaption>
+          <blockquote>{note}</blockquote>
+        </figure>
       )}
-      <div className="sx-preview-rev">
-        <span className="sx-preview-l">Quality control</span>
-        <span className="sx-preview-qc">
-          <QcChip status={area.qc?.qc} />
-          {area.qc?.date_approved && <span className="ffx-num">{area.qc.date_approved}</span>}
-        </span>
-      </div>
-      <div className="sx-preview-btns">
+      <div className="sx-pv-btns">
         <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
           JSON
         </a>
@@ -88,6 +67,23 @@ export function HomePreview({
           Open collection →
         </Link>
       </div>
+    </div>
+  );
+}
+
+/** The phone's sheet over the map. Hidden on a wide screen, where the row opens instead. */
+export function HomePreview({ area, onClose }: { area: HomeArea; onClose: () => void }) {
+  return (
+    <div className="sx-preview" role="dialog" aria-label={area.name}>
+      <div className="sx-preview-top">
+        <div className="sx-preview-title">{area.name}</div>
+        <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <PreviewBody area={area} />
     </div>
   );
 }
