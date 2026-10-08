@@ -255,7 +255,9 @@ basin's area, in `src/app/[env]/page.tsx`), such as the gages or a storm
 catalog, gets no pin, since its middle is the basin's middle and every such
 pin would stack on one spot; its row says "Whole basin" instead. A pin's name
 sits on whichever side of its mark is clear of other pins, the map's edge
-and its controls, or hides and leaves the mark. On a phone the pins are
+and its controls, or hides and leaves the mark. While a collection is
+selected the other pins are marks only, since the map has zoomed in and
+their names would sit on the basemap's town labels. On a phone the pins are
 marks only.
 
 Selecting a collection draws its footprint; what that looks like depends on

@@ -221,9 +221,18 @@ const overlaps = (a: Rect, b: Rect) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3]
  * Where each pin's name goes: to the right of its mark, to the left, or
  * nowhere, so no name covers another name or another mark and none runs off
  * the map or under its controls and legend. The active pin is placed first,
- * so its name always shows. The marks themselves never move or hide.
+ * so its name always shows. While a collection is selected only its own pin
+ * keeps a name: the map is zoomed in by then, and the other names would sit
+ * on the basemap's town labels. The marks themselves never move or hide.
  */
-function placeLabels(map: MapLibreMap, frame: HTMLElement, pins: Pin[], active: string | null, marksOnly: boolean) {
+function placeLabels(
+  map: MapLibreMap,
+  frame: HTMLElement,
+  pins: Pin[],
+  active: string | null,
+  selected: string | null,
+  marksOnly: boolean,
+) {
   const box = map.getContainer().getBoundingClientRect();
   const blocked: Rect[] = [];
   for (const sel of [".ffx-map-ctl", ".sx-legend-box", ".sx-credit"]) {
@@ -237,7 +246,7 @@ function placeLabels(map: MapLibreMap, frame: HTMLElement, pins: Pin[], active: 
   });
   const order = [...pins].sort((a, b) => Number(b.slug === active) - Number(a.slug === active));
   for (const p of order) {
-    if (marksOnly) {
+    if (marksOnly || (selected && p.slug !== selected)) {
       p.el.dataset.place = "none";
       continue;
     }
@@ -421,7 +430,7 @@ export function HomeMap({
           const pins = Array.from(markersRef.current.values(), (x) => x.pin);
           // On a phone the pins are marks only (see globals.css).
           const marksOnly = denseRef.current || !matchMedia("(min-width: 64rem)").matches;
-          placeLabels(m, frame, pins, highlightRef.current, marksOnly);
+          placeLabels(m, frame, pins, highlightRef.current, shownRef.current, marksOnly);
         });
       };
       m.on("move", () => placeRef.current());
