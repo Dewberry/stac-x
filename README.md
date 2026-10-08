@@ -8,7 +8,10 @@ Collection and item pages put things where STAC Browser puts them, since
 that's what people already know (see Page layout below). On a phone the
 columns stack, left column first.
 
-![The stac-x homepage: a map outlining the South Platte basin with every collection pinned, beside the collection list](docs/images/home.png)
+![The stac-x homepage: a map outlining the South Platte basin with each local collection pinned in its review color, beside the collection list grouped by kind](docs/images/home.png)
+
+*Development with sample data. Only the two gage collections are real; the
+models, reservoir runs and storm catalog are made up to fill the page.*
 
 ## Running it
 
