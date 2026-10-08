@@ -25,7 +25,7 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
   return (
     <div className="sx-page">
       <div className="ffx-panel p-[var(--ffx-panel-pad)] max-w-xl">
-        <h1 className="text-head font-semibold">
+        <h1 className="font-display text-head font-semibold tracking-[-0.015em]">
           {found.length ? `${collection} isn't in ${here} yet` : "Not found"}
         </h1>
         <p className="mt-1 text-small text-ink-mut">

@@ -330,8 +330,12 @@ rejected. A published collection that nobody has reviewed is drawn in ink, so
 green on the homepage always means approved. The homepage map's ground is warm
 (see the landing page section) and everything around it is a cool gray.
 
-Type is Bricolage Grotesque for headings, Instrument Sans for everything
-else, DM Mono for identifiers. Tokens live in `src/app/globals.css`; the
+Type is Bricolage Grotesque for headings and large figures, Instrument Sans
+for everything else, DM Mono for identifiers only (ids, S3 paths, media-type
+tags), never for counts. Sizes come from the `--ffx-t-` steps: headings scale
+with the viewport, nothing is set under 11px, and on a phone the small steps
+go up a notch and form controls are 16px so iOS doesn't zoom on focus.
+Tokens live in `src/app/globals.css`; the
 custom property names are inherited from ffrd-x so the two apps read the
 same token names, but the values are this app's own. Dark mode follows the
 OS and can be forced from the footer.

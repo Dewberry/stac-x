@@ -9,7 +9,7 @@ export default function NotFound() {
   return (
     <div className="sx-page">
       <div className="ffx-panel p-[var(--ffx-panel-pad)] max-w-xl">
-        <h1 className="text-head font-semibold">Not found</h1>
+        <h1 className="font-display text-head font-semibold tracking-[-0.015em]">Not found</h1>
         <p className="mt-1 text-small text-ink-mut">
           No collection or item by that id is in the catalog. It may have been renamed in the bucket, or the file
           that held it may no longer be listed.

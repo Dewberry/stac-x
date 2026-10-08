@@ -7,12 +7,15 @@ import { SESSION } from "@/lib/session";
 import "./globals.css";
 
 /**
- * Bricolage Grotesque carries the headings, Instrument Sans the body and
- * controls, DM Mono the identifiers: site numbers, S3 keys, HUCs.
+ * Bricolage Grotesque carries the headings and the large figures,
+ * Instrument Sans the body and controls, DM Mono the identifiers: site
+ * numbers, S3 keys, HUCs. Bricolage is loaded as a variable font with its
+ * optical size axis, so a 44px headline gets the tighter display cut and a
+ * 13px group label the wider text cut, without any CSS asking for it.
  */
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  axes: ["opsz"],
   variable: "--sx-display-loaded",
   display: "swap",
 });
@@ -36,7 +39,7 @@ export const metadata: Metadata = {
     default: catalogTitle,
     template: `%s | ${catalogTitle}`,
   },
-  description: "Browse STAC collections held as geoparquet in S3, review them, and move them from Development to Testing to Production.",
+  description: "Browse STAC collections held as STAC JSON and GeoParquet in S3, review them, and move them from Development to Testing to Production.",
 };
 
 export const viewport = {
