@@ -4,14 +4,15 @@ import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { readItems } from "./parquet";
+import { collectionsOf, readCollectionJson } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacItem, type StacLink } from "./stac";
-import { awsLooksConfigured, head, isS3, listParquet, readJson } from "./storage";
+import { awsLooksConfigured, CATALOG_JSON, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
 /**
  * The in-memory catalog.
  *
- * Every request wants the same thing: all items from all configured parquet
+ * Every request wants the same thing: all items from all configured source
  * files, grouped by collection, with each collection's QC record merged in. Parsing a file is
  * milliseconds for hundreds of rows and under a second for a hundred
  * thousand, so the whole thing is held in memory and rebuilt when a file's
@@ -135,7 +136,19 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
   const errors: string[] = [];
   for (const entry of configuredSources(env)) {
     try {
-      uris.push(...(await listParquet(entry)));
+      for (const uri of await listSourceFiles(entry)) {
+        if (!CATALOG_JSON.test(uri)) {
+          uris.push(uri);
+          continue;
+        }
+        // A static catalog: each collection it links to is a source.
+        const found = await collectionsOf(uri);
+        uris.push(...found.collections);
+        for (const m of found.missing) {
+          errors.push(`${m.href}: ${m.error}`);
+          console.error(`stac-x: ${uri} links to ${m.href}, which couldn't be read: ${m.error}`);
+        }
+      }
     } catch (e) {
       errors.push(`${entry}: ${message(e)}`);
       console.error(`stac-x: listing ${entry} failed:`, e);
@@ -162,9 +175,12 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
   try {
     const h = await head(uri);
     if (!h) throw new Error("object not found");
-    // No `embedded` means the state was cached before this code read it.
-    if (h.etag !== state.etag || !state.embedded) {
-      const read = await readItems(uri);
+    // No `embedded` means the state was cached before this code read it. A
+    // collection's ETag says nothing about its items, so it's re-read on
+    // every check; JSON catalogs are small.
+    const json = isJsonSource(uri);
+    if (json || h.etag !== state.etag || !state.embedded) {
+      const read = json ? await readCollectionJson(uri) : await readItems(uri);
       state.items = read.items;
       state.embedded = read.collections;
       state.etag = h.etag;

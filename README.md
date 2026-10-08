@@ -24,12 +24,12 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With nothing configured each environment reads its
-own folder under `.\data`, so it runs with no AWS account. The sample gages
-file is in `data\dev`, which means it shows up at http://localhost:3000/dev.
-Beside it, `sp-gages-v1.parquet` and `sp-gages-v2.parquet` are two versions
-of a copy of it (see Versions), there so the version menu has something to
-show. Production, at the unprefixed URLs, stays empty until a collection is
+Open http://localhost:3000. With nothing configured, Development reads the
+STAC catalog at `s3://south-platte/stac-metadata/catalog.json` and Testing
+reads `s3://south-platte/stac-portable/catalog.json`, so both need AWS
+credentials with access to that bucket. Without them the pages still load,
+empty, with a note that collections couldn't be loaded. Production, at the
+unprefixed URLs, reads `.\data\prod` and stays empty until a collection is
 approved through Testing (see Environments). The map
 tiles come from OpenFreeMap, and the homepage's relief from open elevation
 tiles on AWS; both need the internet. Without them the data still draws over
@@ -46,9 +46,11 @@ cp .env.example .env             # WSL
 ```
 
 Set `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and `STAC_SOURCES_PROD` to where
-each environment's files live: an S3 prefix (every `.parquet` and `.pq` under
-it), one object, a local folder, or a local file, separated by commas. Unset,
-they're `./data/dev`, `./data/test` and `./data/prod`. AWS credentials
+each environment's files live: a STAC `catalog.json`, an S3 prefix (every
+`.parquet`, `.pq` and `catalog.json` under it), one object, a local folder,
+or a local file, separated by commas. Unset, they're the two S3 catalogs
+above and `./data/prod`. Point at a catalog itself rather than its prefix,
+or every asset `.pq` under the prefix gets read as a source. AWS credentials
 come from the SDK's usual chain: `AWS_PROFILE`, env keys, or an instance role.
 `.env.example` explains each variable.
 
@@ -88,12 +90,13 @@ src/lib/parquet.ts          stac-geoparquet to STAC items, with hyparquet
 src/lib/storage.ts          S3 and local disk behind one interface, with conditional writes
 src/lib/env.ts              the three environments and the links between them
 src/lib/edits.ts            the QC sidecar: where it lives, how it is written
+src/lib/stac-json.ts        reads a static STAC collection.json and its items
 src/lib/promote.ts          copies an approved collection to the next environment
 src/lib/versions.ts         works out which collections are versions of each other
 src/lib/fixtures/review.ts  mocked review queue rows for the Admin page
 src/lib/overview.ts         what each collection draws on the landing page map
 src/lib/kinds.ts            collection kinds (gages, HMS, RAS...) and their labels
-data/dev/                   sample parquet; data/test and data/prod fill as you promote (ignored by git)
+data/test/, data/prod/      local landing folders for promoted collections (ignored by git)
 scripts/vendor-maplibre.mjs copies MapLibre's worker into public/ before dev and build
 ```
 
@@ -105,6 +108,18 @@ with hyparquet (pure JS, decodes the WKB geometry itself), and turns each row
 back into a STAC item. After that a request costs nothing until
 `STAC_REFRESH_SECONDS` have passed, when each file's ETag is checked and only
 a changed file is re-read. A new file in the bucket shows up on its own.
+
+A source can also be a static STAC catalog. A `catalog.json` at the root of
+a source folder or prefix is followed through its `child` links, and any
+sub-catalogs, to collections, whatever their files are called
+(`collection-v1.0.json` is fine). Each collection is a source: its `item`
+links are read and their relative hrefs resolved against the file they're
+in, so to the rest of the app the items look the same as parquet rows. A
+child that can't be read is logged and counted as a load error. A
+collection's ETag says nothing about its items, so JSON sources are re-read
+on every refresh. QC for a JSON collection goes to a sidecar beside its file
+(`collection-v1.0.edits.json`). Approving one can't send it on yet, because
+promotion copies parquet files and JSON collections aren't handled.
 
 Collection metadata comes from the `collection.json` the items link to, when
 the app can read it, and then from the copy a stac-geoparquet 1.1 file can

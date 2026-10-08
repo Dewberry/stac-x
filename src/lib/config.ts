@@ -5,22 +5,24 @@ import type { EnvKey } from "./env";
 /**
  * Runtime configuration, all from the environment.
  *
- * Each of the three environments reads its own geoparquet sources:
+ * Each of the three environments reads its own sources:
  * STAC_SOURCES_DEV, STAC_SOURCES_TEST and STAC_SOURCES_PROD. Entries are
  * separated by commas or newlines and each one is:
  *
- *   s3://bucket/prefix/           every *.parquet and *.pq under the prefix
+ *   s3://bucket/prefix/           every *.parquet, *.pq and catalog.json under the prefix
  *   s3://bucket/path/file.parquet one file
- *   ./data/dev                    every *.parquet and *.pq in a local folder
+ *   s3://bucket/path/catalog.json a STAC catalog, followed to its collections
+ *   ./data/dev                    every *.parquet, *.pq and catalog.json in a local folder
  *   ./data/dev/gages.parquet      one local file
  *
- * The first entry of an environment must be a folder or prefix, because
- * that's where a collection promoted into it is copied.
+ * The first entry of an environment must be a folder, a prefix or a
+ * catalog.json, because that's where a collection promoted into it is
+ * copied (a catalog's own folder, for a catalog).
  *
- * With nothing set, the environments read ./data/dev, ./data/test and
- * ./data/prod, which is where the sample file starts (in dev), so a fresh
- * clone runs with no AWS account at all. STAC_SOURCES, from before there were
- * environments, is still read as Development's.
+ * With nothing set, Development and Testing read the South Platte STAC
+ * catalogs in S3, which needs AWS access to the bucket, and Production reads
+ * ./data/prod. STAC_SOURCES, from before there were environments, is still
+ * read as Development's.
  */
 const SOURCE_VARS: Record<EnvKey, string> = {
   dev: "STAC_SOURCES_DEV",
@@ -28,9 +30,15 @@ const SOURCE_VARS: Record<EnvKey, string> = {
   prod: "STAC_SOURCES_PROD",
 };
 
+const DEFAULT_SOURCES: Record<EnvKey, string> = {
+  dev: "s3://south-platte/stac-metadata/catalog.json",
+  test: "s3://south-platte/stac-portable/catalog.json",
+  prod: "./data/prod",
+};
+
 export function sources(env: EnvKey): string[] {
   const raw = (process.env[SOURCE_VARS[env]] ?? (env === "dev" ? process.env.STAC_SOURCES : undefined))?.trim();
-  if (!raw) return [`./data/${env}`];
+  if (!raw) return [DEFAULT_SOURCES[env]];
   return raw
     .split(/[\n,]/)
     .map((s) => s.trim())
@@ -43,6 +51,7 @@ export function landingFolder(env: EnvKey): string {
   if (/\.(geo)?parquet$|\.pq$/i.test(first)) {
     throw new Error(`${SOURCE_VARS[env]} must start with a folder or prefix to receive promoted collections, not a single file`);
   }
+  if (/(^|\/)catalog\.json$/i.test(first)) return first.slice(0, first.lastIndexOf("/") + 1) || "./";
   return first.endsWith("/") ? first : `${first}/`;
 }
 

@@ -80,14 +80,19 @@ function s3() {
 }
 
 const PARQUET = /\.(geo)?parquet$|\.pq$/i;
+/** The root of a static STAC catalog. Its children are found by stac-json.ts. */
+export const CATALOG_JSON = /(^|\/)catalog\.json$/i;
+/** A source read as STAC JSON (a collection) rather than parquet. */
+export const isJsonSource = (uri: string) => /\.json$/i.test(uri);
 
 /* ------------------------------------------------------------------ list */
 
 /**
- * Expand a source entry into the parquet files it names. A URI that ends in a
- * slash, or a local folder, is listed; anything else is taken as one file.
+ * Expand a source entry into the files it names: parquet files, and the
+ * catalog.json of a static STAC catalog. A URI that ends in a slash, or a
+ * local folder, is listed; anything else is taken as one file.
  */
-export async function listParquet(uri: string): Promise<string[]> {
+export async function listSourceFiles(uri: string): Promise<string[]> {
   const ref = parseRef(uri);
   if (ref.kind === "s3") {
     if (!uri.endsWith("/")) return [uri];
@@ -98,7 +103,7 @@ export async function listParquet(uri: string): Promise<string[]> {
         new ListObjectsV2Command({ Bucket: ref.bucket, Prefix: ref.key, ContinuationToken: token }),
       );
       for (const o of res.Contents ?? []) {
-        if (o.Key && PARQUET.test(o.Key)) out.push(`s3://${ref.bucket}/${o.Key}`);
+        if (o.Key && (PARQUET.test(o.Key) || CATALOG_JSON.test(o.Key))) out.push(`s3://${ref.bucket}/${o.Key}`);
       }
       token = res.IsTruncated ? res.NextContinuationToken : undefined;
     } while (token);
@@ -109,7 +114,7 @@ export async function listParquet(uri: string): Promise<string[]> {
   if (s.isFile()) return [ref.uri];
   const names = await readdir(/*turbopackIgnore: true*/ ref.path);
   return names
-    .filter((n) => PARQUET.test(n))
+    .filter((n) => PARQUET.test(n) || CATALOG_JSON.test(n))
     .sort()
     .map((n) => `file://${join(/*turbopackIgnore: true*/ ref.path, n)}`);
 }

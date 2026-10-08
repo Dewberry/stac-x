@@ -5,7 +5,7 @@ import { landingFolder } from "./config";
 import { logEvent, updateEdits } from "./edits";
 import { nextEnv, type EnvKey } from "./env";
 import type { Collection } from "./stac";
-import { baseName, parseRef, read, write } from "./storage";
+import { baseName, isJsonSource, parseRef, read, write } from "./storage";
 
 /**
  * Move a collection forward one environment.
@@ -29,6 +29,11 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
   const to = nextEnv(env);
   if (!to) throw new Error("Production is the last environment; there is nowhere to promote to.");
   if (c.sources.length === 0) throw new Error("This collection has no source file to promote.");
+  // Promotion copies parquet files. Moving a STAC JSON collection, and the
+  // catalog links that point at it, isn't built yet.
+  if (c.sources.some(isJsonSource)) {
+    throw new Error("This collection is STAC JSON, which can't be sent to the next environment yet.");
+  }
 
   const catalog = await getCatalog(env);
   for (const uri of c.sources) {

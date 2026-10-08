@@ -46,7 +46,7 @@ export type EditsFile = {
 const empty = (): EditsFile => ({ version: 1, collections: {}, history: {} });
 
 export function editsUri(parquetUri: string): string {
-  return parquetUri.replace(/\.(geo)?parquet$|\.pq$/i, "") + ".edits.json";
+  return parquetUri.replace(/\.(geo)?parquet$|\.pq$|\.json$/i, "") + ".edits.json";
 }
 
 export async function readEdits(parquetUri: string): Promise<{ edits: EditsFile; etag: string | null }> {
