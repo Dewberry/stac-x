@@ -170,13 +170,14 @@ export function Value({ value, keyName = "" }: { value: unknown; keyName?: strin
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
     const vals = Object.values(obj);
-    // A few counts ("Basins 1, Controls 2") read better inline than as a table.
-    if (vals.length > 0 && vals.length <= 16 && vals.every((v) => Number.isInteger(v) && (v as number) >= 0)) {
+    // A few numbers ("Basins 1, Controls 2", a transform's A to F) read
+    // better on one line than as a table.
+    if (vals.length > 0 && vals.length <= 16 && vals.every((v) => typeof v === "number" && Number.isFinite(v))) {
       return (
         <span className="sx-counts">
           {Object.entries(obj).map(([k, v]) => (
             <span key={k}>
-              {humanize(k)} <b className="ffx-num">{fmtNum(v as number)}</b>
+              {humanize(k)} <b className="ffx-num">{fmtNum(v as number, 4)}</b>
             </span>
           ))}
         </span>
