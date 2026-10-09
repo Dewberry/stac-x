@@ -5,10 +5,9 @@ import { envMeta, nextEnv, type EnvKey } from "@/lib/env";
 import { qcMeta, type QcStatus } from "@/lib/stac";
 
 /**
- * The parts a review is made of, shared by the collection page's QC panel
- * and the Admin review sheet so the two read as one thing: decision cards
- * that say what each choice will do, the line under the button that says
- * what saving writes, and the history folded into a row at the end.
+ * The parts the Admin review sheet is made of: decision cards that say what
+ * each choice will do, the line under the button that says what saving
+ * writes, and the history folded into a row at the end.
  */
 
 export type Decision = Exclude<QcStatus, "pending">;
@@ -76,24 +75,17 @@ export function DecisionCards({
   decision,
   onPick,
   disabled,
-  extra,
-  legendAside,
 }: {
   name: string;
   choices: { value: Decision; label: string; hint: string }[];
   decision: QcStatus | null;
   onPick: (d: Decision) => void;
   disabled?: boolean;
-  /** Anything that belongs after a card's description, such as "Change date". */
-  extra?: Partial<Record<Decision, ReactNode>>;
-  /** Beside the "Decision" label, at the right. */
-  legendAside?: ReactNode;
 }) {
   return (
     <fieldset className="sx-choices">
       <legend className="sx-choices-legend">
         <span>Decision</span>
-        {legendAside}
       </legend>
       {choices.map((c) => (
         <div key={c.value} className="sx-choice" data-tone={qcMeta(c.value).tone}>
@@ -109,7 +101,6 @@ export function DecisionCards({
             <span className="sx-choice-label">{c.label}</span>
             <span className="sx-choice-hint">{c.hint}</span>
           </label>
-          {extra?.[c.value] && <div className="sx-choice-extra">{extra[c.value]}</div>}
         </div>
       ))}
     </fieldset>

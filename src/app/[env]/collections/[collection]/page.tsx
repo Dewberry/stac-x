@@ -6,13 +6,11 @@ import { ItemsList, type ItemRow } from "@/components/items-list";
 import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
-import { QcPanel } from "@/components/qc-form";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
-import { ENVS } from "@/lib/env";
 import { pageEnv } from "@/lib/page-env";
 import { collectionName, fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
 import { collectionKindLabel, itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
@@ -35,9 +33,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * A collection: the STAC Browser layout. The left column is what describes
  * the collection (description, license and temporal extent, the map, then
  * metadata) and the right column is its items. QC is recorded for the
- * collection as a whole, so its form goes right under the map, ahead of the
- * collection's own assets when it has any, where it stays near the top
- * however many plots those are.
+ * collection as a whole and reviewed from Admin, so the page only shows its
+ * state in the subtitle.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -45,10 +42,6 @@ export default async function CollectionPage({ params }: Props) {
   const id = decodeURIComponent(raw);
   const c = await getCollection(env, id);
   if (!c) return <NotInEnv env={env} collection={id} />;
-  // Where else the collection is, for the promotion path.
-  const everywhere = await Promise.all(
-    ENVS.map(async (e) => ({ env: e.key, collection: e.key === env ? c : await getCollection(e.key, id) })),
-  );
 
   // An item without a title is named for what it is ("Storm event 1",
   // "Terrain tile"), the same as on its own page, never its bare id.
@@ -170,20 +163,8 @@ export default async function CollectionPage({ params }: Props) {
               tip="Point at one for its name, click to open it."
             />
           </div>
-          <QcPanel
-            env={env}
-            collection={c.id}
-            edit={c.qc}
-            stages={everywhere.map((s) => ({
-              env: s.env,
-              qc: s.collection ? s.collection.qc?.qc ?? "pending" : null,
-              at: s.collection?.qc?.date_approved ?? s.collection?.qc?.updated_at ?? null,
-            }))}
-            history={c.history}
-          />
-          {/* The collection's own files sit under QC, in the slot STAC Browser
-              gives them after the map. Overview plots show inline like an
-              item's. */}
+          {/* The collection's own files sit in the slot STAC Browser gives them
+              after the map. Overview plots show inline like an item's. */}
           {Object.keys(c.assets).length > 0 && (
             <Panel title="Assets" note={assetNote(c.assets)} id="assets">
               <Assets assets={c.assets} plotsFirst />

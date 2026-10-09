@@ -33,7 +33,8 @@ import { collectionHref } from "@/lib/utils";
  * one-key shortcuts for Approve or Reject: approving copies files to the
  * next environment, which shouldn't happen on a stray keypress.
  *
- * Saves go through the same server action as the collection page's QC form.
+ * This is the only place a collection is reviewed or moved; the collection
+ * page just shows its state.
  */
 
 export type QueueRow = {
