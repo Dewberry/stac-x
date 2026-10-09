@@ -2,15 +2,15 @@ import type { ReactNode } from "react";
 import { BrandLink } from "./brand-link";
 import { HeaderControls } from "./env-switcher";
 export { EnvBand } from "./env-switcher";
-import { ThemeToggle } from "./theme";
+import { ThemeMenuItems } from "./theme";
 import type { Session } from "@/lib/session";
 export { Icon, ICONS } from "./icons";
 
 /**
  * The page chrome, kept identical to ffrd-x's so the two consoles read as one
  * program: a navy header bar with the wordmark alone on one line, and a
- * footer band with the app's note on the left and the palette control at its
- * right end. Both sit on the same 96rem shell and the same edge gutter.
+ * footer band with the app's note. Both sit on the same 96rem shell and the
+ * same edge gutter. The theme is in the account menu, so it's on every page.
  * Navigation is the map and the Collection and Up actions, as in STAC Browser.
  * Signed in, the header's right end holds the environment switcher and the
  * account badge, whose menu is the way to Admin.
@@ -28,7 +28,14 @@ export function SiteHeader({ session }: { session: Session | null }) {
       <div className="ffx-shell sx-header-inner">
         <BrandLink className="sx-brand" />
         <div className="ml-auto flex items-center gap-2">
-          <HeaderControls session={session} home="/" homeLabel="Home" signOut="/signin" links={ACCOUNT_LINKS} />
+          <HeaderControls
+            session={session}
+            home="/"
+            homeLabel="Home"
+            signOut="/signin"
+            links={ACCOUNT_LINKS}
+            menuItems={<ThemeMenuItems />}
+          />
         </div>
       </div>
     </header>
@@ -40,9 +47,6 @@ export function SiteFooter() {
     <footer className="sx-footer">
       <div className="ffx-shell sx-footer-inner">
         <span>stac-x reads stac-geoparquet from S3. QC edits are written back beside the source file.</span>
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
       </div>
     </footer>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -38,36 +39,56 @@ function readChoice(): Choice {
 
 const readServerChoice = (): Choice => "system";
 
-export function ThemeToggle() {
-  const choice = useSyncExternalStore(subscribe, readChoice, readServerChoice);
-
-  function apply(next: Choice) {
-    const root = document.documentElement;
-    root.setAttribute("data-theme-switching", "");
-    if (next === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", next);
-    try {
-      if (next === "system") localStorage.removeItem("sx-theme");
-      else localStorage.setItem("sx-theme", next);
-    } catch {
-      // Blocked storage is not a reason to refuse the change.
-    }
-    listeners.forEach((l) => l());
-    window.requestAnimationFrame(() => root.removeAttribute("data-theme-switching"));
+function apply(next: Choice) {
+  const root = document.documentElement;
+  root.setAttribute("data-theme-switching", "");
+  if (next === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", next);
+  try {
+    if (next === "system") localStorage.removeItem("sx-theme");
+    else localStorage.setItem("sx-theme", next);
+  } catch {
+    // Blocked storage is not a reason to refuse the change.
   }
+  listeners.forEach((l) => l());
+  window.requestAnimationFrame(() => root.removeAttribute("data-theme-switching"));
+}
 
+const CHOICES: { value: Choice; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+/**
+ * The theme as a radio group in the account menu, so it's reachable on
+ * every page, including the home page, which has no footer on a wide
+ * screen. Picking one keeps the menu open, so the change can be seen.
+ */
+export function ThemeMenuItems() {
+  const choice = useSyncExternalStore(subscribe, readChoice, readServerChoice);
   return (
-    <label className="ffx-select-wrap flex items-center gap-1.5">
-      <span className="sr-only">Color palette</span>
-      <select
-        value={choice}
-        onChange={(e) => apply(e.target.value as Choice)}
-        className="ffx-theme-select bg-transparent py-0.5 pl-0 pr-4 text-micro text-ink-mut hover:text-ink"
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
-    </label>
+    <>
+      <DropdownMenu.Label className="px-2.5 pb-1.5 pt-1 text-micro text-ink-mut">Theme</DropdownMenu.Label>
+      <DropdownMenu.RadioGroup value={choice} onValueChange={(v) => apply(v as Choice)}>
+        {CHOICES.map((c) => (
+          <DropdownMenu.RadioItem
+            key={c.value}
+            value={c.value}
+            className="ffx-menu-item ffx-theme-item"
+            onSelect={(e) => e.preventDefault()}
+          >
+            <span className="ffx-theme-check" aria-hidden="true">
+              <DropdownMenu.ItemIndicator>
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </DropdownMenu.ItemIndicator>
+            </span>
+            {c.label}
+          </DropdownMenu.RadioItem>
+        ))}
+      </DropdownMenu.RadioGroup>
+    </>
   );
 }

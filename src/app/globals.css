@@ -34,8 +34,8 @@
   --ffx-n-250: #d6dde4;
   --ffx-n-300: #c9d1d9;
   --ffx-n-400: #a7b1bc;
-  --ffx-n-500: #8a95a1;
-  --ffx-n-600: #66717e;
+  --ffx-n-500: #6b7785;
+  --ffx-n-600: #5b6571;
   --ffx-n-700: #4a5563;
   --ffx-n-800: #2c3541;
   --ffx-n-900: #1a2027;
@@ -225,7 +225,7 @@
     --ffx-ink: #e8edf2;
     --ffx-ink-sec: #b3bcc6;
     --ffx-ink-mut: #8d98a4;
-    --ffx-ink-dim: #7a8591;
+    --ffx-ink-dim: #86919d;
     --ffx-verified: #47b08a;
     --ffx-verified-text: #8fdcbd;
     --ffx-verified-pale: #173b2d;
@@ -249,8 +249,8 @@
     --ffx-qc-none: #b3bcc6;
     --ffx-focus: #6b9cf0;
     --ffx-focus-halo: var(--ffx-n-900);
-    --ffx-env-dev: #7a5fd0;
-    --ffx-env-test: #b0418c;
+    --ffx-env-dev: #7053cd;
+    --ffx-env-test: #ac4089;
   }
 }
 
@@ -282,7 +282,7 @@
   --ffx-ink: #e8edf2;
   --ffx-ink-sec: #b3bcc6;
   --ffx-ink-mut: #8d98a4;
-  --ffx-ink-dim: #7a8591;
+  --ffx-ink-dim: #86919d;
   --ffx-verified: #47b08a;
   --ffx-verified-text: #8fdcbd;
   --ffx-verified-pale: #173b2d;
@@ -306,8 +306,8 @@
   --ffx-qc-none: #b3bcc6;
   --ffx-focus: #6b9cf0;
   --ffx-focus-halo: var(--ffx-n-900);
-  --ffx-env-dev: #7a5fd0;
-  --ffx-env-test: #b0418c;
+  --ffx-env-dev: #7053cd;
+  --ffx-env-test: #ac4089;
 }
 
 /* ---------- 3. Tailwind mapping ---------- */
@@ -769,39 +769,11 @@
 }
 .ffx-tab-count {
   font-size: var(--ffx-t-micro);
-  opacity: 0.75;
+  color: var(--ffx-ink-mut);
 }
 .ffx-tabs-aside {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
-}
-
-/* Theme select in the footer. */
-.ffx-select-wrap {
-  position: relative;
-}
-.ffx-select-wrap::after {
-  content: "";
-  position: absolute;
-  right: 0.15rem;
-  top: 50%;
-  width: 0.4rem;
-  height: 0.4rem;
-  margin-top: -0.28rem;
-  border-right: 1px solid currentColor;
-  border-bottom: 1px solid currentColor;
-  transform: rotate(45deg);
-  pointer-events: none;
-  opacity: 0.75;
-}
-.ffx-theme-select {
-  appearance: none;
-  -webkit-appearance: none;
-  border: 0;
-  border-bottom: 1px solid var(--ffx-control-edge);
-  border-radius: 0;
-  /* The bar is dark in both themes, so the native list opens dark too. */
-  color-scheme: dark;
 }
 
 /* ============================ status marks ============================ */
@@ -1483,9 +1455,11 @@ a.sx-queue-title:hover {
 }
 .sx-minipath-step[data-here="true"][data-env="dev"] {
   background: var(--ffx-env-dev);
+  color: #fff;
 }
 .sx-minipath-step[data-here="true"][data-env="test"] {
   background: var(--ffx-env-test);
+  color: #fff;
 }
 
 /* The review sheet: a native dialog pinned to the right edge, full height,
@@ -1978,6 +1952,22 @@ a.sx-activity-title:hover {
   color: var(--ffx-ink);
   outline: none;
 }
+/* Theme choices in the account menu: a check column, then the name. */
+.ffx-menu-item.ffx-theme-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ffx-theme-check {
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  color: var(--ffx-ink);
+}
+.ffx-menu-item.ffx-theme-item[data-state="checked"] {
+  color: var(--ffx-ink);
+}
 /* The version picker on a collection page. */
 .sx-version-menu {
   min-width: 15rem;
@@ -2218,6 +2208,12 @@ main:focus {
   }
   body:has(.sx-home) > .sx-footer {
     display: none;
+  }
+  /* The header and the band run the full width too, with their edges on
+     the rail's 16px so the wordmark sits over "Collections". */
+  body:has(.sx-home) :is(.sx-header-inner, .ffx-envband-inner) {
+    max-width: none;
+    padding-inline: 16px;
   }
   .sx-home {
     flex: 1;

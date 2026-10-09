@@ -22,7 +22,8 @@ import type { Session } from "@/lib/session";
  * the environment's name and color, so on a phone it's still never a
  * question which environment you're in. Changing environment keeps you on
  * the same page in the other one. The account menu can carry app pages
- * (stac-x's Admin) under Home, each kept in the current environment.
+ * (stac-x's Admin) under Home, each kept in the current environment, and a
+ * block of the app's own items above Sign out (stac-x's theme).
  */
 
 const SIGN_IN = "/signin";
@@ -33,6 +34,7 @@ export function HeaderControls({
   homeLabel,
   signOut,
   links = [],
+  menuItems,
   children,
 }: {
   session: Session | null;
@@ -42,6 +44,8 @@ export function HeaderControls({
   signOut: string;
   /** Pages for the account menu, without an environment prefix: [{ href: "/admin", label: "Admin" }]. */
   links?: MenuLink[];
+  /** App-specific account menu items, above Sign out: Radix DropdownMenu parts. */
+  menuItems?: ReactNode;
   /** App-specific controls between the switcher and the badge. */
   children?: ReactNode;
 }) {
@@ -60,6 +64,7 @@ export function HeaderControls({
     homeLabel,
     signOut,
     links: links.map((l) => ({ ...l, href: withEnv(env, l.href) })),
+    menuItems,
   };
   return (
     <>
@@ -98,7 +103,14 @@ export function EnvBand() {
 }
 
 type MenuLink = { href: string; label: string };
-type Account = { session: Session; home: string; homeLabel: string; signOut: string; links: MenuLink[] };
+type Account = {
+  session: Session;
+  home: string;
+  homeLabel: string;
+  signOut: string;
+  links: MenuLink[];
+  menuItems?: ReactNode;
+};
 
 function EnvSwitcher({ env }: { env: EnvKey }) {
   const current = envMeta(env);
@@ -181,7 +193,7 @@ function EnvItems({ env }: { env: EnvKey }) {
   );
 }
 
-function AccountItems({ session, home, homeLabel, signOut, links }: Account) {
+function AccountItems({ session, home, homeLabel, signOut, links, menuItems }: Account) {
   return (
     <>
       <DropdownMenu.Label className="px-2.5 pb-1.5 pt-1 text-micro text-ink-mut">
@@ -200,6 +212,13 @@ function AccountItems({ session, home, homeLabel, signOut, links }: Account) {
           </Link>
         </DropdownMenu.Item>
       ))}
+      {menuItems && (
+        <>
+          <DropdownMenu.Separator className="my-1 h-px bg-rule" />
+          {menuItems}
+          <DropdownMenu.Separator className="my-1 h-px bg-rule" />
+        </>
+      )}
       <DropdownMenu.Item asChild>
         <Link href={signOut} className="ffx-menu-item">
           Sign out

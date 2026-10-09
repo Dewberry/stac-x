@@ -245,7 +245,7 @@ hero or introduction; the header says what the app is. Under the
 environment band the collection list sits on the left and a map of the South
 Platte basin, the only basin the program covers, fills the rest of the
 window edge to edge. On a wide screen the page itself doesn't scroll, only
-the list does, and the footer is left off (it's on every other page). Only
+the list does, and the footer is left off. Only
 what's in the catalog is shown, with no placeholders for work that hasn't
 landed. Each collection links to its page and its counts are real. Its kind
 is guessed from its id and keywords, so nothing here has to change for a
@@ -372,8 +372,7 @@ go up a notch and form controls are 16px so iOS doesn't zoom on focus.
 Tokens live in `src/app/globals.css`; the
 custom property names are inherited from ffrd-x so the two apps read the
 same token names, but the values are this app's own. Dark mode follows the
-OS and can be forced from the footer, which every page but the home page
-shows on a wide screen.
+OS and can be forced from the account menu.
 
 Three earlier directions were mocked up before this one was chosen; the
 PDFs of the chosen direction are in `docs/design/`.
