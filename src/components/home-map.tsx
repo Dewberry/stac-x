@@ -8,8 +8,8 @@ import {
   applyBasemap,
   blankStyle,
   Controls,
-  CreditLine,
   creditsOf,
+  MapCredits,
   dressBasemap,
   LAYER_RELIEF,
   palette,
@@ -321,7 +321,6 @@ export function HomeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, { marker: Marker; pin: Pin }>>(new Map());
   const [credits, setCredits] = useState<Credit[]>([]);
-  const [creditsOpen, setCreditsOpen] = useState(false);
   const current = areas.find((a) => a.slug === shown) ?? null;
   const dense = current?.drawn === "density" ? current : null;
   const [basemapDown, setBasemapDown] = useState(false);
@@ -549,20 +548,7 @@ export function HomeMap({
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
-        {credits.length > 0 && (
-          <span className="sx-credit" data-open={creditsOpen}>
-            <button
-              type="button"
-              className="sx-credit-btn"
-              aria-expanded={creditsOpen}
-              aria-label={creditsOpen ? "Hide map credits" : "Map credits"}
-              onClick={() => setCreditsOpen((v) => !v)}
-            >
-              i
-            </button>
-            {creditsOpen && <CreditLine credits={credits} />}
-          </span>
-        )}
+        <MapCredits credits={credits} />
         {dense?.steps && (
           <span className="sx-map-key">
             {dense?.steps && (

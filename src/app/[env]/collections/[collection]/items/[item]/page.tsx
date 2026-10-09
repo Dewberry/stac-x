@@ -51,6 +51,9 @@ export default async function ItemPage({ params }: Props) {
   const unnamed = label ? null : untitledName(kind, item.id);
   const title = label ? tidyCaps(label) : unnamed!.title;
   const assetCount = Object.keys(item.assets).length;
+  // The collection is named in the trail as it is in its own card below:
+  // with its version when there's more than one to tell apart.
+  const collectionLabel = version ? `${c.title}, ${versionName(version)}` : c.title;
 
   const geo: FeatureCollection = {
     type: "FeatureCollection",
@@ -78,6 +81,7 @@ export default async function ItemPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
+        crumbs={[{ label: collectionLabel, href: collectionHref(env, c.id) }, { label: title }]}
         kicker={unnamed ? c.title : kind}
         title={title}
         subtitle={
@@ -94,16 +98,6 @@ export default async function ItemPage({ params }: Props) {
                 <span className="ffx-num">{fmtNum(assetCount)}</span> {assetCount === 1 ? "asset" : "assets"}
               </span>
             )}
-          </>
-        }
-        nav={
-          <>
-            <Link href={collectionHref(env, c.id)} className="ffx-btn ffx-btn-sm" title={`Go to the collection: ${c.title}`}>
-              <Icon d={ICONS.folder} size={12} /> Collection
-            </Link>
-            <Link href={collectionHref(env, c.id)} className="ffx-btn ffx-btn-sm" title={`Go to parent: ${c.title}`}>
-              <Icon d={ICONS.up} size={12} /> Up
-            </Link>
           </>
         }
         actions={
@@ -170,7 +164,7 @@ export default async function ItemPage({ params }: Props) {
           <Panel title="Collection" id="collection">
             <Link href={collectionHref(env, c.id)} className="sx-row">
               <div className="sx-row-main">
-                <div className="sx-row-title">{version ? `${c.title}, ${versionName(version)}` : c.title}</div>
+                <div className="sx-row-title">{collectionLabel}</div>
                 <div className="sx-row-sub">
                   {c.title !== c.id && <span className="ffx-id">{c.id}</span>}
                   <span>

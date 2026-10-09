@@ -28,7 +28,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. With nothing configured, Development reads the
+Open http://localhost:3000, which lands in Development. With nothing
+configured, Development reads the
 STAC catalog at `s3://south-platte/stac-metadata/catalog.json`, where each
 item is its own JSON file, and Testing reads
 `s3://south-platte/stac-portable/catalog.json`, where each collection's
@@ -37,8 +38,8 @@ that bucket. Without them the pages still load,
 with a note that collections couldn't be loaded, and Development shows the
 demo gages in `data/demo` instead so there's something to look at. Setting
 `STAC_SOURCES_DEV` turns the demo off. Production, at the
-unprefixed URLs, reads `.\data\prod` and stays empty until a collection is
-approved through Testing (see Environments). The map
+unprefixed URLs with its home at `/prod`, reads `.\data\prod` and stays
+empty until a collection is approved through Testing (see Environments). The map
 tiles come from OpenFreeMap, and the homepage's relief from open elevation
 tiles on AWS; both need the internet. Without them the data still draws over
 a plain ground.
@@ -202,7 +203,10 @@ until there is a user model.
 There are three, matching the deployment: Development, Testing and
 Production. One running app reads all three, each from its own sources.
 Production's pages are unprefixed; the other two live under `/dev` and
-`/test`, so a copied link opens in the environment it came from. The header
+`/test`, so a copied link opens in the environment it came from. While
+Production is empty, the bare `/` sends you to Development and Production's
+home answers at `/prod`; both special cases come out of `src/proxy.ts` and
+`src/lib/env.ts` once the first collections are approved through. The header
 switcher keeps you on the same page when you change environments, and outside
 Production a colored band under the header and a `[Dev]` or `[Test]` tab title
 say where you are. ffrd-x has the same switcher, band and URLs.
@@ -343,10 +347,14 @@ VEDA, Copernicus Data Space, eoAPI, STAC Index and FFRD's own
 any of those should find things in the same place here. The two columns are
 equal width.
 
-The header is STAC Browser's too, with no breadcrumb. The title is on the
-left. At the right end there are two button groups. The first is for getting
-around: Collection and Up on an item (both lead to its collection, as they do
-in STAC Browser), and Up and the version picker on a collection. The second
+The header is STAC Browser's with one change. On an item a breadcrumb trail
+runs across the top, the collection and then the item, which STAC Browser
+doesn't have; it has Collection and Up buttons instead, and people found the
+trail more familiar, so the buttons are gone. The trail doesn't reach back to
+the home page: the wordmark does that, and a collection page, with nothing
+above it but home, has no trail. Below it the title is on the left. At the
+right end there are two button groups. The first is for getting around, which
+on a collection with more than one version is the version picker. The second
 is the page's source: JSON, Download, and Copy link, which sit where STAC
 Browser has Source and Share.
 

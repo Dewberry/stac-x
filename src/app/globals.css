@@ -561,8 +561,61 @@
   text-transform: uppercase;
   color: var(--ffx-ink-mut);
 }
-/* Two groups, as in STAC Browser: getting around (Collection, Up) and the
-   page's source (JSON, Download, Copy link). */
+/* The trail back to an item's collection, on its own row across the top of
+   the header. Links are quiet until pointed at, and the last crumb, the
+   page itself, is quiet too. Each name clips past a point so a long item
+   title doesn't push the trail onto three lines on a phone. */
+.sx-crumbs {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-bottom: 0.25rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.375rem;
+}
+.sx-crumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.sx-crumbs li > a,
+.sx-crumbs li > span {
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-crumbs a {
+  color: var(--ffx-ink-sec);
+  text-decoration: none;
+}
+.sx-crumbs a:hover {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* The page itself stays quiet: the title right below it carries the weight. */
+.sx-crumbs [aria-current="page"] {
+  color: var(--ffx-ink-sec);
+}
+.sx-crumbs svg {
+  flex: none;
+  color: var(--ffx-ink-dim);
+}
+@media (max-width: 39.99rem) {
+  .sx-crumbs li > a,
+  .sx-crumbs li > span {
+    max-width: 11rem;
+  }
+}
+/* Two groups: getting around (the version picker on a collection) and the
+   page's source (JSON, Download, Copy link), as STAC Browser has them. */
 .sx-actions {
   display: flex;
   flex-wrap: wrap;
@@ -3255,6 +3308,11 @@ main:focus {
 .sx-credit .ffx-map-credit {
   margin-left: 0;
   justify-content: flex-start;
+}
+/* Under a page map the readout's hint sits left and the credit button right.
+   The home map's readout puts its own key on the right instead. */
+.ffx-map:not(.sx-home-map) .ffx-map-readout .sx-credit {
+  margin-left: auto;
 }
 .sx-legend {
   display: inline-flex;

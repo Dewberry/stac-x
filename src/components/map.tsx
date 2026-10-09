@@ -15,8 +15,8 @@ import {
   applyBasemap,
   blankStyle,
   Controls,
-  CreditLine,
   creditsOf,
+  MapCredits,
   palette,
   watchTheme,
   WORKER_URL,
@@ -283,7 +283,7 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <span>{hover ?? hint ?? ""}</span>
-        <CreditLine credits={credits} />
+        <MapCredits credits={credits} />
       </figcaption>
     </figure>
   );

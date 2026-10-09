@@ -6,6 +6,10 @@
  * opens in the environment it was copied from and two tabs can't quietly
  * disagree. proxy.ts maps the unprefixed URLs onto the /prod route segment.
  *
+ * For now the bare root sends you to Development, since Production has no
+ * collections yet, and Production's home page lives at /prod. That's the one
+ * Production URL with a prefix. Both go away once Production has content.
+ *
  * A collection moves forward one environment at a time. Approving it in
  * Development copies it to Testing; approving it in Testing copies it to
  * Production. Production is the end of the line.
@@ -52,10 +56,13 @@ export function nextEnv(key: EnvKey): Env | null {
   return ENVS[i + 1] ?? null;
 }
 
+/** Production's home page. The bare root goes to Development while Production is empty. */
+const PROD_HOME = "/prod";
+
 /** A path inside an environment: withEnv("test", "/collections/a") is "/test/collections/a". */
 export function withEnv(env: EnvKey, path: string): string {
   const prefix = envMeta(env).prefix;
-  if (path === "/" || path === "") return prefix || "/";
+  if (path === "/" || path === "") return prefix || PROD_HOME;
   return `${prefix}${path}`;
 }
 
@@ -67,5 +74,6 @@ export function splitEnv(pathname: string): { env: EnvKey; rest: string } {
       return { env: e.key, rest: pathname.slice(e.prefix.length) || "/" };
     }
   }
+  if (pathname === PROD_HOME) return { env: "prod", rest: "/" };
   return { env: "prod", rest: pathname || "/" };
 }

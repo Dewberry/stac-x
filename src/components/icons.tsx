@@ -25,6 +25,5 @@ export const ICONS = {
   table: "M2 3h12v10H2zM2 7h12M6 3v10",
   external: "M7 3H3v10h10V9M9 3h4v4M13 3 7 9",
   chevron: "m4 6 4 4 4-4",
-  up: "M13 13H6V3M3 6l3-3 3 3",
-  folder: "M2 4.5h4l1.5 1.5H14v6.5H2z",
+  chevronRight: "m6 4 4 4-4 4",
 };

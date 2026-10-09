@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { BrandLink } from "./brand-link";
+import { Icon, ICONS } from "./icons";
 import { HeaderControls } from "./env-switcher";
 import { MoreMenu } from "./more-menu";
 export { EnvBand } from "./env-switcher";
@@ -12,7 +14,7 @@ export { Icon, ICONS } from "./icons";
  * program: a navy header bar with the wordmark alone on one line, and a
  * footer band with the app's note. Both sit on the same 96rem shell and the
  * same edge gutter. The theme is in the account menu, so it's on every page.
- * Navigation is the map and the Collection and Up actions, as in STAC Browser.
+ * Navigation is the map and the breadcrumb trail at the top of each page.
  * Signed in, the header's right end holds the environment switcher and the
  * account badge, whose menu is the way to Admin.
  */
@@ -53,21 +55,57 @@ export function SiteFooter() {
   );
 }
 
+/** One step of the trail. The last crumb is the page itself and has no href. */
+export type Crumb = { label: string; href?: string };
+
 /**
- * The top of a collection or item page, laid out like STAC Browser's: the
- * title (with the page's facts beside it) on the left, and at the right end
- * the navigation group followed by the source group. There's no breadcrumb,
- * since STAC Browser has none; Collection and Up are the way back. The kind
- * of thing the page is about sits above the title. Below 64rem the source
- * group folds into one ⋯ pill so the actions stay on one row.
+ * The trail down to this page: on an item, its collection and then the item.
+ * It doesn't reach back to the home page; the wordmark and the account menu
+ * already do that. The last crumb is the page itself: plain text, marked as
+ * the current page but no louder than the links, since the title sits right
+ * under it. Long names clip so the trail stays readable on a phone.
+ */
+export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
+  return (
+    <nav className="sx-crumbs" aria-label="Breadcrumb">
+      <ol>
+        {crumbs.map((c, i) => {
+          const last = i === crumbs.length - 1;
+          return (
+            <li key={`${i}-${c.label}`}>
+              {i > 0 && <Icon d={ICONS.chevronRight} size={10} />}
+              {c.href && !last ? (
+                <Link href={c.href}>{c.label}</Link>
+              ) : (
+                <span aria-current={last ? "page" : undefined}>{c.label}</span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+/**
+ * The top of a collection or item page: on an item, a breadcrumb trail back
+ * to its collection across the top, then, as in STAC Browser, the title
+ * (with the page's facts beside it) on the left and at the right end the
+ * navigation group followed by the source group. The breadcrumb is ours;
+ * STAC Browser has Collection and Up buttons instead, which people found
+ * less familiar. The kind of thing the page is about sits above the title.
+ * Below 64rem the source group folds into one ⋯ pill so the actions stay on
+ * one row.
  */
 export function PageHead({
+  crumbs,
   kicker,
   title,
   subtitle,
   nav,
   actions,
 }: {
+  crumbs?: Crumb[];
   kicker?: string;
   title: ReactNode;
   subtitle?: ReactNode;
@@ -76,6 +114,7 @@ export function PageHead({
 }) {
   return (
     <div className="sx-head">
+      {crumbs && crumbs.length > 0 && <Breadcrumbs crumbs={crumbs} />}
       <div className="sx-title-line">
         {kicker && <span className="sx-kicker">{kicker}</span>}
         <h1 className="sx-title">{title}</h1>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
@@ -18,7 +17,7 @@ import { pageEnv } from "@/lib/page-env";
 import { collectionName, fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
 import { collectionKindLabel, itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { baseName } from "@/lib/storage";
-import { collectionJsonHref, itemHref, withEnvHome } from "@/lib/utils";
+import { collectionJsonHref, itemHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
@@ -126,14 +125,7 @@ export default async function CollectionPage({ params }: Props) {
             <QcChip status={c.qc?.qc} />
           </>
         }
-        nav={
-          <>
-            <Link href={withEnvHome(env)} className="ffx-btn ffx-btn-sm" title="Go to parent: Colorado">
-              <Icon d={ICONS.up} size={12} /> Up
-            </Link>
-            {c.series.versions.length > 1 && <VersionMenu env={env} current={c.id} series={c.series} />}
-          </>
-        }
+        nav={c.series.versions.length > 1 ? <VersionMenu env={env} current={c.id} series={c.series} /> : undefined}
         actions={
           <>
             <a href={collectionJsonHref(env, c.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { IControl, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 
 /**
@@ -302,6 +303,29 @@ export function CreditLine({ credits }: { credits: Credit[] }) {
           <span key={c.text}>{c.text}</span>
         ),
       )}
+    </span>
+  );
+}
+
+/**
+ * The credit line behind a small "i" button, so the map's readout shows one
+ * round button until someone asks who made the basemap.
+ */
+export function MapCredits({ credits }: { credits: Credit[] }) {
+  const [open, setOpen] = useState(false);
+  if (!credits.length) return null;
+  return (
+    <span className="sx-credit" data-open={open}>
+      <button
+        type="button"
+        className="sx-credit-btn"
+        aria-expanded={open}
+        aria-label={open ? "Hide map credits" : "Map credits"}
+        onClick={() => setOpen((v) => !v)}
+      >
+        i
+      </button>
+      {open && <CreditLine credits={credits} />}
     </span>
   );
 }

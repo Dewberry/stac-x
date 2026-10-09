@@ -12,8 +12,9 @@ export const metadata: Metadata = {
  * purpose: nothing typed here is sent anywhere, and a passphrase never ends
  * up in a URL.
  *
- * It lands in Development for now, since Production has no collections yet.
- * Point it back at "/" once the first ones are approved through.
+ * It lands in Development for now, since Production has no collections yet,
+ * the same place the bare root sends you (see proxy.ts). Point it back at
+ * "/" once the first ones are approved through.
  */
 export default function SignIn() {
   return (
