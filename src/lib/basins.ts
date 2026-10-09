@@ -43,3 +43,18 @@ export const FOCUS_BASIN = "1019";
 
 /** The South Platte's extent from co-huc4.json. It runs into Wyoming and Nebraska. */
 export const FOCUS_BBOX: [number, number, number, number] = [-106.21, 38.75, -100.68, 41.49];
+
+/**
+ * Where the map goes for a basin: the part of its collections' extent that's
+ * in the South Platte. Some collections run well past the basin (a structure
+ * inventory, a storm catalog), and fitting all of that shrinks the basin to a
+ * corner of the map when the basin is the only place anyone's looking. An
+ * extent with nothing in the basin is kept as it is.
+ */
+export function clipToFocus(b: [number, number, number, number]): [number, number, number, number] {
+  const w = Math.max(b[0], FOCUS_BBOX[0]);
+  const s = Math.max(b[1], FOCUS_BBOX[1]);
+  const e = Math.min(b[2], FOCUS_BBOX[2]);
+  const n = Math.min(b[3], FOCUS_BBOX[3]);
+  return w < e && s < n ? [w, s, e, n] : b;
+}

@@ -223,8 +223,8 @@ const overlaps = (a: Rect, b: Rect) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3]
  * nowhere, so no name covers another name or another mark and none runs off
  * the map or under its controls and legend. The active pin is placed first,
  * so its name always shows. While a collection is selected only its own pin
- * keeps a name: the map is zoomed in by then, and the other names would sit
- * on the basemap's town labels. The marks themselves never move or hide.
+ * keeps a name, so the other names don't sit on its footprint. The marks
+ * themselves never move or hide.
  */
 function placeLabels(
   map: MapLibreMap,

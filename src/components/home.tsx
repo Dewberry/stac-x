@@ -4,6 +4,7 @@ import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection } from "geojson";
+import { clipToFocus } from "@/lib/basins";
 import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
@@ -161,9 +162,10 @@ export function HomeConsole({
         const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
         mapBoxRef.current?.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "auto" });
       }
-      // Selecting a collection zooms to it, the same as selecting a basin.
+      // Selecting a collection lights up its basin and draws its footprint,
+      // but doesn't move the map: the whole South Platte is in view, so what
+      // was clicked is already on screen.
       setBasin(a.huc4);
-      setFocus({ bbox: a.bbox, key: Date.now() });
     },
     [bySlug, selected],
   );
@@ -181,7 +183,7 @@ export function HomeConsole({
           Math.max(...list.map((a) => a.bbox[2])),
           Math.max(...list.map((a) => a.bbox[3])),
         ];
-        setFocus({ bbox, key: Date.now() });
+        setFocus({ bbox: clipToFocus(bbox), key: Date.now() });
       }
     },
     [areas],
