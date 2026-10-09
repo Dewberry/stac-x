@@ -72,6 +72,13 @@ npm run lint
 npm run typecheck
 ```
 
+For a demo, run the production build instead of the dev server so pages
+don't compile on first click. Rebuild after any code change.
+
+```bash
+npm run build && npm start
+```
+
 ### Windows and WSL notes
 
 Port 3000 is often taken by another dev server. Next moves to the next free
