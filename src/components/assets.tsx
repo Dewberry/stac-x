@@ -32,7 +32,7 @@ const BUCKETS: (Bucket & { test: (roles: string[], type: string, file: string) =
     id: "thumbs",
     label: "Thumbnails",
     description: "Plots and previews",
-    test: (r, t) => r.includes("thumbnail") || r.includes("overview") || /^image\/(png|jpe?g|gif|webp)/.test(t),
+    test: (r, t, f) => r.includes("thumbnail") || r.includes("overview") || isImageType(t, f),
   },
   {
     id: "terrain",
@@ -85,14 +85,15 @@ function bucketOf(a: StacAsset, key: string): Bucket {
   return BUCKETS.find((b) => b.test(roles, type, file)) ?? OTHER;
 }
 
-function grouped(assets: Record<string, StacAsset>) {
+function grouped(assets: Record<string, StacAsset>, plotsFirst = false) {
   const by = new Map<string, { bucket: Bucket; entries: [string, StacAsset][] }>();
   for (const [key, a] of Object.entries(assets)) {
     const b = bucketOf(a, key);
     if (!by.has(b.id)) by.set(b.id, { bucket: b, entries: [] });
     by.get(b.id)!.entries.push([key, a]);
   }
-  return ORDER.filter((id) => by.has(id)).map((id) => by.get(id)!);
+  const order = plotsFirst ? ["thumbs", ...ORDER.filter((id) => id !== "thumbs")] : ORDER;
+  return order.filter((id) => by.has(id)).map((id) => by.get(id)!);
 }
 
 /** "52 in 6 groups", or just the count when there's one group. */
@@ -157,8 +158,12 @@ function chipsOf(formats: string[]): string[] {
   return out.slice(0, 2);
 }
 
-export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
-  const groups = grouped(assets);
+/**
+ * plotsFirst leads with the plots, for a collection, where an overview plot
+ * is the thing to see and the files behind it are secondary.
+ */
+export function Assets({ assets, plotsFirst = false }: { assets: Record<string, StacAsset>; plotsFirst?: boolean }) {
+  const groups = grouped(assets, plotsFirst);
   if (!groups.length) return <p className="sx-empty">This item has no assets.</p>;
   const total = Object.keys(assets).length;
   const data: AssetGroupData[] = groups.map(({ bucket, entries }, i) => {
@@ -189,7 +194,7 @@ export function Assets({ assets }: { assets: Record<string, StacAsset> }) {
 }
 
 function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
-  const image = isImageType(a.type);
+  const image = isImageType(a.type, a.href);
   const parquet = isParquetType(a.type, a.href);
   const extra = Object.entries(a).filter(([k]) => !KNOWN.has(k));
   // A list of like objects (file:values on the AMS asset) is a table in

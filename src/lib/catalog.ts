@@ -5,8 +5,8 @@ import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { collectionName } from "./format";
 import { readItems } from "./parquet";
-import { collectionsOf, readCollectionJson } from "./stac-json";
-import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacItem, type StacLink } from "./stac";
+import { collectionsOf, readCollectionJson, resolveHref } from "./stac-json";
+import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsLooksConfigured, CATALOG_JSON, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
@@ -219,10 +219,11 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
  */
 async function describeCollection(cache: Cache, id: string, items: CatalogItem[], now: number): Promise<Collection> {
   const docHref = items[0]?.links.find((l) => l.rel === "collection")?.href ?? null;
-  const doc =
-    (await collectionDoc(cache, docHref, now)) ??
-    items.map((i) => cache.sources.get(i.source)?.embedded?.[id]).find((d) => d) ??
-    null;
+  const read = await collectionDoc(cache, docHref, now);
+  const embeddedIn = read ? undefined : items.find((i) => cache.sources.get(i.source)?.embedded?.[id]);
+  const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn.source)!.embedded[id] : null);
+  // Relative asset hrefs are relative to the file the metadata came from.
+  const docBase = read ? docHref : embeddedIn?.source ?? null;
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
   const sources = Array.from(new Set(items.map((i) => i.source)));
@@ -237,10 +238,10 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     const docInterval = ext?.temporal?.interval?.[0];
     const {
       id: _id, title, description, license, keywords, providers, extent: _extent, links,
-      stac_version: _v, stac_extensions: _x, type: _t, assets: _assets,
+      stac_version: _v, stac_extensions: _x, type: _t, assets,
       version, deprecated, experimental, ...extra
     } = doc;
-    void _id; void _extent; void _v; void _x; void _t; void _assets;
+    void _id; void _extent; void _v; void _x; void _t;
     return {
       id,
       title: collectionName(typeof title === "string" ? title : null, id),
@@ -254,6 +255,7 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       itemCount: items.length,
       sources,
       fromDocument: true,
+      assets: docAssets(assets, docBase),
       extra,
       version: typeof version === "string" || typeof version === "number" ? String(version) : null,
       deprecated: deprecated === true,
@@ -282,6 +284,7 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     itemCount: items.length,
     sources,
     fromDocument: false,
+    assets: {},
     extra: {},
     version: null,
     deprecated: false,
@@ -308,6 +311,16 @@ function qcFor(cache: Cache, id: string, sources: string[]): QcEdit | null {
     if (r && (!best || r.updated_at > best.updated_at)) best = r;
   }
   return best;
+}
+
+/** A collection's own assets (overview plots, summary tables), with their hrefs made absolute. */
+function docAssets(raw: unknown, base: string | null): Record<string, StacAsset> {
+  if (!raw || typeof raw !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, StacAsset>)
+      .filter(([, a]) => a && typeof a.href === "string")
+      .map(([k, a]) => [k, { ...a, href: base ? resolveHref(a.href, base) : a.href }]),
+  );
 }
 
 async function collectionDoc(cache: Cache, href: string | null, now: number): Promise<CollectionDoc> {

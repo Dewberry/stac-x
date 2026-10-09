@@ -106,6 +106,8 @@ export type Collection = {
   sources: string[];
   /** True when collection.json was read from the bucket; false when derived. */
   fromDocument: boolean;
+  /** The collection's own assets from collection.json, hrefs resolved. */
+  assets: Record<string, StacAsset>;
   /** Remaining fields of collection.json that have no slot above. */
   extra: Record<string, unknown>;
   /** The Version extension's fields, from the collection metadata. */

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { FeatureCollection } from "geojson";
+import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { ItemsList, type ItemRow } from "@/components/items-list";
 import { DataMap } from "@/components/map";
@@ -34,8 +35,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /**
  * A collection: the STAC Browser layout. The left column is what describes
  * the collection (description, license and temporal extent, the map, then
- * metadata) and the right column is its items. QC is recorded for the
- * collection as a whole, so its form sits in the left column under the map.
+ * metadata) and the right column is its items. Its own assets, when it has
+ * any, go under the map. QC is recorded for the collection as a whole, so
+ * its form sits in the left column under them.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -175,6 +177,13 @@ export default async function CollectionPage({ params }: Props) {
               tip="Point at one for its name, click to open it."
             />
           </div>
+          {/* The collection's own files sit under the map, where STAC Browser
+              puts them. Overview plots show inline like an item's. */}
+          {Object.keys(c.assets).length > 0 && (
+            <Panel title="Assets" note={assetNote(c.assets)} id="assets">
+              <Assets assets={c.assets} plotsFirst />
+            </Panel>
+          )}
           <QcPanel
             env={env}
             collection={c.id}

@@ -126,8 +126,10 @@ export function mediaLabel(type: string | null | undefined): string {
   return type.split("/").pop()?.split(";")[0].toUpperCase() ?? type;
 }
 
-export function isImageType(type: string | null | undefined) {
-  return Boolean(type && /^image\/(png|jpe?g|gif|webp|svg)/i.test(type));
+export function isImageType(type: string | null | undefined, href?: string) {
+  if (type) return /^image\/(png|jpe?g|gif|webp|svg)/i.test(type);
+  // Plenty of STAC writers leave type off, so go by the file name.
+  return Boolean(href && /\.(png|jpe?g|gif|webp|svg)$/i.test(href.split("?")[0]));
 }
 
 export function isParquetType(type: string | null | undefined, href?: string) {

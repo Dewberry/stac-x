@@ -7,9 +7,9 @@ import { fmtBytes, fmtNum } from "@/lib/format";
 
 /**
  * An image asset inline, with an honest fallback: the assets live in a
- * private bucket, so without AWS credentials on the server the presigned
- * URL can't be made and the image fails. That reads as "no access", not as
- * a broken page.
+ * private bucket, so the image fails when the server has no credentials or
+ * when the catalog points at a file that was never uploaded. Either way it
+ * reads as a missing preview, not as a broken page.
  */
 export function Thumbnail({ src, alt }: { src: string; alt: string }) {
   const [failed, setFailed] = useState(false);
@@ -23,7 +23,7 @@ export function Thumbnail({ src, alt }: { src: string; alt: string }) {
   if (failed) {
     return (
       <div className="sx-thumb-missing">
-        Preview unavailable. The server could not fetch this object from the bucket (AWS credentials or permissions).
+        {"Preview unavailable. The file isn't at this path in the bucket, or the server can't read it."}
       </div>
     );
   }

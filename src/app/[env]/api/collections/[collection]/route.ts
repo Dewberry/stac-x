@@ -62,5 +62,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
       ...versionLinks,
       ...c.items.map((i) => ({ rel: "item", href: `${base}/items/${encodeURIComponent(i.id)}`, type: "application/geo+json" })),
     ],
+    ...(Object.keys(c.assets).length ? { assets: c.assets } : {}),
   }, { headers });
 }
