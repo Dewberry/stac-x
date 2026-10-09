@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to the stac-x catalog.",
+  description: "Sign in to STAC.",
 };
 
 /**

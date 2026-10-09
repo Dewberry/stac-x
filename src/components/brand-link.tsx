@@ -10,7 +10,7 @@ export function BrandLink({ className }: { className: string }) {
   const href = pathname === "/signin" ? "/signin" : withEnv(splitEnv(pathname).env, "/");
   return (
     <Link href={href} className={className}>
-      stac-x
+      STAC
     </Link>
   );
 }

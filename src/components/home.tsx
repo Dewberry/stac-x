@@ -40,8 +40,6 @@ const HomeMap = nextDynamic(() => import("./home-map").then((m) => m.HomeMap), {
 export type HomeArea = {
   slug: string;
   name: string;
-  /** True when the collection has no title of its own and `name` is its id. */
-  untitled?: boolean;
   kind: AreaKind;
   huc4: string;
   bbox: [number, number, number, number];
@@ -373,14 +371,7 @@ function AreaRow({
         <QcMark state={stateOf(area)} />
         <span className="sx-row-main">
           <span className="sx-row-title">
-            {area.untitled ? (
-              <>
-                <span className="sx-row-id">{area.name}</span>
-                <span className="sx-notitle">No title</span>
-              </>
-            ) : (
-              area.name
-            )}
+            {area.name}
           </span>
           <span className="sx-row-sub">
             <span className="ffx-num">{meta.join(" · ")}</span>

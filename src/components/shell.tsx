@@ -46,7 +46,7 @@ export function SiteFooter() {
   return (
     <footer className="sx-footer">
       <div className="ffx-shell sx-footer-inner">
-        <span>stac-x reads stac-geoparquet from S3. QC edits are written back beside the source file.</span>
+        <span>STAC reads stac-geoparquet from S3. QC edits are written back beside the source file.</span>
       </div>
     </footer>
   );

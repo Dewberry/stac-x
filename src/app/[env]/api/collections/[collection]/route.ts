@@ -40,7 +40,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
     stac_version: "1.0.0",
     ...(versioned ? { stac_extensions: [VERSION_SCHEMA] } : {}),
     id: c.id,
-    title: c.title,
+    title: c.sourceTitle ?? c.id,
     description: c.description ?? `Items of ${c.title}`,
     license: c.license ?? "proprietary",
     keywords: c.keywords,

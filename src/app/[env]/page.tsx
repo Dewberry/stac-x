@@ -65,7 +65,6 @@ export default async function Home({ params }: { params: Promise<{ env: string }
     areas.push({
       slug: c.series.id,
       name: c.title,
-      untitled: c.title === c.id,
       kind: guessKind(c),
       huc4,
       bbox,

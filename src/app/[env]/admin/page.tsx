@@ -4,6 +4,7 @@ import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { PageHead } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
 import { ENVS, nextEnv, type EnvKey } from "@/lib/env";
+import { collectionName } from "@/lib/format";
 import { MOCK_REVIEWS, type MockReview } from "@/lib/fixtures/review";
 import { guessKind } from "@/lib/kinds";
 import { pageEnv } from "@/lib/page-env";
@@ -120,7 +121,7 @@ function mockRow(m: MockReview, env: EnvKey, now: number): QueueRow {
   if (prev) history.push({ kind: "received", at: at(prev.hoursAgo), from: ENVS[i - 1].key, files });
   return {
     id: m.id,
-    title: m.title,
+    title: collectionName(m.title, m.id),
     href: null,
     kind: m.kind,
     version: m.version ? versionName(m.version) : null,

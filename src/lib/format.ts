@@ -76,7 +76,7 @@ export function humanize(key: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Words that come out of a snake_case key and should keep their capitals. */
+/** Words that come out of a key or an id and should keep their capitals. */
 const ACRONYMS: Record<string, string> = {
   ams: "AMS",
   lpiii: "LP-III",
@@ -95,6 +95,15 @@ const ACRONYMS: Record<string, string> = {
   hms: "HMS",
   ras: "RAS",
   stac: "STAC",
+  "1d": "1D",
+  "2d": "2D",
+  aorc: "AORC",
+  fema: "FEMA",
+  hec: "HEC",
+  nid: "NID",
+  nlcd: "NLCD",
+  noaa: "NOAA",
+  qc: "QC",
 };
 
 /** A short label for a media type: "PNG", "Parquet", "JSON", "GeoTIFF". */
@@ -151,6 +160,51 @@ export function tidyCaps(s: string): string {
     .replace(/\b(Co|Nr|Nw|Ne|Sw|Se|Usgs|Hwy|Mt|St|Ft)\b/g, (m) => m.toUpperCase())
     .replace(/\b(At|Near|Below|Above|Of|And|The|In|On|Nr)\b/g, (m) => m.toLowerCase())
     .replace(/^([a-z])/, (m) => m.toUpperCase());
+}
+
+/**
+ * Titles that rules can't get right, by collection id. The NID titles repeat
+ * their file name in lowercase and lead with the South Platte's HUC4 code,
+ * which readers won't know.
+ */
+const NAME_OVERRIDES: Record<string, string> = {
+  "nid-dams": "National Inventory of Dams: South Platte",
+  "nid-low-head-dams": "National Inventory of Dams: Low-Head Dams, South Platte",
+};
+const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "in", "la", "of", "on", "or", "the", "to", "via", "vs"]);
+const UNITS = new Set(["ft", "m", "km", "mi"]);
+
+/**
+ * What to call a collection on screen. Every name gets the same shape:
+ * words split on spaces (an id's dashes become spaces), each word capitalized
+ * except short joining words, and known acronyms spelled as ACRONYMS has them.
+ * A word that already has a capital in it ("HEC-RAS", "2D") is left alone.
+ * The STAC JSON keeps its own title; this only changes what's shown.
+ */
+export function collectionName(title: string | null | undefined, id: string): string {
+  if (NAME_OVERRIDES[id]) return NAME_OVERRIDES[id];
+  let s = title?.trim() || id;
+  if (!/\s/.test(s)) s = s.replace(/[-_]+/g, " ");
+  if (s === s.toUpperCase()) s = s.toLowerCase();
+  const fix = (part: string, first: boolean): string => {
+    const lower = part.toLowerCase();
+    const hr = /^(\d+)hrs?$/.exec(lower);
+    if (hr) return `${hr[1]}-Hour`;
+    const unit = /^(\d+(?:\.\d+)?)([a-z]+)$/.exec(lower);
+    if (unit && UNITS.has(unit[2])) return `${unit[1]} ${unit[2]}`;
+    if (ACRONYMS[lower] && ACRONYMS[lower] !== lower) return ACRONYMS[lower];
+    if (/[A-Z]/.test(part)) return part;
+    if (!first && SMALL_WORDS.has(lower)) return lower;
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  };
+  return s
+    .split(/\s+/)
+    .map((word, i, words) => {
+      const [, pre, core, post] = /^([^A-Za-z0-9]*)(.*?)([^A-Za-z0-9]*)$/.exec(word)!;
+      const first = i === 0 || /:$/.test(words[i - 1]);
+      return pre + core.split("-").map((p, j) => fix(p, first && j === 0)).join("-") + post;
+    })
+    .join(" ");
 }
 
 /** How long ago, roughly, in one unit: "40 minutes", "5 hours", "3 days", "6 weeks". */

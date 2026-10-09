@@ -68,7 +68,7 @@ export function landingFolder(env: EnvKey): string {
   return first.endsWith("/") ? first : `${first}/`;
 }
 
-export const catalogTitle = process.env.STAC_TITLE || "Colorado STAC";
+export const catalogTitle = process.env.STAC_TITLE || "STAC";
 export const catalogDescription =
   process.env.STAC_DESCRIPTION ||
   "Gages, models and storm catalogs for the South Platte. Open a collection to browse its items and record QC.";

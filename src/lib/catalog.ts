@@ -3,6 +3,7 @@ import "server-only";
 import { fallbackSources, refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
+import { collectionName } from "./format";
 import { readItems } from "./parquet";
 import { collectionsOf, readCollectionJson } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacItem, type StacLink } from "./stac";
@@ -242,7 +243,8 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     void _id; void _extent; void _v; void _x; void _t; void _assets;
     return {
       id,
-      title: typeof title === "string" && title ? title : id,
+      title: collectionName(typeof title === "string" ? title : null, id),
+      sourceTitle: typeof title === "string" && title ? title : null,
       description: typeof description === "string" ? description : null,
       license: typeof license === "string" ? license : null,
       keywords: Array.isArray(keywords) ? keywords.filter((k): k is string => typeof k === "string") : [],
@@ -269,7 +271,8 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
 
   return {
     id,
-    title: id,
+    title: collectionName(null, id),
+    sourceTitle: null,
     description: null,
     license: null,
     keywords: [],

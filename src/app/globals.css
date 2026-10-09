@@ -2599,26 +2599,6 @@ main:focus {
   font-weight: 600;
   color: var(--ffx-ink);
 }
-.sx-row-id {
-  font-family: var(--ffx-mono);
-  font-size: 13.5px;
-  font-weight: 500;
-}
-.sx-notitle {
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: var(--ffx-t-tiny);
-  line-height: 1.4;
-  font-weight: 500;
-  color: var(--ffx-ink-sec);
-  background: var(--ffx-surface-sunken);
-}
-/* On a highlighted row, which is already the sunken gray. */
-.sx-rail-item .sx-row:hover .sx-notitle,
-.sx-rail-item[data-active="true"] .sx-notitle,
-.sx-rail-item[data-open="true"] .sx-notitle {
-  background: var(--ffx-surface);
-}
 .sx-rail-item .sx-row-sub {
   display: flex;
   flex-wrap: wrap;

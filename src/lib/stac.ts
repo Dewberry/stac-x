@@ -90,7 +90,10 @@ export type Provider = {
 
 export type Collection = {
   id: string;
+  /** The name to show, from collectionName. */
   title: string;
+  /** The title as the collection.json has it, or null when it has none. */
+  sourceTitle: string | null;
   description: string | null;
   license: string | null;
   keywords: string[];
