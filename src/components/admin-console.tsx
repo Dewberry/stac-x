@@ -9,7 +9,7 @@ import { QcChip } from "./qc-chip";
 import { QcMark } from "./qc-mark";
 import { Caret, DecisionCards, HistoryRow, decisionCopy, type Decision } from "./review";
 import { saveQcAction } from "@/app/actions";
-import { ENVS, envMeta, nextEnv, type EnvKey } from "@/lib/env";
+import { ENVS, envMeta, type EnvKey } from "@/lib/env";
 import { fmtAge, fmtAgo, fmtDate, fmtNum } from "@/lib/format";
 import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { qcMeta, type QcEdit, type QcEvent, type QcStatus } from "@/lib/stac";
@@ -34,15 +34,13 @@ import { collectionHref } from "@/lib/utils";
  * next environment, which shouldn't happen on a stray keypress.
  *
  * Saves go through the same server action as the collection page's QC form.
- * A mock row (fixtures/review.ts) has no file behind it, so a decision on one
- * changes only this page.
  */
 
 export type QueueRow = {
   id: string;
   title: string;
-  /** The collection page, or null for a mock row, which has none. */
-  href: string | null;
+  /** The collection page. */
+  href: string;
   kind: AreaKind;
   version: string | null;
   older: boolean;
@@ -55,7 +53,6 @@ export type QueueRow = {
   stages: PathStage[];
   /** This environment's history, newest first. */
   history: QcEvent[];
-  mock: boolean;
 };
 
 type Filter = QcStatus | "all";
@@ -93,7 +90,7 @@ const DAY = 86_400_000;
 
 export function AdminConsole({
   env,
-  rows: given,
+  rows,
   now,
   initial,
 }: {
@@ -107,12 +104,10 @@ export function AdminConsole({
   const [filter, setFilter] = useState<Filter>(isFilter(initial.status) ? initial.status : "pending");
   const [query, setQuery] = useState(initial.q ?? "");
   const [sort, setSort] = useState<Sort>(isSort(initial.sort) ? initial.sort : "oldest");
-  const [local, setLocal] = useState<Record<string, { edit: QcEdit; events: QcEvent[] }>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
   const q = useDeferredValue(query.trim().toLowerCase());
-  const next = nextEnv(env);
 
   // The filter lives in the URL, so a filtered queue can be shared.
   useEffect(() => {
@@ -123,25 +118,6 @@ export function AdminConsole({
     const s = p.toString();
     window.history.replaceState(null, "", s ? `${pathname}?${s}` : pathname);
   }, [filter, q, sort, pathname]);
-
-  // Mock rows carry their decisions here; real rows come back from the server.
-  const rows = useMemo(
-    () =>
-      given.map((r) => {
-        const l = local[r.id];
-        if (!l) return r;
-        return {
-          ...r,
-          qc: l.edit,
-          since: l.edit.updated_at,
-          stages: r.stages.map((s) =>
-            s.env === env ? { ...s, qc: l.edit.qc } : l.edit.qc === "approved" && s.env === next?.key ? { ...s, qc: "pending" } : s,
-          ),
-          history: [...l.events, ...r.history],
-        };
-      }),
-    [given, local, env, next],
-  );
 
   const counts = useMemo(() => {
     const out: Record<Filter, number> = { pending: 0, approved: 0, needs_revision: 0, rejected: 0, all: rows.length };
@@ -197,17 +173,6 @@ export function AdminConsole({
   async function decide(row: QueueRow, decision: Decision, note: string): Promise<Outcome> {
     const today = new Date().toISOString().slice(0, 10);
     const date = decision === "approved" ? today : null;
-    if (row.mock) {
-      const at = new Date().toISOString();
-      const to = decision === "approved" ? next : null;
-      const edit: QcEdit = { qc: decision, date_approved: date, note: note || null, updated_at: at };
-      const events: QcEvent[] = [
-        ...(to ? [{ kind: "promoted" as const, at, to: to.key, files: row.files }] : []),
-        { kind: "qc", at, qc: decision, date_approved: date, note: note || null },
-      ];
-      setLocal((prev) => ({ ...prev, [row.id]: { edit, events: [...events, ...(prev[row.id]?.events ?? [])] } }));
-      return { ok: true, promotedTo: to?.key ?? null };
-    }
     const form = new FormData();
     form.set("env", env);
     form.set("collection", row.id);
@@ -510,13 +475,9 @@ function QueueTable({
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.title}`} />
               </td>
               <td className="sx-queue-name">
-                {r.href ? (
-                  <Link href={r.href} className="sx-queue-title">
-                    {r.title}
-                  </Link>
-                ) : (
-                  <span className="sx-queue-title">{r.title}</span>
-                )}
+                <Link href={r.href} className="sx-queue-title">
+                  {r.title}
+                </Link>
                 {r.id === openId && <span className="sx-open-tag">Open</span>}
                 <span className="sx-queue-sub">
                   <span className="ffx-id">{r.id}</span>
@@ -587,13 +548,9 @@ function QueueCards({
             aria-label={`Select ${r.title}`}
           />
           <div className="sx-qcard-main">
-            {r.href ? (
-              <Link href={r.href} className="sx-qcard-title">
-                {r.title}
-              </Link>
-            ) : (
-              <span className="sx-qcard-title">{r.title}</span>
-            )}
+            <Link href={r.href} className="sx-qcard-title">
+              {r.title}
+            </Link>
             <span className="ffx-id sx-qcard-id">{r.id}</span>
             <span className="sx-qcard-facts">
               <span>{AREA_KIND_LABEL[r.kind]}</span>
@@ -891,7 +848,7 @@ function OneReview({
         to
           ? {
               text: `${row.title} was approved and sent to ${to.label}.`,
-              link: row.mock ? undefined : { href: collectionHref(to.key, row.id), label: `Open it in ${to.label}` },
+              link: { href: collectionHref(to.key, row.id), label: `Open it in ${to.label}` },
             }
           : { text: `${row.title} is now ${qcMeta(decision).label.toLowerCase()}.` },
       );
@@ -921,11 +878,9 @@ function OneReview({
           </p>
         }
         link={
-          row.href && (
-            <Link href={row.href} className="ffx-link sx-sheet-open">
-              Open collection <span aria-hidden="true">↗</span>
-            </Link>
-          )
+          <Link href={row.href} className="ffx-link sx-sheet-open">
+            Open collection <span aria-hidden="true">↗</span>
+          </Link>
         }
         nav={
           position.of > 1 && (

@@ -9,10 +9,7 @@ that's what people already know (see Page layout below). On a phone the
 columns stack, left column first, except on a collection page, where the
 items come right after the map.
 
-![The stac-x homepage with the USGS gages selected: their 192 sites drawn as dots across the South Platte basin, and their row open in the collection list with counts, period of record and review state](docs/images/home.png)
-
-*Development with sample data. Only the two gage collections are real; the
-models, reservoir runs and storm catalog are made up to fill the page.*
+![The stac-x homepage in Testing with Stream Gages selected: its 192 sites drawn as dots across the South Platte basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
 
 ## Running it
 
@@ -109,7 +106,6 @@ src/lib/edits.ts            the QC sidecar: where it lives, how it is written
 src/lib/stac-json.ts        reads a static STAC collection.json and its items, JSON or parquet
 src/lib/promote.ts          copies an approved collection to the next environment
 src/lib/versions.ts         works out which collections are versions of each other
-src/lib/fixtures/review.ts  mocked review queue rows for the Admin page
 src/lib/overview.ts         what each collection draws on the landing page map
 src/lib/kinds.ts            collection kinds (gages, HMS, RAS...) and their labels
 data/demo/                  the USGS gages, shown in Development when the bucket can't be read
@@ -191,11 +187,6 @@ an approval or resetting to Not reviewed still happens on the collection
 page. Recent activity beside the queue merges every collection's history.
 Below 64rem the table becomes a list of cards and recent activity folds
 into its heading.
-
-Until there are more collections, the queue is filled out from
-`src/lib/fixtures/review.ts`, the South Platte models from the landing page's
-mock at different points in review. A decision on one of those only changes
-the page in front of you. Delete entries as real collections land.
 
 Writes are conditional on the sidecar's ETag (S3 `If-Match`), so two reviewers
 saving at once can't overwrite each other; the loser re-reads and retries.
@@ -370,13 +361,15 @@ resources (the item's other links). The right column is the description,
 a card for the parent collection, then the metadata.
 
 On a collection page the left column is the description with its keywords,
-license and temporal extent, then the map, then the metadata. The right
-column is the item list. QC has no counterpart in STAC Browser, so its panel,
-with the history folded into its last row, goes in the left column between
-the map and the metadata, which keeps it near the top without moving
-anything a STAC Browser user would look for. On a phone the collection page
-is one column in its own order: the map, the items, then the description,
-QC and metadata, so the list people came for isn't at the bottom.
+license and temporal extent, then the map, then the collection's own assets
+when it has any, then the metadata. The right column is the item list. QC has
+no counterpart in STAC Browser, so its panel, with the history folded into
+its last row, goes in the left column right under the map, ahead of the
+assets. That keeps it near the top even on a collection with dozens of open
+plots, and every panel a STAC Browser user would look for is still in its
+usual order. On a phone the collection page is one column in its own order:
+the map, the items, then the description, QC, assets and metadata, so the
+list people came for isn't at the bottom.
 
 Panel names follow STAC Browser's too: Description, Assets, Additional
 resources, Collection, Metadata, Items. Inside an asset row the name is on

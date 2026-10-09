@@ -5,9 +5,9 @@ import path from "node:path";
 import type { FeatureCollection, Position } from "geojson";
 
 /**
- * Which HUC4 basin a point falls in, for placing a collection the fixtures
- * don't name. Reads the same polygons the landing page map draws. Null when
- * the point is outside every basin that touches Colorado.
+ * Which HUC4 basin a point falls in, for placing a collection on the map.
+ * Reads the same polygons the landing page map draws. Null when the point
+ * is outside every basin that touches Colorado.
  */
 
 let basins: Promise<{ huc4: string; polys: Position[][][] }[]> | null = null;

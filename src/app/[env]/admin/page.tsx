@@ -3,12 +3,9 @@ import { connection } from "next/server";
 import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { PageHead } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
-import { ENVS, nextEnv, type EnvKey } from "@/lib/env";
-import { collectionName } from "@/lib/format";
-import { MOCK_REVIEWS, type MockReview } from "@/lib/fixtures/review";
+import { ENVS, nextEnv } from "@/lib/env";
 import { guessKind } from "@/lib/kinds";
 import { pageEnv } from "@/lib/page-env";
-import type { QcEvent } from "@/lib/stac";
 import { baseName } from "@/lib/storage";
 import { collectionHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
@@ -29,9 +26,6 @@ type Props = {
  * QC form, so approving still sends the collection on, and Production still
  * needs a note.
  *
- * The queue is the real catalog plus the mock rows in fixtures/review.ts,
- * which fill it out until more collections exist.
- *
  * Anyone who can reach the app can use this page, the same as the QC form.
  * When there's an identity provider, this is the page to gate by role first.
  */
@@ -51,7 +45,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     ]),
   );
 
-  const real: QueueRow[] = here.collections.map((c) => ({
+  const rows: QueueRow[] = here.collections.map((c) => ({
     id: c.id,
     title: c.title,
     href: collectionHref(env, c.id),
@@ -70,10 +64,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
       return { env: e.key, qc: s?.qc ?? null, at: s?.at ?? null };
     }),
     history: c.history,
-    mock: false,
   }));
-  const taken = new Set(real.map((r) => r.id));
-  const mock = MOCK_REVIEWS.filter((m) => m.in[env] && !taken.has(m.id)).map((m) => mockRow(m, env, now));
 
   const next = nextEnv(env);
   return (
@@ -95,7 +86,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
       )}
       <AdminConsole
         env={env}
-        rows={[...real, ...mock]}
+        rows={rows}
         now={now}
         initial={{ status: one(sp.status), q: one(sp.q), sort: one(sp.sort) }}
       />
@@ -111,52 +102,4 @@ async function requestTime(): Promise<number> {
 
 function one(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
-}
-
-/** A fixture as a queue row, with the history it would have: arrivals, saves and moves, newest first. */
-function mockRow(m: MockReview, env: EnvKey, now: number): QueueRow {
-  const at = (hours: number) => new Date(now - hours * 3_600_000).toISOString();
-  const state = m.in[env]!;
-  const i = ENVS.findIndex((e) => e.key === env);
-  const prev = ENVS[i - 1] ? m.in[ENVS[i - 1].key] : undefined;
-  const ahead = ENVS[i + 1] ? m.in[ENVS[i + 1].key] : undefined;
-  const files = m.files;
-  const history: QcEvent[] = [];
-  if (ahead) history.push({ kind: "promoted", at: at(state.hoursAgo), to: ENVS[i + 1].key, files });
-  if (state.qc !== "pending") {
-    history.push({
-      kind: "qc",
-      at: at(state.hoursAgo),
-      qc: state.qc,
-      date_approved: state.qc === "approved" ? at(state.hoursAgo).slice(0, 10) : null,
-      note: state.note ?? null,
-    });
-  }
-  if (prev) history.push({ kind: "received", at: at(prev.hoursAgo), from: ENVS[i - 1].key, files });
-  return {
-    id: m.id,
-    title: collectionName(m.title, m.id),
-    href: null,
-    kind: m.kind,
-    version: m.version ? versionName(m.version) : null,
-    older: !!m.older,
-    itemCount: m.itemCount,
-    files,
-    qc:
-      state.qc === "pending" && !prev
-        ? null
-        : {
-            qc: state.qc,
-            date_approved: state.qc === "approved" ? at(state.hoursAgo).slice(0, 10) : null,
-            note: state.note ?? null,
-            updated_at: at(state.hoursAgo),
-          },
-    since: at(state.hoursAgo),
-    stages: ENVS.map((e) => {
-      const s = m.in[e.key];
-      return { env: e.key, qc: s?.qc ?? null, at: s && s.qc !== "pending" ? at(s.hoursAgo) : null };
-    }),
-    history,
-    mock: true,
-  };
 }

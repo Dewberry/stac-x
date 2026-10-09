@@ -1531,8 +1531,11 @@
   .sx-cols:has(> .sx-col > #items) #qc {
     order: 4;
   }
-  .sx-cols:has(> .sx-col > #items) #meta {
+  .sx-cols:has(> .sx-col > #items) #assets {
     order: 5;
+  }
+  .sx-cols:has(> .sx-col > #items) #meta {
+    order: 6;
   }
 }
 

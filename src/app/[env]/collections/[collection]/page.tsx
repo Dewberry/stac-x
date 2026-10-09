@@ -34,9 +34,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /**
  * A collection: the STAC Browser layout. The left column is what describes
  * the collection (description, license and temporal extent, the map, then
- * metadata) and the right column is its items. Its own assets, when it has
- * any, go under the map. QC is recorded for the collection as a whole, so
- * its form sits in the left column under them.
+ * metadata) and the right column is its items. QC is recorded for the
+ * collection as a whole, so its form goes right under the map, ahead of the
+ * collection's own assets when it has any, where it stays near the top
+ * however many plots those are.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -169,13 +170,6 @@ export default async function CollectionPage({ params }: Props) {
               tip="Point at one for its name, click to open it."
             />
           </div>
-          {/* The collection's own files sit under the map, where STAC Browser
-              puts them. Overview plots show inline like an item's. */}
-          {Object.keys(c.assets).length > 0 && (
-            <Panel title="Assets" note={assetNote(c.assets)} id="assets">
-              <Assets assets={c.assets} plotsFirst />
-            </Panel>
-          )}
           <QcPanel
             env={env}
             collection={c.id}
@@ -187,6 +181,14 @@ export default async function CollectionPage({ params }: Props) {
             }))}
             history={c.history}
           />
+          {/* The collection's own files sit under QC, in the slot STAC Browser
+              gives them after the map. Overview plots show inline like an
+              item's. */}
+          {Object.keys(c.assets).length > 0 && (
+            <Panel title="Assets" note={assetNote(c.assets)} id="assets">
+              <Assets assets={c.assets} plotsFirst />
+            </Panel>
+          )}
           <Panel title="Metadata" id="meta">
             <div className="pb-2">
               <MetaTable entries={meta} />

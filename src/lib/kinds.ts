@@ -60,8 +60,8 @@ export const AREA_KIND_TIME: Record<AreaKind, string> = {
 };
 
 /**
- * A best guess at the kind of a collection the fixtures don't name, from its
- * id, title, keywords and description. The description counts because the
+ * A best guess at the kind of a collection, from its id, title, keywords
+ * and description. The description counts because the
  * catalogs don't name things consistently: Development's storm catalog is
  * `72hr-events` with no title, and only its description says "storm".
  * Wrong guesses only change a label.
