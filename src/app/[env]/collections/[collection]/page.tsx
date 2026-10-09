@@ -161,7 +161,7 @@ export default async function CollectionPage({ params }: Props) {
               bbox={c.bbox}
               label={`Items of ${c.title}`}
               hint={`${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
-              tip="Point at one for its name, click to open it."
+              tip="Click one to pin its id."
             />
           </div>
           {/* The collection's own files sit in the slot STAC Browser gives them

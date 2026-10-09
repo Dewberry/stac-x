@@ -2441,6 +2441,86 @@ main:focus {
   color: var(--ffx-ink-sec);
 }
 
+/* The id of the feature under the cursor, beside it. */
+.ffx-map-tip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.2rem 0.5rem;
+  background: var(--ffx-glass);
+  border-radius: 6px;
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(14px, -50%);
+}
+.ffx-map-tip[data-flip] {
+  transform: translate(calc(-100% - 14px), -50%);
+}
+.ffx-map-tip-label {
+  color: var(--ffx-ink-mut);
+}
+
+/* The pinned feature's card: a MapLibre popup, restyled as one of ours. */
+.ffx-map .maplibregl-popup {
+  z-index: 3;
+}
+.ffx-map .maplibregl-popup-content {
+  padding: 0.5rem 0.625rem;
+  background: var(--ffx-surface);
+  border-radius: 10px;
+  box-shadow: var(--ffx-shadow-float);
+  font-family: inherit;
+}
+.ffx-map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--ffx-surface);
+}
+.ffx-map .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--ffx-surface);
+}
+.ffx-map .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--ffx-surface);
+}
+.ffx-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--ffx-surface);
+}
+.ffx-map-pin-card {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 12rem;
+  max-width: 22rem;
+  font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink);
+}
+.ffx-map-pin-label {
+  color: var(--ffx-ink-mut);
+}
+.ffx-map-pin-id {
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.ffx-map-pin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  padding-top: 0.125rem;
+}
+.ffx-map-pin-more {
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
+
 /* The map on a collection or item page: a card as wide as the columns
    under it, straight under the title, with the readout as a strip beneath. */
 .sx-mapcard {

@@ -1,16 +1,20 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type {
   ExpressionSpecification,
   GeoJSONSource,
   LngLatBoundsLike,
   Map as MapLibreMap,
   MapGeoJSONFeature,
+  Popup,
 } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
+import { CopyButton } from "./copy-button";
+import { Icon, ICONS } from "./icons";
 import {
   applyBasemap,
   blankStyle,
@@ -27,11 +31,14 @@ import {
 /**
  * The map on every page.
  *
- * It draws one GeoJSON feature collection, fits itself to it, and treats a
- * feature with an href as a link: click it and the page navigates there, the
- * same as clicking its row in the list. Points are river blue, the color
- * for data in this app; lines and polygons are drawn in ink, with an extent
- * box dashed so it never reads as data.
+ * It draws one GeoJSON feature collection and fits itself to it. Pointing at
+ * a feature lights it up and shows its id beside the cursor; clicking pins a
+ * small card with the id, a copy button and a link to the item's page. A
+ * terrain collection is dozens of tiles that all look alike and overlap, so
+ * the pin is also how you tell them apart: clicking the same spot again moves
+ * it to the next tile stacked there. Points are river blue, the color for
+ * data in this app; lines and polygons are drawn in ink, with an extent box
+ * dashed so it never reads as data.
  *
  * MapLibre because the program's collections will run to tens of thousands of
  * points, which rules out a DOM marker each, and because a GeoJSON source
@@ -70,11 +77,17 @@ const L = {
   extentLine: "sx-extent-line",
   fill: "sx-fill",
   line: "sx-line",
+  hiFill: "sx-hi-fill",
+  hiLine: "sx-hi-line",
   points: "sx-points",
   selected: "sx-selected",
 };
 const INTERACTIVE = [L.points, L.line, L.fill, L.extentFill];
 const FIT = { padding: 36, maxZoom: 12, duration: 0 };
+
+type Hover = { id: string; label?: string; x: number; y: number; flip: boolean };
+/** What a click landed on: every feature under the point, and which one the pin is on. */
+type Pin = { hits: MapFeatureProps[]; k: number; at: [number, number] };
 
 function boundsOf(data: FeatureCollection, bbox?: MapProps["bbox"]): LngLatBoundsLike | null {
   let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
@@ -99,26 +112,29 @@ function boundsOf(data: FeatureCollection, bbox?: MapProps["bbox"]): LngLatBound
   return [[w, s], [e, n]];
 }
 
-/**
- * The ring around the selected feature, for points only: a circle layer over
- * a polygon draws a ring at every vertex, which turned a watershed's outline
- * into a chain of circles. A selected polygon is already the only shape drawn.
- */
-function selectedFilter(selected: string | null): ExpressionSpecification {
-  return [
-    "all",
-    ["any", ["==", ["geometry-type"], "Point"], ["==", ["geometry-type"], "MultiPoint"]],
-    ["==", ["get", "id"], selected ?? ""],
-  ];
+const poly: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "MultiPolygon"]];
+const line: ExpressionSpecification = ["any", ["==", ["geometry-type"], "LineString"], ["==", ["geometry-type"], "MultiLineString"]];
+const point: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Point"], ["==", ["geometry-type"], "MultiPoint"]];
+const isExtent: ExpressionSpecification = ["==", ["get", "kind"], "extent"];
+const notExtent: ExpressionSpecification = ["!=", ["get", "kind"], "extent"];
+
+/** Matches the features with one of these ids; the blanks are dropped. */
+function idsIn(ids: (string | null | undefined)[]): ExpressionSpecification {
+  return ["in", ["get", "id"], ["literal", ids.filter((x): x is string => !!x)]];
 }
 
-function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, selected: string | null) {
+/**
+ * The ring around a selected, hovered or pinned feature, for points only: a
+ * circle layer over a polygon draws a ring at every vertex, which turned a
+ * watershed's outline into a chain of circles. Shapes get the highlight
+ * layers instead.
+ */
+function selectedFilter(ids: (string | null | undefined)[]): ExpressionSpecification {
+  return ["all", point, idsIn(ids)];
+}
+
+function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (string | null | undefined)[], selected: string | null) {
   map.addSource(SRC, { type: "geojson", data, promoteId: "id" });
-  const isExtent: ExpressionSpecification = ["==", ["get", "kind"], "extent"];
-  const notExtent: ExpressionSpecification = ["!=", ["get", "kind"], "extent"];
-  const poly: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "MultiPolygon"]];
-  const line: ExpressionSpecification = ["any", ["==", ["geometry-type"], "LineString"], ["==", ["geometry-type"], "MultiLineString"]];
-  const point: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Point"], ["==", ["geometry-type"], "MultiPoint"]];
 
   map.addLayer({
     id: L.extentFill, type: "fill", source: SRC, filter: ["all", isExtent, poly],
@@ -137,6 +153,17 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, select
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": p.inkSec, "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1, 14, 2.5] },
   });
+  // The hovered and pinned shapes, drawn again on top so their outline isn't
+  // lost under the neighbors they overlap.
+  map.addLayer({
+    id: L.hiFill, type: "fill", source: SRC, filter: ["all", notExtent, poly, idsIn(hi)],
+    paint: { "fill-color": p.trace, "fill-opacity": 0.3 },
+  });
+  map.addLayer({
+    id: L.hiLine, type: "line", source: SRC, filter: ["all", notExtent, ["any", poly, line], idsIn(hi)],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: { "line-color": p.ink, "line-width": 2 },
+  });
   map.addLayer({
     id: L.points, type: "circle", source: SRC, filter: ["all", notExtent, point],
     paint: {
@@ -148,7 +175,7 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, select
     },
   });
   map.addLayer({
-    id: L.selected, type: "circle", source: SRC, filter: selectedFilter(selected),
+    id: L.selected, type: "circle", source: SRC, filter: selectedFilter([selected, ...hi]),
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 9, 12, 13],
       "circle-color": "rgba(0,0,0,0)",
@@ -159,23 +186,29 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, select
 }
 
 export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapProps) {
-  const router = useRouter();
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const [hover, setHover] = useState<string | null>(null);
+  const popupRef = useRef<Popup | null>(null);
+  const [hover, setHover] = useState<Hover | null>(null);
+  const [pin, setPin] = useState<Pin | null>(null);
+  // Where the pin card renders: a div the popup owns, portaled into from React.
+  const [pinHost, setPinHost] = useState<HTMLDivElement | null>(null);
   // The tip shows with the first feature hovered, then gets out of the way.
   const [tipped, setTipped] = useState(false);
   const tipRef = useRef(tip);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [basemapDown, setBasemapDown] = useState(false);
+  const pinned = pin ? pin.hits[pin.k] : null;
   // Latest props, readable from the one-time map setup below without
   // rebuilding the map. Written in an effect, never during render.
   const dataRef = useRef(data);
   const selectedRef = useRef(selected);
+  const hiRef = useRef<(string | null | undefined)[]>([]);
   useEffect(() => {
     dataRef.current = data;
     selectedRef.current = selected;
+    hiRef.current = [hover?.id, pinned?.id];
     tipRef.current = tipped ? undefined : tip;
   });
 
@@ -186,6 +219,10 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
     let map: MapLibreMap | null = null;
     let disposed = false;
     let unwatch: (() => void) | null = null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPin(null);
+    };
+    frame.addEventListener("keydown", onKey);
 
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed) return;
@@ -205,6 +242,16 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
       // A handle for the console while developing: __sxMap.getStyle(), etc.
       if (process.env.NODE_ENV !== "production") (window as unknown as { __sxMap?: unknown }).__sxMap = m;
 
+      const pinDiv = document.createElement("div");
+      popupRef.current = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        maxWidth: "none",
+        className: "ffx-map-pin",
+      }).setDOMContent(pinDiv);
+      setPinHost(pinDiv);
+
       const fit = () => {
         const b = boundsOf(dataRef.current, bbox);
         if (b) m.fitBounds(b, FIT);
@@ -214,7 +261,7 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
 
       const draw = () => {
         if (m.getSource(SRC)) return;
-        addLayers(m, palette(frame), dataRef.current, selectedRef.current);
+        addLayers(m, palette(frame), dataRef.current, hiRef.current, selectedRef.current);
         setCredits(creditsOf(m));
       };
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
@@ -237,14 +284,32 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
         m.on("mousemove", layer, (e) => {
           const f = e.features?.[0] as MapGeoJSONFeature | undefined;
           const props = f?.properties as MapFeatureProps | undefined;
-          const name = props ? (props.label ? `${props.label} (${props.id})` : props.id) : null;
-          setHover(name && props?.href && tipRef.current ? `${name}. ${tipRef.current}` : name);
+          // The tooltip sits to the right of the cursor unless that would run it off the map.
+          const flip = e.point.x > canvas.clientWidth - 260;
+          setHover(props ? { id: props.id, label: props.label, x: e.point.x, y: e.point.y, flip } : null);
         });
       }
       m.on("click", (e) => {
-        const hits = m.queryRenderedFeatures(e.point, { layers: INTERACTIVE.filter((l) => m.getLayer(l)) });
-        const f = hits.find((h) => (h.properties as MapFeatureProps).href);
-        if (f) router.push((f.properties as MapFeatureProps).href!);
+        const layers = INTERACTIVE.filter((l) => m.getLayer(l));
+        const seen = new Set<string>();
+        const hits: MapFeatureProps[] = [];
+        for (const h of m.queryRenderedFeatures(e.point, { layers })) {
+          const props = h.properties as MapFeatureProps;
+          if (!seen.has(props.id)) {
+            seen.add(props.id);
+            hits.push(props);
+          }
+        }
+        const at = e.lngLat.toArray() as [number, number];
+        setPin((prev) => {
+          if (hits.length === 0) return null;
+          // The same stack as last time means the same spot was clicked
+          // again: step to the next feature in it.
+          if (prev && prev.hits.length === hits.length && prev.hits.every((h, i) => h.id === hits[i].id)) {
+            return { hits, k: (prev.k + 1) % hits.length, at };
+          }
+          return { hits, k: 0, at };
+        });
       });
 
       unwatch = watchTheme(() => {
@@ -258,7 +323,10 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
 
     return () => {
       disposed = true;
+      frame.removeEventListener("keydown", onKey);
       unwatch?.();
+      popupRef.current?.remove();
+      popupRef.current = null;
       map?.remove();
       mapRef.current = null;
     };
@@ -272,19 +340,69 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
     if (src) src.setData(data);
   }, [data]);
 
+  const hoverId = hover?.id ?? null;
+  const pinnedId = pinned?.id ?? null;
   useEffect(() => {
     const m = mapRef.current;
-    if (m?.getLayer(L.selected)) m.setFilter(L.selected, selectedFilter(selected));
-  }, [selected]);
+    if (!m?.getLayer(L.hiLine)) return;
+    m.setFilter(L.hiFill, ["all", notExtent, poly, idsIn([hoverId, pinnedId])]);
+    m.setFilter(L.hiLine, ["all", notExtent, ["any", poly, line], idsIn([hoverId, pinnedId])]);
+    m.setFilter(L.selected, selectedFilter([selected, hoverId, pinnedId]));
+  }, [selected, hoverId, pinnedId]);
+
+  useEffect(() => {
+    const m = mapRef.current;
+    const popup = popupRef.current;
+    if (!m || !popup) return;
+    if (pin) popup.setLngLat(pin.at).addTo(m);
+    else popup.remove();
+  }, [pin]);
+
+  const name = (f: { id: string; label?: string } | null) => (f ? (f.label ? `${f.label} (${f.id})` : f.id) : null);
+  const readout = hover
+    ? tip && !tipped
+      ? `${name(hover)}. ${tip}`
+      : name(hover)
+    : (name(pinned) ?? hint ?? "");
 
   return (
     <figure ref={frameRef} className="ffx-map" aria-label={label}>
       <div ref={canvasRef} className="ffx-map-canvas" />
+      {hover && hover.id !== pinnedId && (
+        <div className="ffx-map-tip" style={{ left: hover.x, top: hover.y }} data-flip={hover.flip || undefined} aria-hidden="true">
+          {hover.label && <span className="ffx-map-tip-label">{hover.label}</span>}
+          <span className="ffx-id">{hover.id}</span>
+        </div>
+      )}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
+      {pinHost && pin && pinned && createPortal(<PinCard f={pinned} n={pin.hits.length} k={pin.k} />, pinHost)}
       <figcaption className="ffx-map-readout">
-        <span>{hover ?? hint ?? ""}</span>
+        <span>{readout}</span>
         <MapCredits credits={credits} />
       </figcaption>
     </figure>
+  );
+}
+
+/** The card on a pinned feature: its name, its id to copy, and the way to its page. */
+function PinCard({ f, n, k }: { f: MapFeatureProps; n: number; k: number }) {
+  return (
+    <div className="ffx-map-pin-card">
+      {f.label && <div className="ffx-map-pin-label">{f.label}</div>}
+      <div className="ffx-id ffx-map-pin-id">{f.id}</div>
+      <div className="ffx-map-pin-actions">
+        <CopyButton text={f.id} label="Copy id" />
+        {f.href && (
+          <Link href={f.href} className="ffx-btn ffx-btn-sm">
+            Open <Icon d={ICONS.chevronRight} size={12} />
+          </Link>
+        )}
+      </div>
+      {n > 1 && (
+        <div className="ffx-map-pin-more">
+          <span className="ffx-num">{k + 1} of {n}</span> stacked here. Click again for the next.
+        </div>
+      )}
+    </div>
   );
 }
