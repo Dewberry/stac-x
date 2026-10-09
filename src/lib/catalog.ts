@@ -1,6 +1,6 @@
 import "server-only";
 
-import { fallbackSources, refreshMs, sources as configuredSources } from "./config";
+import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { collectionName } from "./format";
@@ -153,18 +153,6 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
     } catch (e) {
       errors.push(`${entry}: ${message(e)}`);
       console.error(`stac-x: listing ${entry} failed:`, e);
-    }
-  }
-  // Nothing could be read, which on a machine without access to the bucket
-  // is everything: show the demo instead (see config.ts). The errors stay,
-  // so the page still says the catalog couldn't be loaded.
-  if (!uris.length && errors.length) {
-    for (const entry of fallbackSources(env)) {
-      try {
-        uris.push(...(await listSourceFiles(entry)));
-      } catch (e) {
-        console.error(`stac-x: listing ${entry} failed:`, e);
-      }
     }
   }
   cache.listing = { at: now, uris: Array.from(new Set(uris)), errors };
