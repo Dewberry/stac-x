@@ -6,6 +6,7 @@ import { HeaderControls } from "./env-switcher";
 import { MoreMenu } from "./more-menu";
 export { EnvBand } from "./env-switcher";
 import { ThemeMenuItems } from "./theme";
+import { withEnv, type EnvKey } from "@/lib/env";
 import type { Session } from "@/lib/session";
 export { Icon, ICONS } from "./icons";
 
@@ -14,10 +15,14 @@ export { Icon, ICONS } from "./icons";
  * program: a navy header bar with the wordmark alone on one line, and a
  * footer band with the app's note. Both sit on the same 96rem shell and the
  * same edge gutter. The theme is in the account menu, so it's on every page.
- * Navigation is the map and the breadcrumb trail at the top of each page.
+ * Navigation is the map and the breadcrumb trail at the top of each page,
+ * which starts at the home page so there's always a plain way back.
  * Signed in, the header's right end holds the environment switcher and the
  * account badge, whose menu is the way to Admin.
  */
+
+/** What the home page is called wherever it's linked: the trail and the account menu. */
+const HOME_LABEL = "All collections";
 
 /** Pages reached from the account menu rather than the bar. */
 const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
@@ -34,7 +39,7 @@ export function SiteHeader({ session }: { session: Session | null }) {
           <HeaderControls
             session={session}
             home="/"
-            homeLabel="Home"
+            homeLabel={HOME_LABEL}
             signOut="/signin"
             links={ACCOUNT_LINKS}
             menuItems={<ThemeMenuItems />}
@@ -58,12 +63,19 @@ export function SiteFooter() {
 /** One step of the trail. The last crumb is the page itself and has no href. */
 export type Crumb = { label: string; href?: string };
 
+/** The first crumb of every trail: the home page of the environment you're in. */
+export function homeCrumb(env: EnvKey): Crumb {
+  return { label: HOME_LABEL, href: withEnv(env, "/") };
+}
+
 /**
- * The trail down to this page: on an item, its collection and then the item.
- * It doesn't reach back to the home page; the wordmark and the account menu
- * already do that. The last crumb is the page itself: plain text, marked as
- * the current page but no louder than the links, since the title sits right
- * under it. Long names clip so the trail stays readable on a phone.
+ * The trail down to this page: the home page, then on an item its collection
+ * and then the item. It starts at home because people reading a collection
+ * couldn't find their way back: the wordmark doesn't look like a link and
+ * the account menu is two clicks away. The last crumb is the page itself:
+ * plain text, marked as the current page but no louder than the links, since
+ * the title sits right under it. Long names clip so the trail stays readable
+ * on a phone.
  */
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
   return (
@@ -88,8 +100,8 @@ export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
 }
 
 /**
- * The top of a collection or item page: on an item, a breadcrumb trail back
- * to its collection across the top, then, as in STAC Browser, the title
+ * The top of a collection or item page: a breadcrumb trail across the top,
+ * home and then on an item its collection, then, as in STAC Browser, the title
  * (with the page's facts beside it) on the left and at the right end the
  * navigation group followed by the source group. The breadcrumb is ours;
  * STAC Browser has Collection and Up buttons instead, which people found

@@ -6,7 +6,7 @@ import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { DataMap } from "@/components/map";
 import { MetadataPanel, type Entry } from "@/components/meta-table";
-import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
+import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
@@ -81,7 +81,7 @@ export default async function ItemPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
-        crumbs={[{ label: collectionLabel, href: collectionHref(env, c.id) }, { label: title }]}
+        crumbs={[homeCrumb(env), { label: collectionLabel, href: collectionHref(env, c.id) }, { label: title }]}
         kicker={unnamed ? c.title : kind}
         title={title}
         subtitle={

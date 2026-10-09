@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { AdminConsole, type QueueRow } from "@/components/admin-console";
-import { PageHead } from "@/components/shell";
+import { homeCrumb, PageHead } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
 import { ENVS, nextEnv } from "@/lib/env";
 import { guessKind } from "@/lib/kinds";
@@ -70,6 +70,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
   return (
     <div className="sx-page">
       <PageHead
+        crumbs={[homeCrumb(env), { label: "Admin" }]}
         title="Admin"
         subtitle={
           <span>

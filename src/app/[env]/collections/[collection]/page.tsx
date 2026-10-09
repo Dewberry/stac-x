@@ -6,7 +6,7 @@ import { ItemsList, type ItemRow } from "@/components/items-list";
 import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
-import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
+import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
@@ -103,6 +103,7 @@ export default async function CollectionPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
+        crumbs={[homeCrumb(env), { label: c.title }]}
         kicker={collectionKindLabel(c) ?? undefined}
         title={c.title}
         subtitle={

@@ -2026,6 +2026,12 @@ a.sx-activity-title:hover {
   text-decoration: none;
   white-space: nowrap;
 }
+/* It's the way home, so it should look like a link when pointed at. */
+.sx-brand:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--ffx-header-ink-mut);
+}
 /* The footer band, the same as ffrd-x's: full bleed on the surface with a
    hairline above, contents on the shell and the edge gutter. */
 .sx-footer {
