@@ -28,12 +28,17 @@ import type { StacItem } from "./stac";
  *   in far enough to tell them apart.
  * - extent: when the shapes are too heavy to send to the browser, the
  *   collection's box, dashed, the same as the collection page does.
+ * - basin: a collection whose polygons contain the whole basin (a national
+ *   inventory whose items carry a country-sized extent box) is drawn as the
+ *   basin itself, lit up, since its own shape would tint the whole map. The
+ *   page decides that, since it needs the basin polygon; here it's a shape
+ *   with no features.
  *
  * Coordinates are rounded to about 10 m first. That shrinks the payload and
  * makes shared edges match exactly.
  */
 
-export type OverviewShape = "points" | "areas" | "density" | "extent";
+export type OverviewShape = "points" | "areas" | "density" | "extent" | "basin";
 
 export type Overview = {
   shape: OverviewShape | null;
@@ -53,6 +58,16 @@ const DENSITY_MIN = 40;
 /** Cells across the longer side of the density grid. About 2 km over the South Platte's storms. */
 const DENSITY_CELLS = 160;
 const PLACES = 4;
+
+/** Every polygon's rings, outer ring first, for the page to test against the basin. */
+export function polygonsOf(items: StacItem[]): Position[][][] {
+  const out: Position[][][] = [];
+  for (const { geometry: g } of items) {
+    if (!g) continue;
+    for (const part of parts(g)) if (part.type === "Polygon") out.push(part.coordinates);
+  }
+  return out;
+}
 
 export function overview(items: StacItem[], slug: string, bbox: [number, number, number, number] | null): Overview {
   const points: Position[] = [];

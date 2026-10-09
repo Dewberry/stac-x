@@ -22,8 +22,7 @@ import {
 import type { HomeArea } from "./home";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
 import type { QcStatus } from "@/lib/stac";
-import { fmtNum } from "@/lib/format";
-import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
+import { QC_LABEL, stateOf } from "./qc-mark";
 
 /**
  * The landing page map: the South Platte basin, with every model area named
@@ -56,7 +55,9 @@ import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
  * dashed box when the shapes were too heavy to send (lib/overview.ts
  * decides which).
  * The pin says where a collection is; the footprint says how much ground it
- * covers. Clicking the basin selects it, which zooms the map and
+ * covers. A collection whose shapes contain the whole basin has no footprint
+ * of its own: the basin lights up instead, since the shape would tint the
+ * whole map. Clicking the basin selects it, which zooms the map and
  * scrolls the rail to its group.
  */
 
@@ -66,6 +67,7 @@ const SRC_MASK = "sx-mask";
 const L = {
   mask: "sx-outside-mask",
   basinFill: "sx-basin-fill",
+  basinCover: "sx-basin-cover",
   basinLine: "sx-basin-line",
   itemFill: "sx-live-fill",
   itemExtent: "sx-live-extent",
@@ -123,6 +125,7 @@ function addLayers(
   basin: Feature<Shape> | null,
   shown: string | null,
   basinHighlight: string | null,
+  basinCovered: boolean,
 ) {
   dressBasemap(map, p);
   map.addSource(SRC_MASK, { type: "geojson", data: { type: "Feature", properties: {}, geometry: outside(basin?.geometry ?? null) } });
@@ -138,6 +141,12 @@ function addLayers(
   map.addLayer({
     id: L.basinFill, type: "fill", source: SRC_BASINS,
     paint: { "fill-color": p.mapLand, "fill-opacity": 0.01 },
+  });
+  // Except while the selected collection covers the whole basin: then the
+  // basin itself is its footprint, in the same blue the fills use.
+  map.addLayer({
+    id: L.basinCover, type: "fill", source: SRC_BASINS, filter: basinCoverFilter(basinCovered),
+    paint: { "fill-color": p.trace, "fill-opacity": 0.16, "fill-antialias": false },
   });
   map.addLayer({
     id: L.basinLine, type: "line", source: SRC_BASINS,
@@ -201,6 +210,11 @@ function footprintFilter(role: string, shown: string | null): ExpressionSpecific
   return ["all", ["==", ["get", "role"], role], ["==", ["get", "slug"], shown ?? ""]];
 }
 
+/** The basin's own fill: on while the selected collection covers all of it, off otherwise. */
+function basinCoverFilter(covered: boolean): ExpressionSpecification {
+  return ["==", ["get", "huc4"], covered ? FOCUS_BASIN : ""];
+}
+
 function basinData(basin: Feature<Shape> | null): FeatureCollection {
   return { type: "FeatureCollection", features: basin ? [basin] : [] };
 }
@@ -236,7 +250,7 @@ function placeLabels(
 ) {
   const box = map.getContainer().getBoundingClientRect();
   const blocked: Rect[] = [];
-  for (const sel of [".ffx-map-ctl", ".sx-review-menu", ".sx-density-box", ".sx-credit"]) {
+  for (const sel of [".ffx-map-ctl", ".sx-density-box", ".sx-credit"]) {
     const r = frame.querySelector(sel)?.getBoundingClientRect();
     if (r && r.width) blocked.push([r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top]);
   }
@@ -277,9 +291,8 @@ export function HomeMap({
   highlight,
   shown,
   filter,
-  byState,
-  onFilter,
   basinHighlight,
+  basinCovered,
   focus,
   onHover,
   onSelect,
@@ -294,10 +307,9 @@ export function HomeMap({
   shown: string | null;
   /** The review state the rail is filtered to; pins in other states dim. */
   filter: QcStatus | null;
-  /** How many collections are in each state, for the review menu. */
-  byState: Record<QcStatus, number>;
-  onFilter: (s: QcStatus | null) => void;
   basinHighlight: string | null;
+  /** The selected collection contains the whole basin, so the basin is lit up as its footprint. */
+  basinCovered: boolean;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
   focus: { bbox: [number, number, number, number]; key: number } | null;
   onHover: (slug: string | null) => void;
@@ -322,6 +334,7 @@ export function HomeMap({
   const denseRef = useRef(!!dense);
   const placeRef = useRef<() => void>(() => {});
   const basinHighlightRef = useRef(basinHighlight);
+  const basinCoveredRef = useRef(basinCovered);
   const basinRef = useRef<Feature<Shape> | null>(null);
   const onHoverRef = useRef(onHover);
   const onSelectRef = useRef(onSelect);
@@ -333,6 +346,7 @@ export function HomeMap({
     highlightRef.current = highlight;
     denseRef.current = !!dense;
     basinHighlightRef.current = basinHighlight;
+    basinCoveredRef.current = basinCovered;
     onHoverRef.current = onHover;
     onSelectRef.current = onSelect;
     onBasinSelectRef.current = onBasinSelect;
@@ -376,7 +390,7 @@ export function HomeMap({
 
       const draw = () => {
         if (m.getSource(SRC_ITEMS)) return;
-        addLayers(m, palette(frame), itemsRef.current, basinRef.current, shownRef.current, basinHighlightRef.current);
+        addLayers(m, palette(frame), itemsRef.current, basinRef.current, shownRef.current, basinHighlightRef.current, basinCoveredRef.current);
         setCredits(creditsOf(m));
       };
       // The basin polygon comes from a static file; it arrives once and is
@@ -505,6 +519,12 @@ export function HomeMap({
   }, [shown]);
 
   useEffect(() => {
+    const m = mapRef.current;
+    if (!m?.getLayer(L.basinCover)) return;
+    m.setFilter(L.basinCover, basinCoverFilter(basinCovered));
+  }, [basinCovered]);
+
+  useEffect(() => {
     const src = mapRef.current?.getSource(SRC_ITEMS) as GeoJSONSource | undefined;
     if (src) src.setData(items);
   }, [items]);
@@ -543,7 +563,7 @@ export function HomeMap({
             {creditsOpen && <CreditLine credits={credits} />}
           </span>
         )}
-        {areas.length > 0 && (
+        {dense?.steps && (
           <span className="sx-map-key">
             {dense?.steps && (
               <span className="sx-density-box">
@@ -556,21 +576,6 @@ export function HomeMap({
                 ))}
               </span>
             )}
-            {/* The legend for the pins' marks, and the review filter. */}
-            <span className="sx-review-menu" role="group" aria-label="Review state">
-              {STATE_ORDER.map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  aria-pressed={filter === st}
-                  onClick={() => onFilter(filter === st ? null : st)}
-                >
-                  <QcMark state={st} />
-                  <span>{QC_LABEL[st]}</span>
-                  <b className="ffx-num">{fmtNum(byState[st])}</b>
-                </button>
-              ))}
-            </span>
           </span>
         )}
       </figcaption>

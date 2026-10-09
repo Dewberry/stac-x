@@ -90,3 +90,19 @@ export async function basinShare(huc4: string, [w, s, e, n]: [number, number, nu
   if (!pts.length) return 0;
   return pts.filter(([x, y]) => x >= w && x <= e && y >= s && y <= n).length / pts.length;
 }
+
+/**
+ * Whether polygons contain the whole basin: at least 98% of the basin's
+ * sample points fall inside some polygon's outer ring and outside its
+ * holes. The slack is for edge cells on a coarse grid. The landing page
+ * draws such a collection as the basin itself instead of its own shape,
+ * which would fill the map.
+ */
+export async function basinCovered(huc4: string, polys: Position[][][]): Promise<boolean> {
+  if (!polys.length) return false;
+  const pts = await samplesOf(huc4);
+  if (!pts.length) return false;
+  const covered = (x: number, y: number) =>
+    polys.some((rings) => inside(rings[0], x, y) && !rings.slice(1).some((h) => inside(h, x, y)));
+  return pts.filter(([x, y]) => covered(x, y)).length / pts.length >= 0.98;
+}

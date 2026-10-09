@@ -1,11 +1,13 @@
+import { Suspense } from "react";
 import type { FeatureCollection } from "geojson";
 import { HomeConsole, type HomeArea } from "@/components/home";
-import { basinAt, basinShare } from "@/lib/basin-at";
+import { HomeLoading } from "@/components/home-loading";
+import { basinAt, basinCovered, basinShare } from "@/lib/basin-at";
 import { FOCUS_BASIN } from "@/lib/basins";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { guessKind } from "@/lib/kinds";
-import { overview } from "@/lib/overview";
+import { overview, polygonsOf } from "@/lib/overview";
 import { pageEnv } from "@/lib/page-env";
 import { QC_STATUSES, type Collection, type QcStatus } from "@/lib/stac";
 import { collectionHref, collectionJsonHref } from "@/lib/utils";
@@ -39,6 +41,16 @@ const EMPTY: Record<EnvKey, string> = {
 
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {
   const env = await pageEnv(params);
+  // The catalog can take seconds to read from S3. The loading state goes
+  // out first and the console streams in over it.
+  return (
+    <Suspense fallback={<HomeLoading />}>
+      <HomeData env={env} />
+    </Suspense>
+  );
+}
+
+async function HomeData({ env }: { env: EnvKey }) {
   const catalog = await getCatalog(env);
   // A collection with several versions is one area, drawn and counted from
   // its latest version.
@@ -52,9 +64,24 @@ export default async function Home({ params }: { params: Promise<{ env: string }
   // light it up with its pin. Biggest first, so a small model inside a big
   // one draws on top of it.
   const extentArea = (b: [number, number, number, number] | null) => (b ? (b[2] - b[0]) * (b[3] - b[1]) : 0);
-  const footprints = [...latest]
-    .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
-    .map((c) => ({ slug: c.series.id, ...overview(c.items, c.series.id, c.bbox) }));
+  const footprints = await Promise.all(
+    [...latest]
+      .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
+      .map(async (c) => {
+        const o = overview(c.items, c.series.id, c.bbox);
+        // Shapes that contain the whole basin (a national inventory's extent
+        // box) would tint the whole map, so such a collection is drawn as
+        // the basin itself; the map lights the basin up for it.
+        const polys =
+          o.shape === "areas"
+            ? polygonsOf(c.items)
+            : o.shape === "extent"
+              ? o.features.flatMap((f) => (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : []))
+              : [];
+        if (polys.length && (await basinCovered(FOCUS_BASIN, polys))) return { slug: c.series.id, shape: "basin" as const, features: [] };
+        return { slug: c.series.id, ...o };
+      }),
+  );
   const drawn = new Map(footprints.map((f) => [f.slug, f]));
   const items: FeatureCollection = { type: "FeatureCollection", features: footprints.flatMap((f) => f.features) };
 

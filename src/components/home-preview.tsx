@@ -31,6 +31,7 @@ export function PreviewBody({ area }: { area: HomeArea }) {
           <span>{AREA_KIND_TIME[area.kind]}</span>
         </div>
       </div>
+      {area.drawn === "basin" && <p className="sx-pv-cover">Covers the whole South Platte.</p>}
       <dl className="sx-pv-facts">
         <div>
           <dt>Quality control</dt>

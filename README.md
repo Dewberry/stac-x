@@ -110,7 +110,10 @@ scripts/vendor-maplibre.mjs copies MapLibre's worker into public/ before dev and
 
 ## How the data flows
 
-Every request wants the same thing, so the catalog is held in memory. On the
+Every request wants the same thing, so the catalog is held in memory. The
+landing page doesn't wait for it: a loading state with the basin traced
+where the map goes and placeholder rows in the rail goes out first, and the
+console streams in over it (`src/components/home-loading.tsx`). On the
 first request the app lists the configured sources, follows each catalog to
 its collections, reads each parquet file with hyparquet (pure JS, decodes the
 WKB geometry itself) or each item JSON, and turns every row or file back into
@@ -251,16 +254,16 @@ window edge to edge. On a wide screen the page itself doesn't scroll, only
 the list does, and the footer is left off. Only
 what's in the catalog is shown, with no placeholders for work that hasn't
 landed. Each collection links to its page and its counts are real. Its kind
-is guessed from its id and keywords, so nothing here has to change for a
-new file to appear.
+is guessed from its id, title, keywords and description, so nothing here
+has to change for a new file to appear.
 
-The menu in the map's bottom-right corner is the legend for the pins' marks
-and the review filter in one. Each row is a state (approved, needs revision,
-rejected, not reviewed) with its count; clicking one narrows the list to
-that state and dims the other pins, and clicking it again clears it. The
-list's head counts what's showing ("1 of 10"). On a phone the map is a band
-across the top, the list follows it, and the menu's four buttons sit in the
-list's head instead.
+The four review states sit in the list's head with their counts (approved,
+needs revision, rejected, not reviewed). They're the legend for the marks on
+the rows and the pins, and a filter: clicking one narrows the list to that
+state and dims the other pins, and clicking it again clears it. The head
+also counts what's showing ("1 of 10"). The map carries no legend of its
+own beyond the density steps, so it stays clear for the data. On a phone
+the map is a band across the top and the list follows it.
 
 A collection's pin sits under the middle of its extent, and its mark is its
 review state: filled green, amber or red, or a hollow ring when nobody has
@@ -288,7 +291,11 @@ other, like a storm catalog's transposition areas, it counts how many cover
 each spot on a grid of about 2 km and draws that in three steps of blue,
 split at the terciles, with the legend saying what each step means. When a
 collection's shapes are too heavy to send to the browser, its extent is
-drawn as a dashed box instead.
+drawn as a dashed box instead. A collection whose shapes contain the whole
+basin, such as a national inventory whose items carry a country-sized
+extent box, gets no shape of its own: drawing it would tint the whole map.
+The basin lights up in the same blue instead, and the preview says it
+covers the whole South Platte.
 
 Selecting a collection, from its row or its pin, opens the row in place
 with its description, counts, years, review state, version, the last

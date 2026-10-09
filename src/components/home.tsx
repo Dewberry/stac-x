@@ -45,8 +45,12 @@ export type HomeArea = {
   bbox: [number, number, number, number];
   /** Covers most of the basin: no pin, and "Whole basin" in the rail. */
   wide?: boolean;
-  /** How the collection's footprint is drawn on the map; null when it isn't. See lib/overview.ts. */
-  drawn: "points" | "areas" | "density" | "extent" | null;
+  /**
+   * How the collection's footprint is drawn on the map; null when it isn't.
+   * "basin" means it contains the whole basin, which lights up instead. See
+   * lib/overview.ts.
+   */
+  drawn: "points" | "areas" | "density" | "extent" | "basin" | null;
   /** For a density footprint, the count range of each of its three steps. */
   steps?: [number, number][];
   href: string;
@@ -225,9 +229,8 @@ export function HomeConsole({
             highlight={selected ?? hovered}
             shown={selected}
             filter={filter}
-            byState={byState}
-            onFilter={setFilter}
             basinHighlight={highlightedBasin}
+            basinCovered={current?.drawn === "basin"}
             focus={focus}
             onHover={setHovered}
             onSelect={select}
@@ -264,7 +267,8 @@ export function HomeConsole({
                 onChange={(e) => setQuery(e.target.value)}
               />
             </label>
-            {/* On a phone the review menu isn't on the map; its buttons are here. */}
+            {/* The review states with their counts: the legend for the rows'
+                marks, and a filter. Each row carries its own mark too. */}
             {areas.length > 0 && (
               <div className="sx-rail-states" role="group" aria-label="Filter by review state">
                 {STATE_ORDER.map((st) => (

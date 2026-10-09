@@ -6,14 +6,28 @@
  * kind nobody planned for still draws correctly.
  */
 
-export type AreaKind = "gages" | "hms" | "ras" | "ressim" | "storms" | "other";
+export type AreaKind =
+  | "gages"
+  | "hms"
+  | "ras"
+  | "ressim"
+  | "models"
+  | "storms"
+  | "dams"
+  | "structures"
+  | "terrain"
+  | "other";
 
 export const AREA_KIND_LABEL: Record<AreaKind, string> = {
   gages: "USGS gages",
   hms: "HEC-HMS model",
   ras: "HEC-RAS model",
   ressim: "HEC-ResSim model",
+  models: "Calibration models",
   storms: "Storm catalog",
+  dams: "Dam inventory",
+  structures: "Structure inventory",
+  terrain: "Terrain",
   other: "Collection",
 };
 
@@ -23,7 +37,11 @@ export const AREA_KIND_GROUP: [AreaKind, string][] = [
   ["hms", "HEC-HMS models"],
   ["ras", "HEC-RAS models"],
   ["ressim", "HEC-ResSim models"],
+  ["models", "Calibration models"],
   ["storms", "Storm catalogs"],
+  ["dams", "Dam inventories"],
+  ["structures", "Structure inventories"],
+  ["terrain", "Terrain"],
   ["other", "Other"],
 ];
 
@@ -33,20 +51,39 @@ export const AREA_KIND_TIME: Record<AreaKind, string> = {
   hms: "time span",
   ras: "time span",
   ressim: "time span",
+  models: "time span",
   storms: "storm dates",
+  dams: "inventory dates",
+  structures: "inventory dates",
+  terrain: "time span",
   other: "time span",
 };
 
 /**
  * A best guess at the kind of a collection the fixtures don't name, from its
- * id, title and keywords. Wrong guesses only change a label.
+ * id, title, keywords and description. The description counts because the
+ * catalogs don't name things consistently: Development's storm catalog is
+ * `72hr-events` with no title, and only its description says "storm".
+ * Wrong guesses only change a label.
+ *
+ * Models are checked first, since a model's description can mention dams or
+ * structures. A collection that holds more than one model type (calibration
+ * carries HEC-RAS and HEC-HMS together) is "models", not whichever matched
+ * first.
  */
-export function guessKind(c: { id: string; title: string; keywords: string[] }): AreaKind {
-  const text = `${c.id} ${c.title} ${c.keywords.join(" ")}`.toLowerCase();
-  if (/\bressim\b/.test(text)) return "ressim";
-  if (/\b(hec-?)?hms\b/.test(text)) return "hms";
-  if (/\b(hec-?)?ras\b/.test(text)) return "ras";
+export function guessKind(c: { id: string; title: string; keywords: string[]; description?: string | null }): AreaKind {
+  const text = `${c.id} ${c.title} ${c.keywords.join(" ")} ${c.description ?? ""}`.toLowerCase();
+  const ressim = /\bressim\b/.test(text);
+  const hms = /\b(hec-?)?hms\b/.test(text);
+  const ras = /\b(hec-?)?ras\b/.test(text);
+  if (/\bcalibration\b/.test(text) || [ressim, hms, ras].filter(Boolean).length > 1) return "models";
+  if (ressim) return "ressim";
+  if (hms) return "hms";
+  if (ras) return "ras";
   if (/storm/.test(text)) return "storms";
   if (/gage|gauge/.test(text)) return "gages";
+  if (/\bdams?\b/.test(text)) return "dams";
+  if (/\bstructures?\b/.test(text)) return "structures";
+  if (/terrain|\bdem\b|elevation/.test(text)) return "terrain";
   return "other";
 }
