@@ -87,21 +87,13 @@ export default async function Home({ params }: { params: Promise<{ env: string }
   for (const a of areas) byState[a.qc?.qc ?? "pending"]++;
 
   return (
-    <>
-      <HomeConsole
-        areas={areas}
-        items={items}
-        byState={byState}
-        emptyText={EMPTY[env]}
-      />
-      {/* Only shown when something is wrong. The details go to the server log. */}
-      {catalog.errors.length > 0 && (
-        <div className="sx-band">
-          <span className="text-bad-text">
-            Some collections couldn&apos;t be loaded and may be missing. Try again in a minute.
-          </span>
-        </div>
-      )}
-    </>
+    <HomeConsole
+      areas={areas}
+      items={items}
+      byState={byState}
+      // Only shown when something is wrong. The details go to the server log.
+      notice={catalog.errors.length > 0 ? "Some collections couldn't be loaded and may be missing. Try again in a minute." : null}
+      emptyText={EMPTY[env]}
+    />
   );
 }

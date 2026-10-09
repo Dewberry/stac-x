@@ -106,6 +106,7 @@ export function HomeConsole({
   items,
   byState,
   emptyText,
+  notice,
 }: {
   areas: HomeArea[];
   items: FeatureCollection;
@@ -113,6 +114,8 @@ export function HomeConsole({
   byState: Record<QcStatus, number>;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
+  /** A problem loading the catalog, shown at the top of the list. */
+  notice?: string | null;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState<string | null>(null);
@@ -290,6 +293,11 @@ export function HomeConsole({
               </p>
             )}
           </div>
+          {notice && (
+            <p className="sx-rail-note" role="status">
+              {notice}
+            </p>
+          )}
           <ul ref={listRef} className="sx-rail-list ffx-scroll">
             {groups.length === 0 && <li className="sx-empty">{areas.length ? "No collections match." : emptyText}</li>}
             {groups.map((g) => (

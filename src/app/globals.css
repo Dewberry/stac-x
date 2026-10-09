@@ -2436,6 +2436,14 @@ main:focus {
   padding: 14px 16px 12px;
   border-bottom: 1px solid var(--ffx-rule);
 }
+.sx-rail-note {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ffx-rule);
+  font-size: var(--ffx-t-small);
+  line-height: 1.45;
+  color: var(--ffx-bad-text);
+  background: var(--ffx-bad-pale);
+}
 .sx-rail-title {
   display: flex;
   align-items: baseline;
@@ -2817,16 +2825,6 @@ main:focus {
     min-height: 0;
     overflow-y: auto;
   }
-}
-.sx-band {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  padding: 0 var(--ffx-edge) 0.75rem;
-  font-size: var(--ffx-t-micro);
-  line-height: 1.5;
-  color: var(--ffx-ink-mut);
 }
 
 /* Pins on the landing map: the review mark at the collection's middle and

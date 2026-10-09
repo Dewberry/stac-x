@@ -21,8 +21,10 @@ import type { EnvKey } from "./env";
  *
  * With nothing set, Development and Testing read the South Platte STAC
  * catalogs in S3, which needs AWS access to the bucket, and Production reads
- * ./data/prod. STAC_SOURCES, from before there were environments, is still
- * read as Development's.
+ * ./data/prod. When Development's default catalog can't be read at all (no
+ * access to the bucket), it shows the demo gages in ./data/demo instead, so
+ * a fresh clone has something on the page. STAC_SOURCES, from before there
+ * were environments, is still read as Development's.
  */
 const SOURCE_VARS: Record<EnvKey, string> = {
   dev: "STAC_SOURCES_DEV",
@@ -43,6 +45,17 @@ export function sources(env: EnvKey): string[] {
     .split(/[\n,]/)
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/**
+ * What an environment reads when none of its sources could be read: the
+ * demo gages, for Development on its defaults. Only then, since the bucket
+ * has the same collection and two files with one collection id merge into
+ * one. Setting STAC_SOURCES_DEV turns it off.
+ */
+export function fallbackSources(env: EnvKey): string[] {
+  const set = process.env[SOURCE_VARS[env]] ?? (env === "dev" ? process.env.STAC_SOURCES : undefined);
+  return env === "dev" && !set?.trim() ? ["./data/demo"] : [];
 }
 
 /** Where a collection promoted into this environment is copied to. */

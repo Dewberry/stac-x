@@ -31,7 +31,9 @@ Open http://localhost:3000. With nothing configured, Development reads the
 STAC catalog at `s3://south-platte/stac-metadata/catalog.json` and Testing
 reads `s3://south-platte/stac-portable/catalog.json`, so both need AWS
 credentials with access to that bucket. Without them the pages still load,
-empty, with a note that collections couldn't be loaded. Production, at the
+with a note that collections couldn't be loaded, and Development shows the
+demo gages in `data/demo` instead so there's something to look at. Setting
+`STAC_SOURCES_DEV` turns the demo off. Production, at the
 unprefixed URLs, reads `.\data\prod` and stays empty until a collection is
 approved through Testing (see Environments). The map
 tiles come from OpenFreeMap, and the homepage's relief from open elevation
@@ -99,6 +101,7 @@ src/lib/versions.ts         works out which collections are versions of each oth
 src/lib/fixtures/review.ts  mocked review queue rows for the Admin page
 src/lib/overview.ts         what each collection draws on the landing page map
 src/lib/kinds.ts            collection kinds (gages, HMS, RAS...) and their labels
+data/demo/                  the USGS gages, shown in Development when the bucket can't be read
 data/test/, data/prod/      local landing folders for promoted collections (ignored by git)
 scripts/vendor-maplibre.mjs copies MapLibre's worker into public/ before dev and build
 ```
