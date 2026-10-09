@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withEnv } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -10,6 +11,9 @@ export const metadata: Metadata = {
  * yet, so the form goes straight to the catalog. The fields have no names on
  * purpose: nothing typed here is sent anywhere, and a passphrase never ends
  * up in a URL.
+ *
+ * It lands in Development for now, since Production has no collections yet.
+ * Point it back at "/" once the first ones are approved through.
  */
 export default function SignIn() {
   return (
@@ -17,7 +21,7 @@ export default function SignIn() {
       <div className="w-full max-w-[26rem]">
         <h1 className="font-display text-head font-semibold tracking-[-0.02em] text-ink">Sign in</h1>
 
-        <form action="/" className="mt-6 space-y-4">
+        <form action={withEnv("dev", "/")} className="mt-6 space-y-4">
           <div>
             <label htmlFor="subject" className="mb-1.5 block text-micro text-ink-mut">
               Program account
