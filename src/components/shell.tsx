@@ -18,7 +18,7 @@ export { Icon, ICONS } from "./icons";
  * Navigation is the map and the breadcrumb trail at the top of each page,
  * which starts at the home page so there's always a plain way back.
  * Signed in, the header's right end holds the environment switcher and the
- * account badge, whose menu is the way to Admin.
+ * account menu, which is the way to Admin.
  */
 
 /** What the home page is called wherever it's linked: the trail and the account menu. */

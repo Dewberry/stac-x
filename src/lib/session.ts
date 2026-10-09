@@ -13,8 +13,6 @@
 export type Session = {
   /** Program account, as it would appear in an audit record. */
   account: string;
-  /** Two characters for the header badge. */
-  badge: string;
 };
 
-export const SESSION: Session = { account: "stac-reviewer", badge: "sr" };
+export const SESSION: Session = { account: "stac-reviewer" };

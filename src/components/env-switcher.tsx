@@ -17,7 +17,7 @@ import type { Session } from "@/lib/session";
  * one you started in.
  *
  * From the sm breakpoint up the bar holds the environment switcher, whatever
- * the app puts beside it (ffrd-x's search), and the account badge. Below it
+ * the app puts beside it (ffrd-x's search), and the account menu. Below it
  * the switcher and the account menu fold into one menu button, which keeps
  * the environment's name and color, so on a phone it's still never a
  * question which environment you're in. Changing environment keeps you on
@@ -46,7 +46,7 @@ export function HeaderControls({
   links?: MenuLink[];
   /** App-specific account menu items, above Sign out: Radix DropdownMenu parts. */
   menuItems?: ReactNode;
-  /** App-specific controls between the switcher and the badge. */
+  /** App-specific controls between the switcher and the account menu. */
   children?: ReactNode;
 }) {
   const pathname = usePathname();
@@ -134,11 +134,9 @@ function AccountMenu(account: Account) {
   const { session } = account;
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger
-        className="ffx-id grid h-8 w-8 place-items-center rounded-full border border-control text-micro text-ink-mut hover:border-ink hover:text-ink"
-        aria-label={`Account, signed in as ${session.account}`}
-      >
-        {session.badge}
+      <DropdownMenu.Trigger className="ffx-account-trigger" aria-label={`Account menu, signed in as ${session.account}`}>
+        <Avatar />
+        <Chevron />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="ffx-menu" align="end" sideOffset={6}>
@@ -225,6 +223,22 @@ function AccountItems({ session, home, homeLabel, signOut, links, menuItems }: A
         </Link>
       </DropdownMenu.Item>
     </>
+  );
+}
+
+/**
+ * A generic person silhouette. Identities are roles, not people, so there is
+ * no photo to show; the shape still says "this is you" faster than initials
+ * do, and the chevron beside it says there's a menu.
+ */
+function Avatar() {
+  return (
+    <span className="ffx-avatar" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+        <circle cx="12" cy="9" r="4" />
+        <path d="M4.5 20.5c0-3.6 3.4-6 7.5-6s7.5 2.4 7.5 6v.5h-15z" />
+      </svg>
+    </span>
   );
 }
 
