@@ -52,6 +52,8 @@ export type MapProps = {
   label: string;
   /** Readout text before anything is hovered. */
   hint?: string;
+  /** How to use the features, said once, beside the first one pointed at. */
+  tip?: string;
 };
 
 export type MapFeatureProps = {
@@ -97,6 +99,19 @@ function boundsOf(data: FeatureCollection, bbox?: MapProps["bbox"]): LngLatBound
   return [[w, s], [e, n]];
 }
 
+/**
+ * The ring around the selected feature, for points only: a circle layer over
+ * a polygon draws a ring at every vertex, which turned a watershed's outline
+ * into a chain of circles. A selected polygon is already the only shape drawn.
+ */
+function selectedFilter(selected: string | null): ExpressionSpecification {
+  return [
+    "all",
+    ["any", ["==", ["geometry-type"], "Point"], ["==", ["geometry-type"], "MultiPoint"]],
+    ["==", ["get", "id"], selected ?? ""],
+  ];
+}
+
 function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, selected: string | null) {
   map.addSource(SRC, { type: "geojson", data, promoteId: "id" });
   const isExtent: ExpressionSpecification = ["==", ["get", "kind"], "extent"];
@@ -133,7 +148,7 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, select
     },
   });
   map.addLayer({
-    id: L.selected, type: "circle", source: SRC, filter: ["==", ["get", "id"], selected ?? ""],
+    id: L.selected, type: "circle", source: SRC, filter: selectedFilter(selected),
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 9, 12, 13],
       "circle-color": "rgba(0,0,0,0)",
@@ -143,12 +158,15 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, select
   });
 }
 
-export function DataMap({ data, bbox, selected = null, label, hint }: MapProps) {
+export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapProps) {
   const router = useRouter();
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [hover, setHover] = useState<string | null>(null);
+  // The tip shows with the first feature hovered, then gets out of the way.
+  const [tipped, setTipped] = useState(false);
+  const tipRef = useRef(tip);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [basemapDown, setBasemapDown] = useState(false);
   // Latest props, readable from the one-time map setup below without
@@ -158,6 +176,7 @@ export function DataMap({ data, bbox, selected = null, label, hint }: MapProps) 
   useEffect(() => {
     dataRef.current = data;
     selectedRef.current = selected;
+    tipRef.current = tipped ? undefined : tip;
   });
 
   useEffect(() => {
@@ -213,11 +232,13 @@ export function DataMap({ data, bbox, selected = null, label, hint }: MapProps) 
         m.on("mouseleave", layer, () => {
           canvas.style.cursor = "";
           setHover(null);
+          if (tipRef.current) setTipped(true);
         });
         m.on("mousemove", layer, (e) => {
           const f = e.features?.[0] as MapGeoJSONFeature | undefined;
           const props = f?.properties as MapFeatureProps | undefined;
-          setHover(props ? (props.label ? `${props.label} (${props.id})` : props.id) : null);
+          const name = props ? (props.label ? `${props.label} (${props.id})` : props.id) : null;
+          setHover(name && props?.href && tipRef.current ? `${name}. ${tipRef.current}` : name);
         });
       }
       m.on("click", (e) => {
@@ -253,7 +274,7 @@ export function DataMap({ data, bbox, selected = null, label, hint }: MapProps) 
 
   useEffect(() => {
     const m = mapRef.current;
-    if (m?.getLayer(L.selected)) m.setFilter(L.selected, ["==", ["get", "id"], selected ?? ""]);
+    if (m?.getLayer(L.selected)) m.setFilter(L.selected, selectedFilter(selected));
   }, [selected]);
 
   return (

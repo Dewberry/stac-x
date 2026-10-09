@@ -4,8 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { AdminActivity, type ActivityRow } from "./admin-activity";
-import { PromotionPath } from "./promotion-path";
+import { PromotionPath, type PathStage } from "./promotion-path";
 import { QcChip } from "./qc-chip";
+import { QcMark } from "./qc-mark";
+import { Caret, DecisionCards, HistoryRow, decisionCopy, type Decision } from "./review";
 import { saveQcAction } from "@/app/actions";
 import { ENVS, envMeta, nextEnv, type EnvKey } from "@/lib/env";
 import { fmtAge, fmtAgo, fmtDate, fmtNum } from "@/lib/format";
@@ -50,7 +52,7 @@ export type QueueRow = {
   /** When the collection last changed here: arrived, saved or sent on. */
   since: string | null;
   /** One per environment; qc is null where the collection isn't present. */
-  stages: { env: EnvKey; qc: string | null }[];
+  stages: PathStage[];
   /** This environment's history, newest first. */
   history: QcEvent[];
   mock: boolean;
@@ -58,7 +60,6 @@ export type QueueRow = {
 
 type Filter = QcStatus | "all";
 type Sort = "oldest" | "newest" | "title";
-type Decision = Exclude<QcStatus, "pending">;
 type Flash = { text: string; link?: { href: string; label: string }; tone?: "ok" | "bad" };
 type Outcome = { ok: true; promotedTo: EnvKey | null } | { ok: false; error: string };
 type Sheet = { mode: "one"; id: string; list: string[] } | { mode: "bulk"; ids: string[]; decision: Decision };
@@ -154,10 +155,16 @@ export function AdminConsole({
         (filter === "all" || statusOf(r) === filter) &&
         (!q || r.id.toLowerCase().includes(q) || r.title.toLowerCase().includes(q)),
     );
-    const t = (r: QueueRow) => (r.since ? Date.parse(r.since) : Infinity);
+    // A row with no date sorts after every dated one, whichever way the dates go.
+    const t = (r: QueueRow) => (r.since ? Date.parse(r.since) : null);
+    const byDate = (dir: 1 | -1) => (a: QueueRow, b: QueueRow) => {
+      const x = t(a);
+      const y = t(b);
+      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1;
+      return dir * (x - y);
+    };
     if (sort === "title") out.sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
-    else if (sort === "oldest") out.sort((a, b) => t(a) - t(b));
-    else out.sort((a, b) => t(b) - t(a));
+    else out.sort(byDate(sort === "oldest" ? 1 : -1));
     return out;
   }, [rows, filter, q, sort]);
 
@@ -213,16 +220,27 @@ export function AdminConsole({
   }
 
   const selectedShown = shown.filter((r) => selected.has(r.id));
+  const openId = sheet?.mode === "one" ? sheet.id : null;
+  const [activityOpen, setActivityOpen] = useState(false);
+
+  function open(id: string) {
+    setFlash(null);
+    setSheet({ mode: "one", id, list: shown.map((r) => r.id) });
+  }
 
   return (
     <div className="sx-admin-stack">
       <dl className="sx-stats sx-admin-stats">
         <div className="sx-stat">
-          <dt>Waiting for review</dt>
+          <dt>
+            <Short long="Waiting for review" short="Waiting" />
+          </dt>
           <dd>{fmtNum(stats.waiting)}</dd>
         </div>
         <div className="sx-stat">
-          <dt>Oldest waiting</dt>
+          <dt>
+            <Short long="Oldest waiting" short="Oldest" />
+          </dt>
           <dd>{stats.oldest ? fmtAge(stats.oldest, now) : "None"}</dd>
         </div>
         <div className="sx-stat">
@@ -230,7 +248,9 @@ export function AdminConsole({
           <dd>{fmtNum(stats.sentBack)}</dd>
         </div>
         <div className="sx-stat" data-tone="verified">
-          <dt>Approved, last 30 days</dt>
+          <dt>
+            <Short long="Approved, last 30 days" short="Approved, 30 days" />
+          </dt>
           <dd>{fmtNum(stats.approved)}</dd>
         </div>
       </dl>
@@ -288,7 +308,7 @@ export function AdminConsole({
                       setSheet({ mode: "bulk", ids: selectedShown.map((r) => r.id), decision: d });
                     }}
                   >
-                    {d === "approved" ? "Approve" : d === "rejected" ? "Reject" : "Needs revision"}
+                    {d === "approved" ? "Approve" : d === "rejected" ? "Reject" : <Short long="Needs revision" short="Revise" />}
                   </button>
                 ))}
                 <button type="button" className="ffx-btn ffx-btn-sm sx-bulk-clear" onClick={() => setSelected(new Set())}>
@@ -318,28 +338,43 @@ export function AdminConsole({
             {shown.length === 0 ? (
               <p className="sx-empty">{q ? "No collections match that search." : EMPTY[filter]}</p>
             ) : (
-              <QueueTable
-                rows={shown}
-                now={now}
-                selected={selected}
-                sortLabel={sort === "title" ? null : sort === "oldest" ? "ascending" : "descending"}
-                onSelect={setSelected}
-                onOpen={(id) => {
-                  setFlash(null);
-                  setSheet({ mode: "one", id, list: shown.map((r) => r.id) });
-                }}
-              />
+              <>
+                <QueueTable
+                  rows={shown}
+                  now={now}
+                  selected={selected}
+                  openId={openId}
+                  sortLabel={sort === "title" ? null : sort === "oldest" ? "ascending" : "descending"}
+                  onSelect={setSelected}
+                  onOpen={open}
+                />
+                <QueueCards rows={shown} now={now} selected={selected} openId={openId} onSelect={setSelected} onOpen={open} />
+              </>
             )}
           </div>
         </section>
 
-        <section className="ffx-panel" aria-labelledby="activity-h">
+        <section className="ffx-panel sx-activity-panel" aria-labelledby="activity-h" data-open={activityOpen || undefined}>
           <div className="ffx-panel-head">
             <h2 id="activity-h" className="ffx-panel-title">
               Recent activity
             </h2>
+            {/* On a phone the list folds into this row, under the queue. */}
+            <button
+              type="button"
+              className="sx-activity-toggle"
+              aria-expanded={activityOpen}
+              aria-controls="activity-list"
+              onClick={() => setActivityOpen(!activityOpen)}
+            >
+              <span className="ffx-num">{activity.length}</span>
+              <span className="sr-only">{activityOpen ? "Hide recent activity" : "Show recent activity"}</span>
+              <Caret />
+            </button>
           </div>
-          <AdminActivity rows={activity} now={now} />
+          <div id="activity-list" className="sx-activity-list">
+            <AdminActivity rows={activity} now={now} />
+          </div>
         </section>
       </div>
 
@@ -404,6 +439,7 @@ function QueueTable({
   rows,
   now,
   selected,
+  openId,
   sortLabel,
   onSelect,
   onOpen,
@@ -411,6 +447,7 @@ function QueueTable({
   rows: QueueRow[];
   now: number;
   selected: Set<string>;
+  openId: string | null;
   sortLabel: "ascending" | "descending" | null;
   onSelect: (s: Set<string>) => void;
   onOpen: (id: string) => void;
@@ -430,7 +467,7 @@ function QueueTable({
   }
 
   return (
-    <div className="ffx-table-wrap">
+    <div className="ffx-table-wrap sx-queue-wrap">
       <table className="ffx-table sx-queue">
         <thead>
           <tr>
@@ -448,7 +485,6 @@ function QueueTable({
             <th scope="col" className="ffx-r">
               Items
             </th>
-            <th scope="col">Status</th>
             <th scope="col" aria-sort={sortLabel ?? undefined}>
               Since
             </th>
@@ -463,6 +499,7 @@ function QueueTable({
             <tr
               key={r.id}
               data-selected={selected.has(r.id) || undefined}
+              data-open={r.id === openId || undefined}
               onClick={(e) => {
                 // A click anywhere on the row opens it, except on its own controls.
                 if ((e.target as HTMLElement).closest("a, button, input, label")) return;
@@ -480,6 +517,7 @@ function QueueTable({
                 ) : (
                   <span className="sx-queue-title">{r.title}</span>
                 )}
+                {r.id === openId && <span className="sx-open-tag">Open</span>}
                 <span className="sx-queue-sub">
                   <span className="ffx-id">{r.id}</span>
                   {r.version && <span className="sx-tag">{r.version}</span>}
@@ -492,11 +530,8 @@ function QueueTable({
               </td>
               <td>{AREA_KIND_LABEL[r.kind]}</td>
               <td className="ffx-r ffx-num">{fmtNum(r.itemCount)}</td>
-              <td>
-                <QcChip status={statusOf(r)} />
-              </td>
               <td className="ffx-num" title={r.since ? fmtDate(r.since) : undefined}>
-                {r.since ? fmtAge(r.since, now) : <span className="text-ink-dim">Unknown</span>}
+                <Since row={r} now={now} />
               </td>
               <td>
                 <MiniPath stages={r.stages} />
@@ -511,6 +546,85 @@ function QueueTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * The queue on a phone, where the table won't fit: one card per collection
+ * with the same facts, selection and Review. Above 64rem the table shows
+ * instead; both are in the page and CSS picks one.
+ */
+function QueueCards({
+  rows,
+  now,
+  selected,
+  openId,
+  onSelect,
+  onOpen,
+}: {
+  rows: QueueRow[];
+  now: number;
+  selected: Set<string>;
+  openId: string | null;
+  onSelect: (s: Set<string>) => void;
+  onOpen: (id: string) => void;
+}) {
+  function toggle(id: string) {
+    const s = new Set(selected);
+    if (s.has(id)) s.delete(id);
+    else s.add(id);
+    onSelect(s);
+  }
+  return (
+    <ul className="sx-qcards">
+      {rows.map((r) => (
+        <li key={r.id} className="sx-qcard" data-selected={selected.has(r.id) || undefined} data-open={r.id === openId || undefined}>
+          <input
+            type="checkbox"
+            className="sx-check"
+            checked={selected.has(r.id)}
+            onChange={() => toggle(r.id)}
+            aria-label={`Select ${r.title}`}
+          />
+          <div className="sx-qcard-main">
+            {r.href ? (
+              <Link href={r.href} className="sx-qcard-title">
+                {r.title}
+              </Link>
+            ) : (
+              <span className="sx-qcard-title">{r.title}</span>
+            )}
+            <span className="ffx-id sx-qcard-id">{r.id}</span>
+            <span className="sx-qcard-facts">
+              <span>{AREA_KIND_LABEL[r.kind]}</span>
+              <span className="ffx-num">{fmtNum(r.itemCount)} items</span>
+              <Since row={r} now={now} />
+            </span>
+            <span className="sx-qcard-foot">
+              <MiniPath stages={r.stages} />
+              <button type="button" className="ffx-btn sx-qcard-review" aria-label={`Review ${r.title}`} onClick={() => onOpen(r.id)}>
+                Review
+              </button>
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** How long a row has been in its state; "Unknown", dimmed, when nothing says. */
+function Since({ row, now }: { row: QueueRow; now: number }) {
+  return row.since ? <span className="ffx-num">{fmtAge(row.since, now)}</span> : <span className="sx-unknown">Unknown</span>;
+}
+
+/** A label with a shorter form for phones; CSS shows one. */
+function Short({ long, short }: { long: string; short: string }) {
+  return (
+    <>
+      <span className="sx-wide-only">{long}</span>
+      <span className="sx-narrow-only">{short}</span>
+    </>
   );
 }
 
@@ -634,126 +748,94 @@ function ReviewSheet({
   );
 }
 
-function SheetHead({ title, sub, nav, onClose, busy }: { title: string; sub?: React.ReactNode; nav?: React.ReactNode; onClose: () => void; busy: boolean }) {
+function SheetHead({
+  kicker,
+  title,
+  sub,
+  nav,
+  link,
+  onClose,
+  busy,
+}: {
+  kicker?: string;
+  title: string;
+  sub?: React.ReactNode;
+  nav?: React.ReactNode;
+  /** Under the buttons at the right: the way to the collection page. */
+  link?: React.ReactNode;
+  onClose: () => void;
+  busy: boolean;
+}) {
   return (
     <div className="sx-sheet-head">
       <div className="min-w-0">
-        <h2 id="sheet-h" className="ffx-panel-title">
+        {kicker && <p className="sx-sheet-kicker">{kicker}</p>}
+        <h2 id="sheet-h" className="sx-sheet-title">
           {title}
         </h2>
         {sub}
       </div>
-      <div className="sx-sheet-nav">
-        {nav}
-        <button type="button" className="sx-preview-x" aria-label="Close" onClick={onClose} disabled={busy}>
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-            <path d="m4 4 8 8M12 4l-8 8" strokeLinecap="round" />
-          </svg>
-        </button>
+      <div className="sx-sheet-side">
+        <div className="sx-sheet-nav">
+          {nav}
+          <button type="button" className="sx-sheet-btn" aria-label="Close" onClick={onClose} disabled={busy}>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+              <path d="m4 4 8 8M12 4l-8 8" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        {link}
       </div>
     </div>
   );
 }
 
-function useDecisionCopy(env: EnvKey, decision: Decision | null, count: number) {
-  const next = nextEnv(env);
-  const toProd = decision === "approved" && next?.key === "prod";
-  const noteRequired = decision === "needs_revision" || decision === "rejected" || toProd;
-  const choices: { value: Decision; label: string; hint: string }[] = [
-    {
-      value: "approved",
-      label: "Approve",
-      hint: next ? `Sends a copy to ${next.label}, where it starts unreviewed.` : "Marks it approved. Production is the last step.",
-    },
-    {
-      value: "needs_revision",
-      label: "Needs revision",
-      hint:
-        next?.key === "prod"
-          ? "It stays in Testing, blocked, until a fixed version is approved in Development and sent again."
-          : "It stays here until a fixed version comes in.",
-    },
-    { value: "rejected", label: "Reject", hint: "It stays here and won't move forward." },
-  ];
-  const n = count > 1 ? ` ${count} collections` : "";
-  const submit =
-    decision === "approved"
-      ? next
-        ? toProd
-          ? `Send${n} to Production`
-          : `Approve${n} and send to ${next.label}`
-        : `Approve${n}`
-      : decision === "needs_revision"
-        ? count > 1
-          ? `Mark${n} needs revision`
-          : "Mark needs revision"
-        : decision === "rejected"
-          ? `Reject${n}`
-          : "Choose a decision";
-  const placeholder = toProd
-    ? "What was checked, and why it's ready for Production."
-    : decision === "approved" || decision === null
-      ? "What was checked."
-      : "What's wrong, so whoever fixes it knows where to look.";
-  return { next, toProd, noteRequired, choices, submit, placeholder };
-}
-
+/**
+ * The decision and the note. Here a note is asked for on Needs revision and
+ * Reject, so whoever fixes the collection knows where to look, and on an
+ * approval that goes to Production.
+ */
 function DecisionFields({
   name,
-  choices,
+  env,
+  count,
   decision,
   setDecision,
   note,
   setNote,
-  noteRequired,
-  placeholder,
   disabled,
 }: {
   name: string;
-  choices: { value: Decision; label: string; hint: string }[];
+  env: EnvKey;
+  count: number;
   decision: Decision | null;
   setDecision: (d: Decision) => void;
   note: string;
   setNote: (n: string) => void;
-  noteRequired: boolean;
-  placeholder: string;
   disabled: boolean;
 }) {
+  const copy = decisionCopy(env, decision, count);
   return (
     <>
-      <fieldset className="sx-choices">
-        <legend className="sx-label">Decision</legend>
-        {choices.map((c) => (
-          <label key={c.value} className="sx-choice" data-tone={qcMeta(c.value).tone}>
-            <input
-              type="radio"
-              name={name}
-              value={c.value}
-              checked={decision === c.value}
-              onChange={() => setDecision(c.value)}
-              disabled={disabled}
-            />
-            <span>
-              <span className="sx-choice-label">{c.label}</span>
-              <span className="sx-choice-hint">{c.hint}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
+      <DecisionCards name={name} choices={copy.choices} decision={decision} onPick={setDecision} disabled={disabled} />
       <label className="sx-label">
-        {noteRequired ? "Note (required)" : "Note (optional)"}
+        {noteRequired(env, decision) ? "Note (required)" : "Note (optional)"}
         <textarea
           className="ffx-input"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder={placeholder}
+          placeholder={copy.placeholder}
           maxLength={2000}
-          required={noteRequired}
+          required={noteRequired(env, decision)}
           disabled={disabled}
         />
       </label>
     </>
   );
+}
+
+function noteRequired(env: EnvKey, decision: Decision | null) {
+  return decision === "needs_revision" || decision === "rejected" || decisionCopy(env, decision).toProd;
 }
 
 function OneReview({
@@ -787,9 +869,10 @@ function OneReview({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
-  const copy = useDecisionCopy(env, decision, 1);
-  const ready = decision !== null && (!copy.noteRequired || note.trim().length > 0);
+  const copy = decisionCopy(env, decision, 1);
+  const ready = decision !== null && (!noteRequired(env, decision) || note.trim().length > 0);
   const radios = useId();
+  const status = statusOf(row);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -823,57 +906,64 @@ function OneReview({
   return (
     <form onSubmit={submit} className="sx-sheet-body">
       <SheetHead
+        kicker={AREA_KIND_LABEL[row.kind]}
         title={row.title}
         busy={busy}
         onClose={onClose}
         sub={
-          <p className="sx-queue-sub">
+          <p className="sx-sheet-sub">
             <span className="ffx-id">{row.id}</span>
             {row.version && <span className="sx-tag">{row.version}</span>}
-            <QcChip status={statusOf(row)} />
+            <span className="sx-sheet-state">
+              <QcMark state={status} />
+              {qcMeta(status).label}
+            </span>
           </p>
+        }
+        link={
+          row.href && (
+            <Link href={row.href} className="ffx-link sx-sheet-open">
+              Open collection <span aria-hidden="true">↗</span>
+            </Link>
+          )
         }
         nav={
           position.of > 1 && (
-            <span className="sx-stepper">
-              <span className="ffx-num">
-                {position.at} of {position.of}
+              <span className="sx-stepper">
+                <span className="ffx-num">
+                  {position.at} of {position.of}
+                </span>
+                <button type="button" className="sx-sheet-btn" onClick={() => prevId && onMove(prevId)} disabled={!prevId || busy} aria-label="Previous collection" title="Previous (K)">
+                  <Chevron dir="up" />
+                </button>
+                <button type="button" className="sx-sheet-btn" onClick={() => nextId && onMove(nextId)} disabled={!nextId || busy} aria-label="Next collection" title="Next (J)">
+                  <Chevron dir="down" />
+                </button>
               </span>
-              <button type="button" className="ffx-btn ffx-btn-sm" onClick={() => prevId && onMove(prevId)} disabled={!prevId || busy} aria-label="Previous collection" title="Previous (K)">
-                <Chevron dir="up" />
-              </button>
-              <button type="button" className="ffx-btn ffx-btn-sm" onClick={() => nextId && onMove(nextId)} disabled={!nextId || busy} aria-label="Next collection" title="Next (J)">
-                <Chevron dir="down" />
-              </button>
-            </span>
           )
         }
       />
 
       <div className="sx-sheet-scroll">
-        <PromotionPath current={env} stages={row.stages} />
+        <PromotionPath current={env} stages={row.stages} here={row.since ? `Waiting ${fmtAge(row.since, now)}` : "Waiting"} />
 
         <dl className="sx-sheet-facts">
-          <div>
-            <dt>Kind</dt>
-            <dd>{AREA_KIND_LABEL[row.kind]}</dd>
-          </div>
           <div>
             <dt>Items</dt>
             <dd className="ffx-num">{fmtNum(row.itemCount)}</dd>
           </div>
           <div>
-            <dt>{row.files.length > 1 ? "Source files" : "Source file"}</dt>
-            <dd className="ffx-id">{row.files.join(", ")}</dd>
+            <dt>Last change</dt>
+            <dd className="ffx-num" title={row.since ? fmtDate(row.since) : undefined}>
+              {row.since ? fmtAgo(row.since, now) : <span className="sx-unknown">Unknown</span>}
+            </dd>
           </div>
-          {row.since && (
-            <div>
-              <dt>Last change</dt>
-              <dd className="ffx-num" title={fmtDate(row.since)}>
-                {fmtAgo(row.since, now)}
-              </dd>
-            </div>
-          )}
+          <div className="sx-sheet-facts-wide">
+            <dt>{row.files.length > 1 ? "Source files" : "Source file"}</dt>
+            <dd className="ffx-id" title={row.files.join(", ")}>
+              {row.files.join(", ")}
+            </dd>
+          </div>
         </dl>
 
         {lastNote && lastNote.kind === "qc" && (
@@ -887,13 +977,12 @@ function OneReview({
 
         <DecisionFields
           name={radios}
-          choices={copy.choices}
+          env={env}
+          count={1}
           decision={decision}
           setDecision={setDecision}
           note={note}
           setNote={setNote}
-          noteRequired={copy.noteRequired}
-          placeholder={copy.placeholder}
           disabled={busy}
         />
 
@@ -913,22 +1002,15 @@ function OneReview({
         )}
 
         {row.history.length > 0 && (
-          <details className="sx-sheet-history">
-            <summary>History here ({row.history.length})</summary>
+          <HistoryRow label="History here" summary={`${row.history.length} ${row.history.length === 1 ? "entry" : "entries"}`}>
             <AdminActivity rows={row.history.map((event) => ({ collection: row.id, title: row.title, href: null, event }))} now={now} bare />
-          </details>
+          </HistoryRow>
         )}
       </div>
 
       <div className="sx-sheet-foot">
-        {row.href ? (
-          <Link href={row.href} className="ffx-link text-small">
-            Open the collection page
-          </Link>
-        ) : (
-          <span />
-        )}
-        <span className="flex gap-2">
+        <span className="sx-sheet-consequence">{copy.consequence}</span>
+        <span className="flex flex-none gap-2">
           <button type="button" className="ffx-btn" onClick={onClose} disabled={busy}>
             Cancel
           </button>
@@ -966,8 +1048,8 @@ function BulkReview({
   const [note, setNote] = useState("");
   const [results, setResults] = useState<Record<string, Outcome> | null>(null);
   const [, start] = useTransition();
-  const copy = useDecisionCopy(env, decision, rows.length);
-  const ready = decision !== null && (!copy.noteRequired || note.trim().length > 0);
+  const copy = decisionCopy(env, decision, rows.length);
+  const ready = decision !== null && (!noteRequired(env, decision) || note.trim().length > 0);
   const radios = useId();
   // The list is fixed when the sheet opens, so saved rows don't drop out of it.
   const [list] = useState(rows);
@@ -1026,13 +1108,12 @@ function BulkReview({
         {!results && (
           <DecisionFields
             name={radios}
-            choices={copy.choices}
+            env={env}
+            count={list.length}
             decision={decision}
             setDecision={setDecision}
             note={note}
             setNote={setNote}
-            noteRequired={copy.noteRequired}
-            placeholder={copy.placeholder}
             disabled={busy}
           />
         )}
@@ -1045,8 +1126,10 @@ function BulkReview({
         )}
       </div>
       <div className="sx-sheet-foot">
-        <span className="text-micro text-ink-mut">The same decision and note go on each.</span>
-        <span className="flex gap-2">
+        <span className="sx-sheet-consequence">
+          {results ? "Each collection's result is above." : `${copy.consequence} The same decision and note go on each.`}
+        </span>
+        <span className="flex flex-none gap-2">
           {results && !busy ? (
             <button type="button" className="ffx-btn ffx-btn-primary" onClick={onClose}>
               Done

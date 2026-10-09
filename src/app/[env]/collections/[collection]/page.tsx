@@ -6,17 +6,16 @@ import { ItemsList, type ItemRow } from "@/components/items-list";
 import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
-import { QcForm } from "@/components/qc-form";
+import { QcPanel } from "@/components/qc-form";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
-import { PromotionPath } from "@/components/promotion-path";
-import { QcHistory } from "@/components/qc-history";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { ENVS } from "@/lib/env";
 import { pageEnv } from "@/lib/page-env";
-import { fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
+import { collectionName, fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
+import { collectionKindLabel, itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { baseName } from "@/lib/storage";
 import { collectionJsonHref, itemHref, withEnvHome } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
@@ -49,15 +48,21 @@ export default async function CollectionPage({ params }: Props) {
     ENVS.map(async (e) => ({ env: e.key, collection: e.key === env ? c : await getCollection(e.key, id) })),
   );
 
+  // An item without a title is named for what it is ("Storm event 1",
+  // "Terrain tile"), the same as on its own page, never its bare id.
   const rows: ItemRow[] = c.items.map((i) => {
-    const label = itemLabel(i.properties);
+    const project = projectTitle(i.properties);
+    const label = itemLabel(i.properties) ?? (project ? collectionName(project, project) : null);
+    const unnamed = label ? null : untitledName(itemKindLabel(c, i), i.id);
     return {
       id: i.id,
-      label: label ? tidyCaps(label) : null,
+      label: label ? tidyCaps(label) : unnamed!.title,
+      hideId: unnamed?.idInTitle ?? false,
       start: str(i.properties.start_datetime) ?? str(i.properties.datetime),
       end: str(i.properties.end_datetime) ?? null,
     };
   });
+  const nameOf = new Map(rows.map((r) => [r.id, r.label]));
 
   const geo: FeatureCollection = {
     type: "FeatureCollection",
@@ -69,7 +74,7 @@ export default async function CollectionPage({ params }: Props) {
         properties: {
           id: i.id,
           href: itemHref(env, c.id, i.id),
-          label: itemLabel(i.properties) ? tidyCaps(itemLabel(i.properties)!) : undefined,
+          label: nameOf.get(i.id),
         },
         geometry: i.geometry!,
       })),
@@ -103,9 +108,11 @@ export default async function CollectionPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
+        kicker={collectionKindLabel(c) ?? undefined}
         title={c.title}
         subtitle={
           <>
+            {c.title !== c.id && <span className="ffx-id">{c.id}</span>}
             {c.series.versions.length < 2 && c.version && <span>{versionName(c.version)}</span>}
             <span>
               <span className="ffx-num">{fmtNum(c.itemCount)}</span> items
@@ -164,20 +171,21 @@ export default async function CollectionPage({ params }: Props) {
               data={geo}
               bbox={c.bbox}
               label={`Items of ${c.title}`}
-              hint={`${fmtNum(geo.features.length)} items located. Point at one for its name, click to open it.`}
+              hint={`${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
+              tip="Point at one for its name, click to open it."
             />
           </div>
-          <Panel title="Quality control" id="qc">
-            <div className="px-[var(--ffx-panel-pad)] pb-[var(--ffx-panel-pad)] pt-1">
-              <PromotionPath current={env} stages={everywhere.map((s) => ({ env: s.env, qc: s.collection ? s.collection.qc?.qc ?? "pending" : null }))} />
-              <QcForm env={env} collection={c.id} edit={c.qc} />
-            </div>
-          </Panel>
-          {c.history.length > 0 && (
-            <Panel title="History" id="history">
-              <QcHistory events={c.history} />
-            </Panel>
-          )}
+          <QcPanel
+            env={env}
+            collection={c.id}
+            edit={c.qc}
+            stages={everywhere.map((s) => ({
+              env: s.env,
+              qc: s.collection ? s.collection.qc?.qc ?? "pending" : null,
+              at: s.collection?.qc?.date_approved ?? s.collection?.qc?.updated_at ?? null,
+            }))}
+            history={c.history}
+          />
           <Panel title="Metadata" id="meta">
             <div className="pb-2">
               <MetaTable entries={meta} />

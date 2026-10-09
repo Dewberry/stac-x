@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { connection } from "next/server";
+import { QcMark } from "./qc-mark";
 import { getCatalog, getCollection } from "@/lib/catalog";
 import { ENVS, envMeta, type EnvKey } from "@/lib/env";
+import { fmtAge } from "@/lib/format";
+import { qcMeta } from "@/lib/stac";
 import { collectionHref, withEnvHome } from "@/lib/utils";
 import { splitVersion, versionName } from "@/lib/versions";
 
@@ -9,7 +13,9 @@ import { splitVersion, versionName } from "@/lib/versions";
  * sent here yet, which is what the switcher lands on when you change
  * environments from a collection page, so say where it is instead of a bare
  * 404. When another version of it is here, offer that too: Development can
- * be a version ahead of Production.
+ * be a version ahead of Production. The card says where the collection
+ * stands in the furthest environment it has reached, so you know whether
+ * it's on its way.
  */
 export async function NotInEnv({ env, collection }: { env: EnvKey; collection: string }) {
   const elsewhere = await Promise.all(
@@ -21,14 +27,34 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
   const siblingLabel = sibling?.series.versions.find((v) => v.id === sibling.id)?.label ?? null;
   const siblingName = siblingLabel ? versionName(siblingLabel) : "Another version";
   const here = envMeta(env).label;
+  const now = await requestTime();
+  // The furthest environment it has reached is the one that says how close it is.
+  const furthest = [...elsewhere].reverse().find((x) => x.c);
+  const stand = furthest?.c
+    ? {
+        env: envMeta(furthest.env).label,
+        qc: furthest.c.qc?.qc ?? "pending",
+        since: furthest.c.history[0]?.at ?? furthest.c.qc?.updated_at ?? null,
+      }
+    : null;
 
   return (
-    <div className="sx-page">
-      <div className="ffx-panel p-[var(--ffx-panel-pad)] max-w-xl">
+    <div className="sx-page sx-notin">
+      <div className="ffx-panel sx-notin-card">
         <h1 className="font-display text-head font-semibold tracking-[-0.015em]">
           {found.length ? `${collection} isn't in ${here} yet` : "Not found"}
         </h1>
-        <p className="mt-1 text-small text-ink-mut">
+        {stand && (
+          <p className="sx-notin-state">
+            <span>In {stand.env}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <QcMark state={stand.qc} />
+              {qcMeta(stand.qc).label}
+            </span>
+            {stand.since && <span className="ffx-num">{fmtAge(stand.since, now)}</span>}
+          </p>
+        )}
+        <p className="mt-2 text-small text-ink-mut">
           {found.length
             ? `It's in ${found.map((k) => envMeta(k).label).join(" and ")}. A collection reaches ${here} when it's approved in the environment before it.`
             : "No collection by that id is in any environment. It may have been renamed in the bucket, or the file that held it may no longer be listed."}
@@ -52,4 +78,10 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
       </div>
     </div>
   );
+}
+
+/** The time of this request, so the age on the card is measured from it. */
+async function requestTime(): Promise<number> {
+  await connection();
+  return Date.now();
 }

@@ -528,10 +528,10 @@
 }
 .sx-title {
   font-family: var(--ffx-display);
-  font-size: clamp(1.4rem, 1.1rem + 0.9vw, 1.9rem);
+  font-size: clamp(1.4rem, 1.1rem + 0.9vw, 1.875rem);
   line-height: 1.1;
   font-weight: 600;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
   color: var(--ffx-ink);
   overflow-wrap: anywhere;
 }
@@ -544,15 +544,20 @@
   color: var(--ffx-ink-sec);
 }
 .sx-subtitle .ffx-id {
+  font-size: var(--ffx-t-base);
   background: var(--ffx-surface);
   border: 1px solid var(--ffx-rule);
   border-radius: var(--ffx-radius-xs);
-  padding: 0.0625rem 0.5rem;
+  padding: 0.1875rem 0.5rem;
 }
+/* What the page is about ("USGS gage", "Storm catalog"), on its own line
+   above the title. */
 .sx-kicker {
+  flex-basis: 100%;
+  margin-bottom: -0.125rem;
   font-size: var(--ffx-t-micro);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ffx-ink-mut);
 }
@@ -903,15 +908,17 @@
   overflow: auto;
 }
 
-/* Key beside value. */
+/* Key beside value. The label column is 160px at every depth, nested tables
+   too, and fixed so a value cut with an ellipsis can't widen it. */
 .sx-meta {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: var(--ffx-t-base);
 }
 .sx-meta th {
-  width: 10.5rem;
-  padding: 0.4rem var(--ffx-panel-pad) 0.4rem var(--ffx-panel-pad);
+  width: calc(160px + var(--ffx-panel-pad));
+  padding: 0.5rem var(--ffx-panel-pad) 0.5rem var(--ffx-panel-pad);
   text-align: left;
   vertical-align: top;
   font-weight: 400;
@@ -919,7 +926,7 @@
   border-bottom: 1px solid var(--ffx-grid);
 }
 .sx-meta td {
-  padding: 0.4rem var(--ffx-panel-pad) 0.4rem 0;
+  padding: 0.5rem var(--ffx-panel-pad) 0.5rem 0;
   vertical-align: top;
   color: var(--ffx-ink);
   border-bottom: 1px solid var(--ffx-grid);
@@ -934,7 +941,7 @@
   margin: -0.25rem 0;
 }
 .sx-meta .sx-meta th {
-  width: 7rem;
+  width: 160px;
   padding-left: 0;
 }
 .sx-meta .sx-meta th,
@@ -946,11 +953,12 @@
   border-bottom: 0;
 }
 .sx-meta-group {
-  padding: 0.75rem var(--ffx-panel-pad) 0.25rem;
-  font-family: var(--ffx-display);
-  font-size: var(--ffx-t-small);
+  padding: 0.875rem var(--ffx-panel-pad) 0.25rem;
+  font-size: var(--ffx-t-micro);
   font-weight: 600;
-  color: var(--ffx-ink-sec);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
 }
 @media (max-width: 39.99rem) {
   .sx-meta,
@@ -1214,80 +1222,264 @@
   color: var(--ffx-ink);
 }
 
-/* Where a collection stands: three steps in the order it moves. */
+/* Where a collection stands: a stepper, three equal columns in the order it
+   moves. The line runs through the dots at their centers and turns green from
+   a step where it was approved to the next. Each dot carries a halo of the
+   card so the line stops short of it. */
 .sx-path {
+  --sx-path-y: 9px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.375rem;
-  margin: 0 0 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0.25rem 0 1rem;
   padding: 0;
   list-style: none;
 }
 .sx-path-step {
   position: relative;
   display: grid;
-  gap: 0.1rem;
-  padding: 0.5rem 0.625rem;
-  border-radius: var(--ffx-radius-xs);
-  border: 1px solid var(--ffx-rule);
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
-}
-.sx-path-step[aria-current="step"] {
-  border-color: var(--ffx-ink);
-}
-.sx-path-mark {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 50%;
-  border: 1.5px solid var(--ffx-ink-dim);
-}
-.sx-path-step[data-here="true"] .sx-path-mark {
-  border-color: transparent;
-  background: var(--ffx-ink);
-}
-.sx-path-step[data-here="true"][data-env="dev"] .sx-path-mark {
-  background: var(--ffx-env-dev);
-}
-.sx-path-step[data-here="true"][data-env="test"] .sx-path-mark {
-  background: var(--ffx-env-test);
-}
-.sx-path-name {
-  font-weight: 600;
-  color: var(--ffx-ink);
-}
-
-/* A collection's history in one environment. */
-.sx-history {
-  margin: 0;
-  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
-  list-style: none;
-  display: grid;
-  gap: 0.625rem;
-}
-.sx-history li {
-  display: grid;
-  grid-template-columns: 9.5rem 1fr;
-  gap: 0.75rem;
+  justify-items: center;
+  align-content: start;
+  gap: 0.15rem;
+  text-align: center;
   font-size: var(--ffx-t-small);
   color: var(--ffx-ink-sec);
 }
-.sx-history-when {
+.sx-path-step::before,
+.sx-path-step::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--sx-path-y) - 1px);
+  height: 2px;
+  width: 50%;
+  background: var(--ffx-rule);
+}
+.sx-path-step::before {
+  left: 0;
+}
+.sx-path-step::after {
+  right: 0;
+}
+.sx-path-step:first-child::before,
+.sx-path-step:last-child::after {
+  display: none;
+}
+.sx-path-step[data-in]::before,
+.sx-path-step[data-out]::after {
+  background: var(--ffx-verified);
+}
+.sx-path-mark {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin: calc(var(--sx-path-y) - 6px) 0 0.3rem;
+  border-radius: 50%;
+  border: 2px solid var(--ffx-rule-strong);
+  background: var(--ffx-surface);
+  box-shadow: 0 0 0 3px var(--sx-path-halo, var(--ffx-surface));
+}
+.sx-path-step[data-state="pending"] .sx-path-mark {
+  border-color: var(--ffx-qc-none);
+}
+.sx-path-step[data-state="approved"] .sx-path-mark {
+  border-color: var(--ffx-verified);
+  background: var(--ffx-verified);
+}
+.sx-path-step[data-state="needs_revision"] .sx-path-mark {
+  border-color: var(--ffx-attn);
+  background: var(--ffx-attn);
+}
+.sx-path-step[data-state="rejected"] .sx-path-mark {
+  border-color: var(--ffx-bad);
+  background: var(--ffx-bad);
+}
+/* Where you are: a bigger ring, its color the state's once decided. */
+.sx-path-step[aria-current="step"] .sx-path-mark {
+  width: 16px;
+  height: 16px;
+  margin: calc(var(--sx-path-y) - 8px) 0 calc(0.3rem - 4px);
+  border-width: 3px;
+  border-color: var(--ffx-ink);
+  background: var(--ffx-surface);
+}
+.sx-path-step[aria-current="step"][data-state="approved"] .sx-path-mark {
+  border-color: var(--ffx-verified);
+}
+.sx-path-step[aria-current="step"][data-state="needs_revision"] .sx-path-mark {
+  border-color: var(--ffx-attn);
+}
+.sx-path-step[aria-current="step"][data-state="rejected"] .sx-path-mark {
+  border-color: var(--ffx-bad);
+}
+.sx-path-step[aria-current="step"] .sx-path-name {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-path-state {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
-  padding-top: 0.1rem;
+}
+.sx-path-step[data-done] .sx-path-state {
+  font-weight: 500;
+  color: var(--ffx-verified-text);
+}
+.sx-path-step[data-state="needs_revision"] .sx-path-state {
+  color: var(--ffx-attn-text);
+}
+.sx-path-step[data-state="rejected"] .sx-path-state {
+  color: var(--ffx-bad-text);
+}
+.sx-path-step[data-state="absent"] .sx-path-state {
+  color: var(--ffx-ink-dim);
+}
+
+/* The QC panel on a collection page: the review sheet's pattern in a card. */
+.sx-qc .ffx-panel-head {
+  align-items: center;
+}
+.sx-qc-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-qc-body {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.25rem var(--ffx-panel-pad) var(--ffx-panel-pad);
+}
+.sx-qc-submit .ffx-btn {
+  height: 2.375rem;
+  white-space: nowrap;
+}
+.sx-qc-consequence {
+  flex: 1 1 14rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+/* A link-weight action inside a form: Change date, Reset. */
+.sx-textbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-link);
+  cursor: pointer;
+}
+.sx-textbtn:hover {
+  text-decoration: underline;
+}
+.sx-textbtn:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* History folded into the end of a review: one row that opens in place. */
+.sx-history-row {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-history-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 0 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+  text-align: left;
+  cursor: pointer;
+}
+.sx-history-toggle b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-history-toggle:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.sx-caret {
+  flex: none;
+  align-self: center;
+  color: var(--ffx-ink-mut);
+  transition: rotate 150ms ease;
+}
+[aria-expanded="true"] > .sx-caret,
+[open] > summary > .sx-caret {
+  rotate: 90deg;
+}
+.sx-history-body {
+  padding-top: 0.75rem;
+}
+/* A collection's history in one environment, on a rail. */
+.sx-history {
+  margin: 0 0 0 0.25rem;
+  padding: 0 0 0 0.875rem;
+  border-left: 2px solid var(--ffx-rule);
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+.sx-history li {
+  display: grid;
+  gap: 0.1rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.sx-history-what {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-history-when {
+  flex: none;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
 }
 .sx-history-note {
   display: block;
-  margin-top: 0.15rem;
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
   overflow-wrap: anywhere;
 }
-@media (max-width: 40rem) {
-  .sx-history li {
-    grid-template-columns: 1fr;
-    gap: 0.1rem;
+
+/* Below 64rem the columns are one, so the collection page puts what people
+   came for first: the map, the items, then the description, QC and metadata.
+   The columns give up their boxes and the panels take an order. */
+@media (max-width: 63.99rem) {
+  .sx-cols:has(> .sx-col > #items) {
+    display: grid;
+  }
+  .sx-cols:has(> .sx-col > #items) > .sx-col {
+    display: contents;
+  }
+  .sx-cols:has(> .sx-col > #items) .sx-mapcard {
+    order: 1;
+  }
+  .sx-cols:has(> .sx-col > #items) #items {
+    order: 2;
+  }
+  .sx-cols:has(> .sx-col > #items) #about {
+    order: 3;
+  }
+  .sx-cols:has(> .sx-col > #items) #qc {
+    order: 4;
+  }
+  .sx-cols:has(> .sx-col > #items) #meta {
+    order: 5;
   }
 }
 
@@ -1400,8 +1592,7 @@
   width: 1px;
   padding-right: 0.25rem;
 }
-.sx-queue-check input,
-.sx-choice input {
+.sx-queue-check input {
   width: 0.95rem;
   height: 0.95rem;
   accent-color: var(--ffx-ink);
@@ -1612,40 +1803,36 @@ a.sx-queue-title:hover {
   border-top: 0;
 }
 
-/* Decisions as large radio rows, each marked with its QC color. */
+/* Decisions as full-width cards with a drawn radio. Picked, the ring, the dot
+   and the card's border take the state's color; unpicked, none show it. */
 .sx-choices {
   display: grid;
-  gap: 0.375rem;
+  gap: 0.5rem;
   margin: 0;
   padding: 0;
   border: 0;
+  min-width: 0;
 }
-.sx-choices legend {
-  margin-bottom: 0.3rem;
+.sx-choices-legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 0.375rem;
+  padding: 0;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
 }
 .sx-choice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 0.625rem 0.75rem;
+  --sx-choice-mark: var(--ffx-ink);
   border: 1px solid var(--ffx-rule);
-  border-radius: var(--ffx-radius-sm);
-  cursor: pointer;
+  border-radius: 10px;
+  background: var(--ffx-surface);
+  transition: border-color 120ms ease, background 120ms ease;
 }
 .sx-choice:hover {
-  border-color: var(--ffx-rule-strong);
   background: var(--ffx-surface-sunken);
-}
-.sx-choice input {
-  margin-top: 0.2rem;
-}
-.sx-choice:has(input:checked) {
-  border-color: var(--sx-choice-mark, var(--ffx-ink));
-  box-shadow: inset 3px 0 0 var(--sx-choice-mark, var(--ffx-ink));
-}
-.sx-choice:has(input:focus-visible) {
-  outline: 2px solid var(--ffx-river);
-  outline-offset: 2px;
 }
 .sx-choice[data-tone="verified"] {
   --sx-choice-mark: var(--ffx-verified);
@@ -1656,16 +1843,72 @@ a.sx-queue-title:hover {
 .sx-choice[data-tone="bad"] {
   --sx-choice-mark: var(--ffx-bad);
 }
+.sx-choice:has(input:checked) {
+  border-color: var(--sx-choice-mark);
+  box-shadow: 0 0 0 1px var(--sx-choice-mark);
+  background: var(--ffx-surface);
+}
+.sx-choice-hit {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 0.15rem;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.sx-choice-hit input {
+  appearance: none;
+  grid-row: span 2;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--ffx-n-400);
+  background: var(--ffx-surface);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sx-choice-hit input::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sx-choice-mark);
+  scale: 0;
+  transition: scale 120ms ease;
+}
+.sx-choice-hit input:checked {
+  border-color: var(--sx-choice-mark);
+}
+.sx-choice-hit input:checked::after {
+  scale: 1;
+}
+.sx-choice-hit input:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+}
+.sx-choice-hit input:disabled {
+  cursor: default;
+}
 .sx-choice-label {
-  display: block;
-  font-size: var(--ffx-t-base);
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.35;
   color: var(--ffx-ink);
 }
 .sx-choice-hint {
-  display: block;
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
+  grid-column: 2;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ffx-ink-sec);
+}
+.sx-choice-extra {
+  padding: 0 14px 12px calc(14px + 18px + 12px);
+  margin-top: -0.375rem;
+}
+.sx-choice-date {
+  max-width: 14rem;
 }
 
 /* Recent activity: a timeline, each event marked with its QC color, moves
@@ -2661,6 +2904,12 @@ main:focus {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
 }
+/* The line under the figures when the collection covers the whole basin. */
+.sx-pv-cover {
+  margin: 0;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
 .sx-pv-facts {
   display: grid;
   gap: 6px;
@@ -2999,12 +3248,6 @@ main:focus {
   border-radius: 50%;
   background: var(--ffx-glass);
   box-shadow: var(--ffx-shadow-float);
-/* The line under the figures when the collection covers the whole basin. */
-.sx-pv-cover {
-  margin: 0;
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
-}
   font: italic 600 var(--ffx-t-micro) / 1 Georgia, serif;
   color: var(--ffx-ink-sec);
   cursor: pointer;
@@ -3064,4 +3307,752 @@ main:focus {
   :root :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
     font-size: 1rem;
   }
+}
+
+/* ======== Item pages: heading, assets, metadata (design review, Oct 2026) ======== */
+
+/* The page's source actions fold into one ⋯ pill below 64rem, so the header
+   keeps one row of actions. */
+.sx-more {
+  position: relative;
+}
+.sx-more > summary {
+  list-style: none;
+  width: 2.125rem;
+  padding: 0;
+}
+.sx-more > summary::-webkit-details-marker {
+  display: none;
+}
+.sx-more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.375rem);
+  z-index: 20;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 11rem;
+  padding: 0.375rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-raised);
+  box-shadow: var(--ffx-shadow-float);
+}
+.sx-more-menu > * {
+  justify-content: flex-start;
+}
+@media (min-width: 64rem) {
+  .sx-more {
+    display: none;
+  }
+}
+@media (max-width: 63.99rem) {
+  .sx-actions-wide {
+    display: none;
+  }
+  .sx-actions {
+    flex-wrap: nowrap;
+  }
+}
+
+/* A chevron that turns a quarter when its row is open. */
+.sx-chev {
+  width: 0;
+  height: 0;
+  flex: none;
+  border-left: 5px solid var(--ffx-ink-dim);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 110ms linear;
+}
+[aria-expanded="true"] > .sx-chev,
+details[open] > summary > .sx-chev {
+  transform: rotate(90deg);
+}
+
+/* A text button that reads as a link. */
+.sx-linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-active-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sx-linkbtn:hover {
+  text-decoration: underline;
+}
+
+/* Assets, grouped. */
+.sx-agroups {
+  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
+}
+.sx-agroups-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.625rem;
+}
+.sx-afilter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  max-width: 280px;
+  height: 30px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink-mut);
+}
+.sx-afilter input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+}
+.sx-afilter:focus-within {
+  outline: 2px solid var(--ffx-active);
+  outline-offset: 1px;
+}
+.sx-agroups-by {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-agroup {
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-agroup-head {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 10px 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--ffx-ink);
+  cursor: pointer;
+}
+.sx-agroup-head:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-agroup-name b {
+  font-weight: 600;
+}
+.sx-agroup-name span {
+  margin-left: 0.25rem;
+  font-size: 0.78125rem;
+  color: var(--ffx-ink-mut);
+}
+.sx-agroup-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.sx-agroup-count {
+  min-width: 1.75rem;
+  text-align: right;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-arows {
+  padding-bottom: 0.375rem;
+}
+.sx-arow > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 6px 0.4rem 30px;
+  border-top: 1px solid var(--ffx-surface-sunken);
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.78125rem;
+}
+.sx-arow > summary::-webkit-details-marker {
+  display: none;
+}
+.sx-arow > summary:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-arow-file {
+  font-family: var(--ffx-mono);
+  color: var(--ffx-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-arow > summary {
+  position: relative;
+}
+.sx-arow > summary::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  margin-top: -4px;
+  border-left: 4px solid var(--ffx-ink-dim);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 110ms linear;
+}
+.sx-arow[open] > summary::before {
+  transform: rotate(90deg);
+}
+.sx-arow-what {
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-arow-size {
+  min-width: 3.5rem;
+  text-align: right;
+  color: var(--ffx-ink-sec);
+}
+.sx-arow > .sx-asset-body {
+  padding: 0.5rem 6px 0.875rem 30px;
+}
+@media (max-width: 39.99rem) {
+  .sx-agroup-name span,
+  .sx-agroup-meta .sx-tag,
+  .sx-agroups-by,
+  .sx-arow-what {
+    display: none;
+  }
+  .sx-arow-file {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Metadata values cut to one line, with Copy at the right. */
+.sx-val-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sx-val-clip {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-copy-mini {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--ffx-rule);
+  border-radius: 5px;
+  background: var(--ffx-surface);
+  font-size: var(--ffx-t-micro);
+  line-height: 1.4;
+  color: var(--ffx-ink-sec);
+  cursor: pointer;
+}
+.sx-copy-mini:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-val-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.125rem;
+  font-size: 0.78125rem;
+  color: var(--ffx-ink-mut);
+}
+.sx-val-more .sx-linkbtn {
+  font-size: inherit;
+}
+.sx-wkt {
+  margin: 0.375rem 0 0.25rem;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-micro);
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--ffx-ink-sec);
+}
+/* A few counts in a row: "Basins 1 · Controls 2". */
+.sx-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.875rem;
+  font-size: var(--ffx-t-small);
+}
+.sx-counts b {
+  font-weight: 600;
+}
+/* A list of like objects, its first rows in a bordered table. */
+.sx-mini {
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  overflow: hidden;
+}
+.sx-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ffx-t-small);
+}
+.sx-mini-table th {
+  padding: 0.3rem 0.625rem;
+  text-align: left;
+  font-weight: 400;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  background: var(--ffx-surface-sunken);
+  white-space: nowrap;
+}
+.sx-mini-table td {
+  overflow-wrap: normal;
+  min-width: 5rem;
+  padding: 0.3rem 0.625rem;
+  border-top: 1px solid var(--ffx-surface-sunken);
+  vertical-align: top;
+  color: var(--ffx-ink);
+}
+.sx-mini-table .ffx-r {
+  text-align: right;
+}
+.sx-mini-more {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.625rem;
+  border: 0;
+  border-top: 1px solid var(--ffx-surface-sunken);
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-active-text);
+  cursor: pointer;
+}
+.sx-mini-more:hover {
+  background: var(--ffx-surface-sunken);
+}
+/* The STAC section, folded behind its summary. */
+.sx-meta-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.625rem var(--ffx-panel-pad);
+  border: 0;
+  border-top: 1px solid var(--ffx-grid);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sx-meta-fold-head:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-meta-fold-title {
+  font-size: var(--ffx-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-meta-fold-sum {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+
+/* ===================== Admin and review (design review, Oct 2026) =====================
+   The queue table without a Status column (the tab already says it), the
+   same queue as cards below 64rem, and the review sheet on the collection
+   page's QC pattern. */
+
+.sx-wide-only {
+  display: inline;
+}
+.sx-narrow-only {
+  display: none;
+}
+@media (max-width: 39.99rem) {
+  .sx-wide-only {
+    display: none;
+  }
+  .sx-narrow-only {
+    display: inline;
+  }
+}
+
+.sx-unknown {
+  color: var(--ffx-n-400);
+}
+
+/* The table: fixed widths for the facts, the rest to the name. */
+.sx-queue thead th {
+  height: 38px;
+  padding-block: 0;
+  vertical-align: middle;
+  background: var(--ffx-surface-sunken);
+  border-bottom: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ffx-ink-mut);
+}
+.sx-queue th:nth-child(1) {
+  width: 40px;
+}
+.sx-queue th:nth-child(3) {
+  width: 130px;
+}
+.sx-queue th:nth-child(4) {
+  width: 60px;
+}
+.sx-queue th:nth-child(5) {
+  width: 90px;
+}
+.sx-queue th:nth-child(6) {
+  width: 150px;
+}
+.sx-queue th:nth-child(7) {
+  width: 90px;
+}
+.sx-queue td {
+  padding-block: 12px;
+  border-bottom-color: var(--ffx-surface-sunken);
+}
+.sx-queue tbody tr:hover td {
+  background: var(--ffx-surface-sunken);
+}
+.sx-queue .sx-queue-title {
+  display: inline;
+  font-size: 15px;
+}
+.sx-queue .sx-queue-sub {
+  font-size: 12.5px;
+}
+.sx-queue tbody tr[data-open] td,
+.sx-qcard[data-open],
+.sx-qcard[data-selected] {
+  background: color-mix(in srgb, var(--ffx-river) 6%, var(--ffx-surface));
+}
+.sx-open-tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ffx-river) 13%, var(--ffx-surface));
+  color: var(--ffx-link);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+/* The same queue as cards, for phones and narrow windows. */
+.sx-qcards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sx-qcard {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px var(--ffx-panel-pad);
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-check {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  border-radius: 6px;
+  border: 1.5px solid var(--ffx-n-400);
+  background: var(--ffx-surface);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sx-check:checked {
+  border-color: var(--ffx-ink);
+  background: var(--ffx-ink);
+}
+.sx-check:checked::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  margin-top: -3px;
+  border: solid var(--ffx-surface);
+  border-width: 0 0 2px 2px;
+  rotate: -45deg;
+}
+.sx-check:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+}
+.sx-qcard-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sx-qcard-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ffx-ink);
+  text-decoration: none;
+}
+.sx-qcard-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ffx-ink-mut);
+}
+.sx-qcard-facts {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--ffx-ink-sec);
+}
+.sx-qcard-facts > * + *::before {
+  content: " · ";
+  color: var(--ffx-ink-dim);
+}
+.sx-qcard-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 8px;
+}
+.sx-qcard-review {
+  height: 36px;
+  border-radius: 999px;
+}
+
+/* Recent activity folds into its heading row on a phone. */
+.sx-activity-toggle {
+  display: none;
+}
+
+@media (max-width: 63.99rem) {
+  .sx-queue-wrap {
+    display: none;
+  }
+  .sx-qcards {
+    display: block;
+  }
+  .sx-admin .ffx-tabs-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sx-admin .ffx-tabs-list::-webkit-scrollbar {
+    display: none;
+  }
+  .sx-admin .ffx-tab {
+    flex: none;
+    height: 32px;
+  }
+  .sx-queue-tools {
+    flex-wrap: nowrap;
+  }
+  .sx-queue-tools .ffx-field {
+    height: 40px;
+  }
+  .sx-queue-tools .ffx-field-select .ffx-field-label {
+    display: none;
+  }
+  .sx-activity-panel .ffx-panel-head {
+    align-items: center;
+    padding-bottom: 0.875rem;
+  }
+  .sx-activity-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--ffx-t-small);
+    color: var(--ffx-ink-mut);
+    cursor: pointer;
+  }
+  .sx-activity-panel:not([data-open]) .sx-activity-list {
+    display: none;
+  }
+}
+
+/* The review sheet: wider, a lighter scrim, the kind above the title, and a
+   foot that says what saving writes. */
+.sx-sheet {
+  width: min(35rem, 100vw);
+  --sx-path-halo: var(--ffx-surface-raised);
+}
+.sx-sheet::backdrop {
+  background: rgb(19 26 34 / 0.28);
+}
+.sx-sheet-head {
+  padding: 1.25rem 1.375rem 1rem;
+}
+.sx-sheet-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-sheet-title {
+  font-family: var(--ffx-display);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--ffx-ink);
+}
+.sx-sheet-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.3rem;
+  font-size: 13px;
+  color: var(--ffx-ink-sec);
+}
+.sx-sheet-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.sx-sheet-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.6rem;
+  flex: none;
+}
+.sx-sheet-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 0;
+  background: var(--ffx-surface);
+  box-shadow: inset 0 0 0 1px var(--ffx-rule-strong);
+  color: var(--ffx-ink);
+  cursor: pointer;
+}
+.sx-sheet-btn:hover:not(:disabled) {
+  background: var(--ffx-surface-sunken);
+}
+.sx-sheet-btn:disabled {
+  color: var(--ffx-ink-dim);
+  cursor: default;
+}
+.sx-sheet-btn:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+}
+.sx-stepper {
+  gap: 0.375rem;
+  font-size: 13px;
+}
+.sx-stepper > span {
+  margin-right: 0.375rem;
+}
+.sx-sheet-open {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.sx-sheet-scroll {
+  gap: 1.125rem;
+  padding: 1.25rem 1.375rem 1.5rem;
+}
+.sx-sheet-facts {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--ffx-surface-sunken);
+}
+.sx-sheet-facts-wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.sx-sheet-facts-wide dd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-sheet-history-body,
+.sx-sheet .sx-history-row {
+  margin-top: 0;
+}
+.sx-sheet-foot {
+  flex-wrap: nowrap;
+  padding-inline: 1.375rem;
+}
+.sx-sheet-consequence {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ffx-ink-sec);
+}
+.sx-sheet-foot .ffx-btn,
+.sx-qc-submit .ffx-btn {
+  border-radius: 999px;
+}
+/* A primary that can't be pressed yet reads as waiting, not as a dark slab. */
+.sx-sheet-foot .ffx-btn-primary:disabled,
+.sx-qc-submit .ffx-btn-primary:disabled {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-n-400);
+  box-shadow: none;
+  opacity: 1;
+}
+@media (max-width: 39.99rem) {
+  .sx-sheet-foot {
+    flex-wrap: wrap;
+  }
+}
+
+/* The footer note is about where QC is saved, so it's on Admin only. */
+body:not(:has(.sx-admin-stack)) > .sx-footer {
+  display: none;
+}
+
+/* A collection that isn't in this environment: the card alone, centered. */
+.sx-notin {
+  min-height: calc(100dvh - 10rem);
+  place-items: center;
+}
+.sx-notin-card {
+  width: 100%;
+  max-width: 35rem;
+  padding: var(--ffx-panel-pad);
+}
+.sx-notin-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.4rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-notin-state > * + *::before {
+  content: "·";
+  margin: 0 0.5rem;
+  color: var(--ffx-ink-dim);
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { BrandLink } from "./brand-link";
 import { HeaderControls } from "./env-switcher";
+import { MoreMenu } from "./more-menu";
 export { EnvBand } from "./env-switcher";
 import { ThemeMenuItems } from "./theme";
 import type { Session } from "@/lib/session";
@@ -56,7 +57,9 @@ export function SiteFooter() {
  * The top of a collection or item page, laid out like STAC Browser's: the
  * title (with the page's facts beside it) on the left, and at the right end
  * the navigation group followed by the source group. There's no breadcrumb,
- * since STAC Browser has none; Collection and Up are the way back.
+ * since STAC Browser has none; Collection and Up are the way back. The kind
+ * of thing the page is about sits above the title. Below 64rem the source
+ * group folds into one ⋯ pill so the actions stay on one row.
  */
 export function PageHead({
   kicker,
@@ -85,7 +88,12 @@ export function PageHead({
               {nav}
             </nav>
           )}
-          {actions && <div className="sx-action-group">{actions}</div>}
+          {actions && (
+            <>
+              <div className="sx-action-group sx-actions-wide">{actions}</div>
+              <MoreMenu>{actions}</MoreMenu>
+            </>
+          )}
         </div>
       )}
     </div>

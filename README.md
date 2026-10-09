@@ -6,7 +6,8 @@ and lets a reviewer record QC on each collection. The one thing it writes is tha
 
 Collection and item pages put things where STAC Browser puts them, since
 that's what people already know (see Page layout below). On a phone the
-columns stack, left column first.
+columns stack, left column first, except on a collection page, where the
+items come right after the map.
 
 ![The stac-x homepage with the USGS gages selected: their 192 sites drawn as dots across the South Platte basin, and their row open in the collection list with counts, period of record and review state](docs/images/home.png)
 
@@ -142,8 +143,13 @@ derived from the items (count, extent, temporal range) and the page says so.
 
 QC is recorded per collection, on the collection page: a status (not
 reviewed, approved, needs revision, rejected), an approval date, and an
-optional note. Picking Approved fills today's date, which stays editable.
-Items don't carry their own QC.
+optional note. The panel is laid out like the Admin review sheet: where the
+collection stands in each environment, three decision cards that say what
+each will do, and a button named for the decision, with a line beside it
+saying what saving writes. Approve records today's date; "Change date"
+beside it opens the date for a back-dated approval, and a decided
+collection can be reset to Not reviewed from the link by the Decision
+label. Items don't carry their own QC.
 
 Edits are not written into the parquet file. They go to a JSON sidecar beside
 it:
@@ -175,6 +181,8 @@ same server action as the collection page's form, so approving still
 promotes. The sheet asks for a note on Needs revision and Reject; back-dating
 an approval or resetting to Not reviewed still happens on the collection
 page. Recent activity beside the queue merges every collection's history.
+Below 64rem the table becomes a list of cards and recent activity folds
+into its heading.
 
 Until there are more collections, the queue is filled out from
 `src/lib/fixtures/review.ts`, the South Platte models from the landing page's
@@ -348,10 +356,12 @@ a card for the parent collection, then the metadata.
 
 On a collection page the left column is the description with its keywords,
 license and temporal extent, then the map, then the metadata. The right
-column is the item list. QC has no counterpart in STAC Browser, so its panel
-and the history go in the left column between the map and the metadata,
-which keeps it near the top without moving anything a STAC Browser user
-would look for.
+column is the item list. QC has no counterpart in STAC Browser, so its panel,
+with the history folded into its last row, goes in the left column between
+the map and the metadata, which keeps it near the top without moving
+anything a STAC Browser user would look for. On a phone the collection page
+is one column in its own order: the map, the items, then the description,
+QC and metadata, so the list people came for isn't at the bottom.
 
 Panel names follow STAC Browser's too: Description, Assets, Additional
 resources, Collection, Metadata, Items. Inside an asset row the name is on

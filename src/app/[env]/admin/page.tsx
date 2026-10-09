@@ -41,8 +41,14 @@ export default async function AdminPage({ params, searchParams }: Props) {
   const now = await requestTime();
   const catalogs = await Promise.all(ENVS.map(async (e) => ({ env: e.key, catalog: await getCatalog(e.key) })));
   const here = catalogs.find((c) => c.env === env)!.catalog;
+  // Each collection's state and decision date in every environment, for the stepper.
   const statusIn = new Map(
-    catalogs.map(({ env: e, catalog }) => [e, new Map(catalog.collections.map((c) => [c.id, c.qc?.qc ?? "pending"]))]),
+    catalogs.map(({ env: e, catalog }) => [
+      e,
+      new Map(
+        catalog.collections.map((c) => [c.id, { qc: c.qc?.qc ?? "pending", at: c.qc?.date_approved ?? c.qc?.updated_at ?? null }]),
+      ),
+    ]),
   );
 
   const real: QueueRow[] = here.collections.map((c) => ({
@@ -59,7 +65,10 @@ export default async function AdminPage({ params, searchParams }: Props) {
     files: c.sources.map(baseName),
     qc: c.qc,
     since: c.history[0]?.at ?? c.qc?.updated_at ?? null,
-    stages: ENVS.map((e) => ({ env: e.key, qc: statusIn.get(e.key)?.get(c.id) ?? null })),
+    stages: ENVS.map((e) => {
+      const s = statusIn.get(e.key)?.get(c.id);
+      return { env: e.key, qc: s?.qc ?? null, at: s?.at ?? null };
+    }),
     history: c.history,
     mock: false,
   }));
@@ -71,7 +80,12 @@ export default async function AdminPage({ params, searchParams }: Props) {
     <div className="sx-page">
       <PageHead
         title="Admin"
-        subtitle={<span>Review queue for {ENVS.find((e) => e.key === env)!.label}{next ? `. Approving sends a collection to ${next.label}.` : "."}</span>}
+        subtitle={
+          <span>
+            Review queue for {ENVS.find((e) => e.key === env)!.label}.
+            {next && <span className="sx-wide-only"> Approving sends a collection to {next.label}.</span>}
+          </span>
+        }
       />
       {here.errors.length > 0 && (
         <p className="sx-callout" role="status">
@@ -138,7 +152,10 @@ function mockRow(m: MockReview, env: EnvKey, now: number): QueueRow {
             updated_at: at(state.hoursAgo),
           },
     since: at(state.hoursAgo),
-    stages: ENVS.map((e) => ({ env: e.key, qc: m.in[e.key]?.qc ?? null })),
+    stages: ENVS.map((e) => {
+      const s = m.in[e.key];
+      return { env: e.key, qc: s?.qc ?? null, at: s && s.qc !== "pending" ? at(s.hoursAgo) : null };
+    }),
     history,
     mock: true,
   };

@@ -15,6 +15,8 @@ import { itemHref } from "@/lib/utils";
 export type ItemRow = {
   id: string;
   label: string | null;
+  /** The label already says the id ("Storm event 1"), so it isn't repeated under it. */
+  hideId?: boolean;
   start: string | null;
   end: string | null;
 };
@@ -85,7 +87,7 @@ export function ItemsList({ env, collection, rows }: { env: EnvKey; collection: 
               <div className="sx-row-main">
                 <div className="sx-row-title">{r.label ?? r.id}</div>
                 <div className="sx-row-sub">
-                  {r.label && <span className="ffx-id">{r.id}</span>}
+                  {r.label && !r.hideId && <span className="ffx-id">{r.id}</span>}
                   {(r.start || r.end) && <span className="ffx-num">{fmtRange(r.start, r.end)}</span>}
                 </div>
               </div>

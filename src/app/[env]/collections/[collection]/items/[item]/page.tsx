@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { FeatureCollection } from "geojson";
-import { Assets } from "@/components/assets";
+import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { DataMap } from "@/components/map";
-import { MetaTable, type Entry } from "@/components/meta-table";
+import { MetadataPanel, type Entry } from "@/components/meta-table";
 import { Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
-import { fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
+import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
+import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { collectionHref, itemJsonHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
 
@@ -41,9 +42,15 @@ export default async function ItemPage({ params }: Props) {
   if (!item) notFound();
   const version = c.series.versions.length > 1 ? c.series.versions.find((v) => v.id === c.id)?.label ?? null : null;
 
-  const label = itemLabel(item.properties);
-  const title = label ? tidyCaps(label) : item.id;
   const p = item.properties;
+  const kind = itemKindLabel(c, item);
+  // An item without a title is named for what it is, or for its model
+  // project, never its bare id; the id is always in the chip beside it.
+  const project = projectTitle(p);
+  const label = itemLabel(p) ?? (project ? collectionName(project, project) : null);
+  const unnamed = label ? null : untitledName(kind, item.id);
+  const title = label ? tidyCaps(label) : unnamed!.title;
+  const assetCount = Object.keys(item.assets).length;
 
   const geo: FeatureCollection = {
     type: "FeatureCollection",
@@ -71,15 +78,22 @@ export default async function ItemPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
+        kicker={unnamed ? c.title : kind}
         title={title}
         subtitle={
           <>
-            {label && <span className="ffx-id">{item.id}</span>}
-            {(p.start_datetime || p.end_datetime) && (
+            {!unnamed?.idInTitle && <span className="ffx-id">{item.id}</span>}
+            {p.start_datetime || p.end_datetime ? (
               <span className="ffx-num">{fmtRange(str(p.start_datetime), str(p.end_datetime))}</span>
+            ) : (
+              str(p.datetime) && <span className="ffx-num">{fmtDate(str(p.datetime), { time: false })}</span>
             )}
             {typeof p.drain_area_va === "number" && <span>{p.drain_area_va} mi² drainage</span>}
-            {!label && str(p.description)}
+            {assetCount > 0 && (
+              <span>
+                <span className="ffx-num">{fmtNum(assetCount)}</span> {assetCount === 1 ? "asset" : "assets"}
+              </span>
+            )}
           </>
         }
         nav={
@@ -129,7 +143,7 @@ export default async function ItemPage({ params }: Props) {
               hint={item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
             />
           </div>
-          <Panel title="Assets" note={`${Object.keys(item.assets).length}`} id="assets">
+          <Panel title="Assets" note={assetNote(item.assets)} id="assets">
             <Assets assets={item.assets} />
           </Panel>
           {links.length > 0 && (
@@ -148,7 +162,7 @@ export default async function ItemPage({ params }: Props) {
           )}
         </div>
         <div className="sx-col">
-          {str(p.description) && label && (
+          {str(p.description) && (
             <Panel title="Description">
               <div className="sx-desc ffx-prose">{str(p.description)}</div>
             </Panel>
@@ -170,34 +184,38 @@ export default async function ItemPage({ params }: Props) {
               </div>
             </Link>
           </Panel>
-          <Panel title="Metadata" id="meta">
-            <div className="pb-2">
-              <div className="sx-meta-group">General</div>
-              <MetaTable entries={core} />
-              {rest.length > 0 && (
-                <>
-                  <div className="sx-meta-group">Properties</div>
-                  <MetaTable entries={rest.map((e) => ({ ...e, label: humanize(e.key) }))} />
-                </>
-              )}
-              {structural.length > 0 && (
-                <>
-                  <div className="sx-meta-group">STAC</div>
-                  <MetaTable
-                    entries={[
-                      { key: "stac_version", value: item.stac_version },
-                      { key: "stac_extensions", value: item.stac_extensions },
-                      ...structural.map((l) => ({ key: `link_${l.rel}`, value: l.href, label: `${humanize(l.rel)} link` })),
-                    ]}
-                  />
-                </>
-              )}
-            </div>
-          </Panel>
+          <MetadataPanel
+            sections={[
+              { title: "General", entries: core },
+              ...(rest.length ? [{ title: "Properties", entries: rest.map((e) => ({ ...e, label: humanize(e.key) })) }] : []),
+              ...(structural.length
+                ? [
+                    {
+                      title: "STAC",
+                      collapsible: true,
+                      summary: [
+                        `version ${item.stac_version}`,
+                        plural(item.stac_extensions?.length ?? 0, "extension"),
+                        plural(structural.length, "link"),
+                      ].join(" · "),
+                      entries: [
+                        { key: "stac_version", value: item.stac_version },
+                        { key: "stac_extensions", value: item.stac_extensions },
+                        ...structural.map((l) => ({ key: `link_${l.rel}`, value: l.href, label: `${humanize(l.rel)} link` })),
+                      ],
+                    },
+                  ]
+                : []),
+            ]}
+          />
         </div>
       </div>
     </div>
   );
+}
+
+function plural(n: number, word: string): string {
+  return `${fmtNum(n)} ${word}${n === 1 ? "" : "s"}`;
 }
 
 function str(v: unknown): string | null {
