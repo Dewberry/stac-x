@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readItems } from "./parquet";
 import type { StacAsset, StacItem, StacLink } from "./stac";
 import { NotFound, parseRef, readJson } from "./storage";
 
@@ -9,11 +10,19 @@ import { NotFound, parseRef, readJson } from "./storage";
  * An environment's folder or prefix can hold a catalog.json at its root.
  * The catalog's `child` links are followed, through any sub-catalogs, to
  * collections, whatever their files are called (collection-v1.0.json is
- * fine). Each collection is one source, and its items are the ones its
- * `item` links point at. Hrefs in a static catalog are usually relative, so every link
+ * fine). Each collection is one source. Its items are the ones its `item`
+ * links point at (the Development catalog), or, when it has none, the rows
+ * of the stac-geoparquet file it links to as an `alternate` (the Testing
+ * catalog). Hrefs in a static catalog are usually relative, so every link
  * and asset href is resolved against the file it came from; after that the
  * rest of the app treats these items exactly like ones read from parquet.
  */
+
+/** A link to a parquet file, by its media type or its extension. */
+const PARQUET_LINK = (l: StacLink) =>
+  typeof l?.href === "string" &&
+  l.rel !== "self" &&
+  (/parquet/i.test(l.type ?? "") || /\.(geo)?parquet$|\.pq$/i.test(l.href));
 
 export type JsonStac = {
   items: StacItem[];
@@ -66,13 +75,34 @@ export async function readCollectionJson(uri: string): Promise<JsonStac> {
   const id = doc.id;
   const links = Array.isArray(doc.links) ? (doc.links as StacLink[]) : [];
   const hrefs = links.filter((l) => l?.rel === "item" && typeof l.href === "string").map((l) => resolveHref(l.href, uri));
-  const items = await Promise.all(
-    hrefs.map(async (href) => {
-      const { value } = await readJson<Record<string, unknown>>(href);
-      return toItem(value, href, id);
-    }),
-  );
-  return { items, collections: { [id]: doc } };
+  if (hrefs.length) {
+    const items = await Promise.all(
+      hrefs.map(async (href) => {
+        const { value } = await readJson<Record<string, unknown>>(href);
+        return toItem(value, href, id);
+      }),
+    );
+    return { items, collections: { [id]: doc } };
+  }
+  // No item links: the items are the rows of the parquet file the collection
+  // links to. The file is this collection's, whatever its rows say: the
+  // portable catalog's rows carry the ids they had before they were
+  // packaged (or none), and their collection links are relative to item
+  // files that aren't in this catalog. So each item gets this collection's
+  // id and a collection link to this file, which is also what the version
+  // grouping keys on; the rest of its links are left as written.
+  const parquet = links.find(PARQUET_LINK);
+  if (!parquet) return { items: [], collections: { [id]: doc } };
+  const read = await readItems(resolveHref(parquet.href, uri));
+  const own: StacLink = { rel: "collection", href: uri, type: "application/json" };
+  return {
+    items: read.items.map((item) => ({
+      ...item,
+      collection: id,
+      links: [own, ...item.links.filter((l) => l.rel !== "collection" && l.rel !== "parent")],
+    })),
+    collections: { ...read.collections, [id]: doc },
+  };
 }
 
 function toItem(raw: Record<string, unknown>, uri: string, collection: string): StacItem {

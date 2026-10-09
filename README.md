@@ -28,9 +28,11 @@ npm run dev
 ```
 
 Open http://localhost:3000. With nothing configured, Development reads the
-STAC catalog at `s3://south-platte/stac-metadata/catalog.json` and Testing
-reads `s3://south-platte/stac-portable/catalog.json`, so both need AWS
-credentials with access to that bucket. Without them the pages still load,
+STAC catalog at `s3://south-platte/stac-metadata/catalog.json`, where each
+item is its own JSON file, and Testing reads
+`s3://south-platte/stac-portable/catalog.json`, where each collection's
+items are one GeoParquet file. Both need AWS credentials with access to
+that bucket. Without them the pages still load,
 with a note that collections couldn't be loaded, and Development shows the
 demo gages in `data/demo` instead so there's something to look at. Setting
 `STAC_SOURCES_DEV` turns the demo off. Production, at the
@@ -95,7 +97,7 @@ src/lib/parquet.ts          stac-geoparquet to STAC items, with hyparquet
 src/lib/storage.ts          S3 and local disk behind one interface, with conditional writes
 src/lib/env.ts              the three environments and the links between them
 src/lib/edits.ts            the QC sidecar: where it lives, how it is written
-src/lib/stac-json.ts        reads a static STAC collection.json and its items
+src/lib/stac-json.ts        reads a static STAC collection.json and its items, JSON or parquet
 src/lib/promote.ts          copies an approved collection to the next environment
 src/lib/versions.ts         works out which collections are versions of each other
 src/lib/fixtures/review.ts  mocked review queue rows for the Admin page
@@ -109,9 +111,10 @@ scripts/vendor-maplibre.mjs copies MapLibre's worker into public/ before dev and
 ## How the data flows
 
 Every request wants the same thing, so the catalog is held in memory. On the
-first request the app lists the configured sources, reads each parquet file
-with hyparquet (pure JS, decodes the WKB geometry itself), and turns each row
-back into a STAC item. After that a request costs nothing until
+first request the app lists the configured sources, follows each catalog to
+its collections, reads each parquet file with hyparquet (pure JS, decodes the
+WKB geometry itself) or each item JSON, and turns every row or file back into
+a STAC item. After that a request costs nothing until
 `STAC_REFRESH_SECONDS` have passed, when each file's ETag is checked and only
 a changed file is re-read. A new file in the bucket shows up on its own.
 
