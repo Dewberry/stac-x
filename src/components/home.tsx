@@ -1,35 +1,34 @@
 "use client";
 
 import nextDynamic from "next/dynamic";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection } from "geojson";
 import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
-import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
+import type { QcEdit, QcStatus } from "@/lib/stac";
 import { HomePreview, PreviewBody } from "./home-preview";
-import { QcMark, stateOf } from "./qc-mark";
+import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
 
 /**
- * The landing page, after Alaska Ground Watch: one hero line (the question
- * on the left, one figures card on the right), then one console card
- * holding the list of collections beside the map. One shared hover joins the
- * list and the pins, so pointing at a name finds its mark and pointing at a
- * mark finds its name.
+ * The home page, a console for people who already know FFRD: the
+ * collections rail on the left and the map on the right, filling the window
+ * under the environment band. Nothing here says what stac-x is; the header
+ * does that. One shared hover joins the list and the pins, so pointing at a
+ * name finds its mark and pointing at a mark finds its name.
  *
- * The figures card is also the review filter: each state's button narrows
- * the rail to that state and dims the other pins. The rail groups by kind
- * or by review state. Selecting a collection expands its row in place with
- * enough to decide whether to open it, and draws its footprint on the map;
- * nothing covers the map. Enter on a row opens the collection, Escape
- * closes the row.
+ * The map's review menu is the legend for the pins' marks and the review
+ * filter in one: each state's row shows its count and narrows the rail to
+ * that state, dimming the other pins. The rail groups by kind or by review
+ * state. Selecting a collection expands its row in place with enough to
+ * decide whether to open it, and draws its footprint on the map; nothing
+ * covers the map. Enter on a row opens the collection, Escape closes the row.
  *
- * On a phone the hero stacks, the map becomes a card, and the list flows
- * under it, and a selection opens a sheet over the map instead. The map is
- * first in the DOM because that is the phone's order; on a wide screen the
- * row is reversed so the rail sits on the left.
+ * On a phone the page is a plain column: the map, then the rail with the
+ * state buttons in its head, and a selection opens a sheet over the map
+ * instead. The map is first in the DOM because that is the phone's order;
+ * on a wide screen the row is reversed so the rail sits on the left.
  */
 
 const HomeMap = nextDynamic(() => import("./home-map").then((m) => m.HomeMap), {
@@ -65,11 +64,8 @@ export type HomeArea = {
 
 export type GroupBy = "kind" | "review";
 
-/** The order of the review bar and the filter buttons. */
-const BAR_ORDER: QcStatus[] = ["approved", "needs_revision", "rejected", "pending"];
 /** The order of the rail's review groups: what needs someone first. */
 const REVIEW_GROUPS: QcStatus[] = ["needs_revision", "rejected", "pending", "approved"];
-const QC_LABEL = Object.fromEntries(QC_STATUSES.map((s) => [s.value, s.label])) as Record<QcStatus, string>;
 const GROUP_KEY = "sx-home-group";
 const WIDE_SCREEN = "(min-width: 64rem)";
 
@@ -108,16 +104,13 @@ function regroup(v: GroupBy) {
 export function HomeConsole({
   areas,
   items,
-  title,
-  totals,
-  adminHref,
+  byState,
   emptyText,
 }: {
   areas: HomeArea[];
   items: FeatureCollection;
-  title: string;
-  totals: { collections: number; byState: Record<QcStatus, number> };
-  adminHref: string;
+  /** How many collections are in each review state. */
+  byState: Record<QcStatus, number>;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
 }) {
@@ -221,17 +214,6 @@ export function HomeConsole({
 
   return (
     <div className="sx-home">
-      <section className="sx-hero">
-        <div className="sx-hero-text">
-          <p className="sx-eyebrow">FFRD · South Platte</p>
-          <h1 className="sx-hero-title">{title}</h1>
-          <p className="sx-hero-count">
-            <span className="ffx-num">{fmtNum(totals.collections)}</span> {totals.collections === 1 ? "collection" : "collections"}
-          </p>
-        </div>
-        <Figures totals={totals} filter={filter} onFilter={setFilter} adminHref={adminHref} />
-      </section>
-
       <div className="sx-console">
         <div ref={mapBoxRef} className="sx-console-map">
           <HomeMap
@@ -240,6 +222,8 @@ export function HomeConsole({
             highlight={selected ?? hovered}
             shown={selected}
             filter={filter}
+            byState={byState}
+            onFilter={setFilter}
             basinHighlight={highlightedBasin}
             focus={focus}
             onHover={setHovered}
@@ -252,6 +236,9 @@ export function HomeConsole({
           <div className="sx-rail-head">
             <div className="sx-rail-title">
               <h2>Collections</h2>
+              <span className="sx-rail-count ffx-num">
+                {shown.length} of {areas.length}
+              </span>
               <div className="sx-group-switch" role="group" aria-label="Group by">
                 <span className="sx-group-switch-l" aria-hidden="true">Group by</span>
                 {(["kind", "review"] as const).map((v) => (
@@ -274,11 +261,28 @@ export function HomeConsole({
                 onChange={(e) => setQuery(e.target.value)}
               />
             </label>
+            {/* On a phone the review menu isn't on the map; its buttons are here. */}
+            {areas.length > 0 && (
+              <div className="sx-rail-states" role="group" aria-label="Filter by review state">
+                {STATE_ORDER.map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    className="sx-state-btn"
+                    aria-pressed={filter === st}
+                    onClick={() => setFilter(filter === st ? null : st)}
+                  >
+                    <QcMark state={st} />
+                    <b className="ffx-num">{fmtNum(byState[st])}</b>
+                    <span>{QC_LABEL[st]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {filter && (
               <p className="sx-filter-line" role="status">
                 <span>
-                  Showing <b>{QC_LABEL[filter]}</b> · <span className="ffx-num">{shown.length}</span> of{" "}
-                  <span className="ffx-num">{areas.length}</span>
+                  Showing <b>{QC_LABEL[filter]}</b> only
                 </span>
                 <button type="button" onClick={() => setFilter(null)}>
                   Show all
@@ -312,61 +316,6 @@ export function HomeConsole({
             ))}
           </ul>
         </aside>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The figures card: how many collections, a bar of where review stands, and
- * one button per state that filters the rail and the pins. The bar doubles
- * as the pins' legend, since it uses the same marks.
- */
-function Figures({
-  totals,
-  filter,
-  onFilter,
-  adminHref,
-}: {
-  totals: { collections: number; byState: Record<QcStatus, number> };
-  filter: QcStatus | null;
-  onFilter: (s: QcStatus | null) => void;
-  adminHref: string;
-}) {
-  const waiting = totals.byState.pending;
-  return (
-    <div className="sx-figs">
-      <p className="sx-figs-count">
-        <b className="ffx-num">{fmtNum(totals.collections)}</b>
-        <span>{totals.collections === 1 ? "collection" : "collections"}</span>
-      </p>
-      <span className="sx-figs-rule" aria-hidden="true" />
-      <div className="sx-figs-bar">
-        <span className="sx-bar" role="img" aria-label={BAR_ORDER.map((s) => `${totals.byState[s]} ${QC_LABEL[s].toLowerCase()}`).join(", ")}>
-          {BAR_ORDER.map((s) =>
-            totals.byState[s] ? <i key={s} data-qc={s} style={{ flexGrow: totals.byState[s] }} /> : null,
-          )}
-        </span>
-        {waiting > 0 && (
-          <Link href={adminHref} className="sx-figs-waiting">
-            <span className="ffx-num">{fmtNum(waiting)}</span> waiting →
-          </Link>
-        )}
-      </div>
-      <div className="sx-figs-states" role="group" aria-label="Filter by review state">
-        {BAR_ORDER.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className="sx-state-btn"
-            aria-pressed={filter === s}
-            onClick={() => onFilter(filter === s ? null : s)}
-          >
-            <QcMark state={s} />
-            <b className="ffx-num">{fmtNum(totals.byState[s])}</b>
-            <span>{QC_LABEL[s]}</span>
-          </button>
-        ))}
       </div>
     </div>
   );

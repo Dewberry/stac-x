@@ -1,4 +1,4 @@
-import type { QcStatus } from "@/lib/stac";
+import { QC_STATUSES, type QcStatus } from "@/lib/stac";
 import type { HomeArea } from "./home";
 
 /**
@@ -12,3 +12,8 @@ export function QcMark({ state }: { state: QcStatus }) {
 }
 
 export const stateOf = (a: Pick<HomeArea, "qc">): QcStatus => a.qc?.qc ?? "pending";
+
+/** The order of the review menu, its phone buttons and the review bar. */
+export const STATE_ORDER: QcStatus[] = ["approved", "needs_revision", "rejected", "pending"];
+
+export const QC_LABEL = Object.fromEntries(QC_STATUSES.map((s) => [s.value, s.label])) as Record<QcStatus, string>;

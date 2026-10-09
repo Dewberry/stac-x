@@ -21,8 +21,9 @@ import {
 } from "./map-core";
 import type { HomeArea } from "./home";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
-import { QC_STATUSES, type QcStatus } from "@/lib/stac";
-import { QcMark, stateOf } from "./qc-mark";
+import type { QcStatus } from "@/lib/stac";
+import { fmtNum } from "@/lib/format";
+import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
 
 /**
  * The landing page map: the South Platte basin, with every model area named
@@ -235,7 +236,7 @@ function placeLabels(
 ) {
   const box = map.getContainer().getBoundingClientRect();
   const blocked: Rect[] = [];
-  for (const sel of [".ffx-map-ctl", ".sx-legend-box", ".sx-credit"]) {
+  for (const sel of [".ffx-map-ctl", ".sx-review-menu", ".sx-density-box", ".sx-credit"]) {
     const r = frame.querySelector(sel)?.getBoundingClientRect();
     if (r && r.width) blocked.push([r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top]);
   }
@@ -276,6 +277,8 @@ export function HomeMap({
   highlight,
   shown,
   filter,
+  byState,
+  onFilter,
   basinHighlight,
   focus,
   onHover,
@@ -291,6 +294,9 @@ export function HomeMap({
   shown: string | null;
   /** The review state the rail is filtered to; pins in other states dim. */
   filter: QcStatus | null;
+  /** How many collections are in each state, for the review menu. */
+  byState: Record<QcStatus, number>;
+  onFilter: (s: QcStatus | null) => void;
   basinHighlight: string | null;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
   focus: { bbox: [number, number, number, number]; key: number } | null;
@@ -360,7 +366,13 @@ export function HomeMap({
       if (process.env.NODE_ENV !== "production") (window as unknown as { __sxMap?: unknown }).__sxMap = m;
 
       const fit = () => m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration: 300 });
-      m.addControl(new Controls(m, frame, fit, "Fit to the South Platte"), "top-right");
+      // The map already fills the window, so there's no full screen button.
+      m.addControl(new Controls(m, frame, fit, "Fit to the South Platte", { fullscreen: false }), "top-right");
+      // The map takes the window, so a resize changes what fits. With nothing
+      // selected, keep the basin framed.
+      m.on("resize", () => {
+        if (!shownRef.current) m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration: 0 });
+      });
 
       const draw = () => {
         if (m.getSource(SRC_ITEMS)) return;
@@ -392,7 +404,7 @@ export function HomeMap({
         btn.className = "sx-pin-btn";
         btn.type = "button";
         const state = stateOf(a);
-        const label = QC_STATUSES.find((x) => x.value === state)?.label.toLowerCase() ?? "";
+        const label = QC_LABEL[state].toLowerCase();
         btn.setAttribute("aria-label", `${a.name}, ${label}`);
         const mark = document.createElement("span");
         mark.className = "sx-qc-mark";
@@ -532,9 +544,9 @@ export function HomeMap({
           </span>
         )}
         {areas.length > 0 && (
-          <span className="sx-legend-box">
+          <span className="sx-map-key">
             {dense?.steps && (
-              <span className="sx-legend sx-legend-density">
+              <span className="sx-density-box">
                 <span>{dense.kind === "storms" ? "Storms" : "Items"} covering each spot</span>
                 {dense.steps.map(([lo, hi], i) => (
                   <span key={i} className="sx-legend">
@@ -544,14 +556,20 @@ export function HomeMap({
                 ))}
               </span>
             )}
-            <span className="sx-legend sx-legend-states">
-              {(["approved", "needs_revision", "rejected", "pending"] as const).map((s) => (
-                <span key={s} className="sx-legend">
-                  <QcMark state={s} />
-                  <span className="sx-legend-l">{QC_STATUSES.find((x) => x.value === s)!.label}</span>
-                </span>
+            {/* The legend for the pins' marks, and the review filter. */}
+            <span className="sx-review-menu" role="group" aria-label="Review state">
+              {STATE_ORDER.map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  aria-pressed={filter === st}
+                  onClick={() => onFilter(filter === st ? null : st)}
+                >
+                  <QcMark state={st} />
+                  <span>{QC_LABEL[st]}</span>
+                  <b className="ffx-num">{fmtNum(byState[st])}</b>
+                </button>
               ))}
-              <span className="sx-legend-short">Review state</span>
             </span>
           </span>
         )}

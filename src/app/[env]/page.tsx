@@ -2,7 +2,7 @@ import type { FeatureCollection } from "geojson";
 import { HomeConsole, type HomeArea } from "@/components/home";
 import { basinAt, basinShare } from "@/lib/basin-at";
 import { FOCUS_BASIN } from "@/lib/basins";
-import { withEnv, type EnvKey } from "@/lib/env";
+import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { guessKind } from "@/lib/kinds";
 import { overview } from "@/lib/overview";
@@ -85,16 +85,13 @@ export default async function Home({ params }: { params: Promise<{ env: string }
 
   const byState = Object.fromEntries(QC_STATUSES.map((s) => [s.value, 0])) as Record<QcStatus, number>;
   for (const a of areas) byState[a.qc?.qc ?? "pending"]++;
-  const totals = { collections: areas.length, byState };
 
   return (
     <>
       <HomeConsole
         areas={areas}
         items={items}
-        title="What's in the catalog, and where?"
-        totals={totals}
-        adminHref={withEnv(env, "/admin")}
+        byState={byState}
         emptyText={EMPTY[env]}
       />
       {/* Only shown when something is wrong. The details go to the server log. */}

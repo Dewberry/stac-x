@@ -2194,140 +2194,52 @@ main:focus {
   }
 }
 
-/* ============================== landing page ==============================
+/* ============================== home page ===============================
 
-   After Alaska Ground Watch. One hero line: the question on the left, one
-   slim figures card on the right that doubles as the review filter. Under
-   it, one console card holds the list of collections beside the map. On a
-   phone the hero stacks, the map is its own card and the list flows under
-   it. */
+   A console for people who already know FFRD: the collections rail on the
+   left, the map on the right, edge to edge under the environment band. From
+   lg the page doesn't scroll; only the rail's list does. The body becomes
+   exactly the window's height and main takes what the header and the band
+   leave, so a band that wraps is accounted for. The footer, and its theme
+   control, are on every other page. On a phone it's a plain column: the
+   map, then the rail. */
 .sx-home {
-  display: grid;
-  gap: var(--ffx-deck-gap);
-  padding: 0.25rem var(--ffx-edge) var(--ffx-edge);
-}
-.sx-hero {
-  display: grid;
-  gap: 0.875rem;
-  padding: 0.75rem 0 0.25rem;
-}
-.sx-eyebrow {
-  font-size: var(--ffx-t-small);
-  font-weight: 500;
-  color: var(--ffx-ink-mut);
-}
-.sx-hero-title {
-  margin-top: 0.125rem;
-  font-family: var(--ffx-display);
-  font-size: clamp(1.625rem, 1.3rem + 1vw, 2rem);
-  line-height: 1.05;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  color: var(--ffx-ink);
-  text-wrap: pretty;
-}
-.sx-hero-count {
-  margin-top: 0.375rem;
-  font-size: var(--ffx-t-base);
-  color: var(--ffx-ink-sec);
+  display: block;
 }
 @media (min-width: 64rem) {
-  .sx-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 2rem;
-    padding-top: 1rem;
+  body:has(.sx-home) {
+    height: 100dvh;
+    overflow: hidden;
   }
-  .sx-hero-count {
+  body:has(.sx-home) > main {
+    display: flex;
+    min-height: 0;
+    max-width: none;
+  }
+  body:has(.sx-home) > .sx-footer {
     display: none;
+  }
+  .sx-home {
+    flex: 1;
+    display: flex;
+    min-width: 0;
   }
 }
 
-/* The figures card: count, review bar, and a filter button per state. On a
-   phone it stacks: the bar with a link to the queue, then the buttons two
-   by two. */
-.sx-figs {
-  display: grid;
-  gap: 0.625rem;
-  padding: 0.75rem;
-  border-radius: var(--ffx-radius-md);
-  background: var(--ffx-surface);
-  box-shadow: var(--ffx-shadow-card);
-}
-.sx-figs-count,
-.sx-figs-rule {
-  display: none;
-}
-.sx-figs-count {
-  align-items: baseline;
-  gap: 6px;
-  white-space: nowrap;
-}
-.sx-figs-count b {
-  font: 600 22px / 1 var(--ffx-display);
-  font-variant-numeric: tabular-nums lining-nums;
-  letter-spacing: -0.02em;
-  color: var(--ffx-ink);
-}
-.sx-figs-count span {
-  font-size: var(--ffx-t-small);
-  color: var(--ffx-ink-mut);
-}
-.sx-figs-rule {
-  width: 1px;
-  height: 24px;
-  background: var(--ffx-rule);
-}
-.sx-figs-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.sx-bar {
-  display: flex;
-  flex: 1;
-  gap: 2px;
-  height: 8px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--ffx-surface-sunken);
-}
-.sx-bar i {
-  flex-basis: 0;
-}
-.sx-bar i[data-qc="approved"] {
-  background: var(--ffx-verified);
-}
-.sx-bar i[data-qc="needs_revision"] {
-  background: var(--ffx-attn);
-}
-.sx-bar i[data-qc="rejected"] {
-  background: var(--ffx-bad);
-}
-.sx-bar i[data-qc="pending"] {
-  background: var(--ffx-n-300);
-}
-.sx-figs-waiting {
-  flex: none;
-  font-size: var(--ffx-t-small);
-  font-weight: 500;
-  color: var(--ffx-active-text);
-  text-decoration: none;
-}
-.sx-figs-waiting:hover {
-  text-decoration: underline;
-}
-.sx-figs-states {
+/* A review state's filter button, in the rail head on a phone: mark, bold
+   count, label. */
+.sx-rail-states {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.25rem;
+  gap: 2px;
+  margin: 0 -6px;
 }
 .sx-state-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 32px;
-  padding: 0 9px;
+  padding: 0 7px;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -2345,45 +2257,22 @@ main:focus {
 .sx-state-btn:hover {
   background: var(--ffx-surface-sunken);
 }
-.sx-state-btn[aria-pressed="true"] {
+.sx-state-btn[aria-pressed="true"],
+.sx-review-menu button[aria-pressed="true"] {
   background: var(--ffx-n-150);
   color: var(--ffx-ink);
 }
-:root[data-theme="dark"] .sx-state-btn[aria-pressed="true"] {
+:root[data-theme="dark"] :is(.sx-state-btn, .sx-review-menu button)[aria-pressed="true"] {
   background: var(--ffx-surface-raised);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .sx-state-btn[aria-pressed="true"] {
+  :root:not([data-theme="light"]) :is(.sx-state-btn, .sx-review-menu button)[aria-pressed="true"] {
     background: var(--ffx-surface-raised);
   }
 }
 @media (min-width: 64rem) {
-  .sx-figs {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    height: 52px;
-    padding: 0 10px 0 18px;
-  }
-  .sx-figs-count {
-    display: inline-flex;
-  }
-  .sx-figs-rule {
-    display: block;
-  }
-  .sx-figs-bar {
-    width: 96px;
-    flex: none;
-  }
-  .sx-figs-waiting {
+  .sx-rail-states {
     display: none;
-  }
-  .sx-figs-states {
-    display: flex;
-    gap: 2px;
-  }
-  .sx-state-btn {
-    min-height: 30px;
   }
 }
 
@@ -2452,12 +2341,6 @@ main:focus {
   color: var(--ffx-verified-text);
 }
 @media (min-width: 64rem) {
-  .sx-hero {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: 4rem;
-    padding-top: 1.25rem;
-  }
   .sx-stats {
     display: flex;
     justify-content: flex-end;
@@ -2468,22 +2351,19 @@ main:focus {
   }
 }
 
-/* The console: two cards on a phone, one card from lg with the rail on the
-   left at a fixed width and the map taking the rest, full height. */
+/* The console. On a phone the map is a band across the top and the rail a
+   plain block under it. From lg the rail is a fixed column and the map
+   takes the rest, both full height. */
 .sx-console {
   display: flex;
   flex-direction: column;
-  gap: var(--ffx-deck-gap);
 }
 .sx-console-map {
   position: relative;
-  scroll-margin-top: calc(var(--ffx-header) + 0.75rem);
-  height: 52vh;
-  min-height: 18rem;
-  border-radius: var(--ffx-radius-md);
+  scroll-margin-top: var(--ffx-header);
+  height: 360px;
   overflow: hidden;
   background: var(--ffx-surface-inset);
-  box-shadow: var(--ffx-shadow-card);
 }
 .sx-console-map .sx-home-map,
 .sx-console-map .ffx-map {
@@ -2506,7 +2386,7 @@ main:focus {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  padding: 0.75rem;
+  padding: 12px;
 }
 .sx-console-map .ffx-map-readout > * {
   pointer-events: auto;
@@ -2516,31 +2396,73 @@ main:focus {
   border-radius: 6px;
   padding: 0.1rem 0.45rem;
 }
+/* Zoom and fit: one white column of buttons. */
+.sx-console-map .maplibregl-ctrl-top-right {
+  top: 14px;
+  right: 14px;
+}
+.sx-console-map .maplibregl-ctrl-top-right .maplibregl-ctrl {
+  margin: 0;
+}
+.sx-console-map .ffx-map-ctl {
+  width: 34px;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-float);
+}
+.sx-console-map .ffx-map-ctl button {
+  width: 34px;
+  height: 34px;
+  color: var(--ffx-ink-sec);
+}
+.sx-console-map .ffx-map-ctl button + button {
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-console-map .ffx-map-ctl svg {
+  width: 18px;
+  height: 18px;
+}
 .sx-rail {
   display: flex;
   flex-direction: column;
-  border-radius: var(--ffx-radius-md);
   background: var(--ffx-surface);
-  box-shadow: var(--ffx-shadow-card);
-  overflow: hidden;
 }
 .sx-rail-head {
-  display: grid;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid var(--ffx-rule);
 }
 .sx-rail-title {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem 0.625rem;
+  align-items: baseline;
+  gap: 8px;
 }
 .sx-rail-title h2 {
   font-family: var(--ffx-display);
-  font-size: var(--ffx-t-head);
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.015em;
+}
+.sx-rail-count {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-rail-title .sx-group-switch {
+  margin-left: auto;
+  align-self: center;
+}
+.sx-rail-head .ffx-field {
+  height: 44px;
+  padding-inline: 12px;
+}
+@media (min-width: 64rem) {
+  .sx-rail-head .ffx-field {
+    height: 34px;
+  }
 }
 .sx-group-switch {
   display: inline-flex;
@@ -2553,16 +2475,29 @@ main:focus {
   color: var(--ffx-ink-mut);
 }
 .sx-group-switch button {
-  height: 26px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: none;
   font: inherit;
-  font-size: var(--ffx-t-small);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--ffx-ink-sec);
+  color: var(--ffx-ink-mut);
   cursor: pointer;
+}
+/* On a phone the pills are bigger and the label goes. */
+@media (max-width: 63.99rem) {
+  .sx-group-switch-l {
+    display: none;
+  }
+}
+@media (min-width: 64rem) {
+  .sx-group-switch button {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
 }
 .sx-group-switch button:hover {
   background: var(--ffx-surface-sunken);
@@ -2570,9 +2505,6 @@ main:focus {
 .sx-group-switch button[aria-pressed="true"] {
   background: var(--ffx-ink);
   color: var(--ffx-surface);
-}
-.sx-rail-head .ffx-field {
-  height: 2.125rem;
 }
 .sx-filter-line {
   display: flex;
@@ -2864,29 +2796,21 @@ main:focus {
 }
 @media (min-width: 64rem) {
   .sx-console {
+    flex: 1;
     flex-direction: row-reverse;
-    gap: 0;
-    height: clamp(30rem, calc(100dvh - 17rem), 48rem);
-    border-radius: var(--ffx-radius-md);
-    overflow: hidden;
-    background: var(--ffx-surface);
-    box-shadow: var(--ffx-shadow-card);
+    min-width: 0;
+    min-height: 0;
   }
   .sx-console-map {
     flex: 1;
     min-width: 0;
     height: auto;
-    min-height: 0;
-    border-radius: 0;
-    box-shadow: none;
   }
   .sx-rail {
-    width: 22rem;
+    width: 372px;
     flex: none;
-    border-radius: 0;
-    border-right: 1px solid var(--ffx-rule);
-    box-shadow: none;
     min-height: 0;
+    border-right: 1px solid var(--ffx-rule);
   }
   .sx-rail-list {
     flex: 1;
@@ -2989,7 +2913,7 @@ main:focus {
   }
 }
 
-/* The map's bottom edge: credits on the left, legend on the right. */
+/* The map's bottom edge: credits on the left, the review menu on the right. */
 .sx-console-map .ffx-map-readout {
   display: flex;
   align-items: flex-end;
@@ -3004,8 +2928,8 @@ main:focus {
 }
 .sx-credit-btn {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   border: 0;
@@ -3026,26 +2950,62 @@ main:focus {
   gap: 0.375rem;
   white-space: nowrap;
 }
-.sx-legend-box {
+.sx-map-key {
   margin-left: auto;
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.375rem;
-  padding: 0.5rem 0.75rem;
+  gap: 8px;
+}
+.sx-review-menu,
+.sx-density-box {
+  display: flex;
   border-radius: 10px;
   background: var(--ffx-glass);
   box-shadow: var(--ffx-shadow-float);
+}
+/* The legend for the pins' marks, and the review filter. */
+.sx-review-menu {
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+}
+.sx-review-menu button {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ffx-ink-sec);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 90ms linear;
+}
+.sx-review-menu button:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-review-menu b {
+  padding-left: 12px;
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-density-box {
+  align-items: center;
+  gap: 0.75rem;
+  padding: 8px 12px;
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-sec);
 }
-.sx-legend-states,
-.sx-legend-density {
-  gap: 0.875rem;
-}
 .sx-legend-step {
   width: 14px;
-  height: 9px;
+  height: 10px;
   border-radius: 2px;
 }
 .sx-legend-step[data-step="1"] {
@@ -3057,22 +3017,9 @@ main:focus {
 .sx-legend-step[data-step="3"] {
   background: color-mix(in srgb, var(--ffx-trace-deep) 62%, transparent);
 }
-.sx-legend-short {
-  display: none;
-}
-/* On a phone the legend is the four marks and one label. */
+/* On a phone the menu's buttons are in the rail head instead. */
 @media (max-width: 63.99rem) {
-  .sx-legend-states {
-    gap: 4px;
-  }
-  .sx-legend-states .sx-legend-l {
-    display: none;
-  }
-  .sx-legend-short {
-    display: inline;
-    margin-left: 0.375rem;
-  }
-  .sx-legend-density {
+  .sx-map-key {
     display: none;
   }
 }

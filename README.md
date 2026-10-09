@@ -237,16 +237,24 @@ links that point back into this app.
 
 ## The landing page
 
-The question runs across the top beside one slim figures card: how many
-collections there are, a bar of where their review stands, and a button
-per state (approved, needs revision, rejected, not reviewed). A state's
-button filters the rail to that state and dims the other pins; clicking it
-again clears it. Below that, one card holds the collection list beside a
-map of the South Platte basin, the only basin the program covers. Only
+The home page is a console for people who already know FFRD, so it has no
+hero or introduction; the header says what the app is. Under the
+environment band the collection list sits on the left and a map of the South
+Platte basin, the only basin the program covers, fills the rest of the
+window edge to edge. On a wide screen the page itself doesn't scroll, only
+the list does, and the footer is left off (it's on every other page). Only
 what's in the catalog is shown, with no placeholders for work that hasn't
 landed. Each collection links to its page and its counts are real. Its kind
 is guessed from its id and keywords, so nothing here has to change for a
 new file to appear.
+
+The menu in the map's bottom-right corner is the legend for the pins' marks
+and the review filter in one. Each row is a state (approved, needs revision,
+rejected, not reviewed) with its count; clicking one narrows the list to
+that state and dims the other pins, and clicking it again clears it. The
+list's head counts what's showing ("1 of 10"). On a phone the map is a band
+across the top, the list follows it, and the menu's four buttons sit in the
+list's head instead.
 
 A collection's pin sits under the middle of its extent, and its mark is its
 review state: filled green, amber or red, or a hollow ring when nobody has
@@ -343,8 +351,8 @@ full-screen map, which is a different kind of app.
 
 ## Design
 
-The map is the app. The landing page gives most of the screen to a map of
-the South Platte with the collection list beside it. Collection and item pages keep
+The map is the app. The home page is the collection list beside a map of
+the South Platte that fills the rest of the window. Collection and item pages keep
 STAC Browser's placement (see Page layout). Cards are white on a pale canvas, lifted by a
 shadow rather than a border, and they all share one corner radius. Every page
 keeps its content on the same edges as the header's. River blue is for data on the map and for links. Green,
@@ -361,7 +369,8 @@ go up a notch and form controls are 16px so iOS doesn't zoom on focus.
 Tokens live in `src/app/globals.css`; the
 custom property names are inherited from ffrd-x so the two apps read the
 same token names, but the values are this app's own. Dark mode follows the
-OS and can be forced from the footer.
+OS and can be forced from the footer, which every page but the home page
+shows on a wide screen.
 
 Three earlier directions were mocked up before this one was chosen; the
 PDFs of the chosen direction are in `docs/design/`.

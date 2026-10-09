@@ -213,6 +213,7 @@ export class Controls implements IControl {
     private readonly frame: HTMLElement,
     private readonly fit: () => void,
     private readonly fitLabel = "Fit to data",
+    private readonly opts: { fullscreen?: boolean } = {},
   ) {}
   onAdd() {
     const el = document.createElement("div");
@@ -230,7 +231,7 @@ export class Controls implements IControl {
     button("Zoom in", ICON.zoomIn, () => this.map.zoomIn());
     button("Zoom out", ICON.zoomOut, () => this.map.zoomOut());
     button(this.fitLabel, ICON.fit, this.fit);
-    if (document.fullscreenEnabled) {
+    if (document.fullscreenEnabled && this.opts.fullscreen !== false) {
       const fs = button("Full screen", ICON.enter, () => {
         if (document.fullscreenElement) void document.exitFullscreen();
         else void this.frame.requestFullscreen();
