@@ -71,12 +71,13 @@
   --ffx-surface-inset: #e2e8ee;
   --ffx-glass: rgba(255, 255, 255, 0.9);
 
-  /* The landing map. Land is brighter than the page and the wash outside the
-     basin is darker than it, so the basin comes off the card. The ground is
-     warm (paper, sand, a brown-gray shade for the relief) so it doesn't run
-     into the cool page, and blue is left to mean water and data. */
+  /* The maps. Land is brighter than the page and the wash outside the basin
+     is darker than it, so the basin comes off the card. The ground is warm
+     (paper, sand, a brown-gray shade for the relief) so it doesn't run into
+     the cool page, and blue is left to mean water and data. The surround
+     carries its own alpha: it's drawn over the land at full opacity. */
   --ffx-map-land: #fdfcf9;
-  --ffx-map-surround: #cdc6b8;
+  --ffx-map-surround: rgb(205 198 184 / 0.6);
   --ffx-map-water: #a9c4ee;
   --ffx-map-shade: #6a6053;
   --ffx-map-light: #ffffff;
@@ -210,11 +211,16 @@
     --ffx-surface-sunken: #141a20;
     --ffx-surface-inset: #10161c;
     --ffx-glass: rgba(26, 32, 39, 0.92);
-    --ffx-map-land: #262522;
-    --ffx-map-surround: #0b0a09;
+    /* The basemap's dark style draws roads, parks and boundaries a shade
+       lighter than its ground, so the land has to sit under them: cool and
+       near black, in the page's own slate. A lighter land turned every
+       road into a black scratch. The relief stays quiet for the same
+       reason, and the surround only dims the outside a little. */
+    --ffx-map-land: #111417;
+    --ffx-map-surround: rgb(0 0 0 / 0.5);
     --ffx-map-water: #2b4674;
-    --ffx-map-shade: #05080b;
-    --ffx-map-light: #504d47;
+    --ffx-map-shade: #080a0d;
+    --ffx-map-light: #2c333b;
     --ffx-rule: #2a333d;
     --ffx-rule-strong: #3a4550;
     --ffx-control-edge: #4a5661;
@@ -267,11 +273,16 @@
   --ffx-surface-sunken: #141a20;
   --ffx-surface-inset: #10161c;
   --ffx-glass: rgba(26, 32, 39, 0.92);
-  --ffx-map-land: #262522;
-  --ffx-map-surround: #0b0a09;
+  /* The basemap's dark style draws roads, parks and boundaries a shade
+     lighter than its ground, so the land has to sit under them: cool and
+     near black, in the page's own slate. A lighter land turned every
+     road into a black scratch. The relief stays quiet for the same
+     reason, and the surround only dims the outside a little. */
+  --ffx-map-land: #111417;
+  --ffx-map-surround: rgb(0 0 0 / 0.5);
   --ffx-map-water: #2b4674;
-  --ffx-map-shade: #05080b;
-  --ffx-map-light: #504d47;
+  --ffx-map-shade: #080a0d;
+  --ffx-map-light: #2c333b;
   --ffx-rule: #2a333d;
   --ffx-rule-strong: #3a4550;
   --ffx-control-edge: #4a5661;

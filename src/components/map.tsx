@@ -20,6 +20,7 @@ import {
   blankStyle,
   Controls,
   creditsOf,
+  dressBasemap,
   MapCredits,
   palette,
   watchTheme,
@@ -45,8 +46,9 @@ import {
  * today can become PMTiles from the bucket tomorrow with the layers unchanged.
  *
  * The basemap is OpenStreetMap through OpenFreeMap, one quiet style per
- * palette, no key and no cap. If it can't be fetched the features still draw
- * over a plain ground and the readout says so.
+ * palette, no key and no cap, dressed in the app's colors the same way the
+ * landing map is. If it can't be fetched the features still draw over a
+ * plain ground and the readout says so.
  */
 
 export type MapProps = {
@@ -261,7 +263,9 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
 
       const draw = () => {
         if (m.getSource(SRC)) return;
-        addLayers(m, palette(frame), dataRef.current, hiRef.current, selectedRef.current);
+        const p = palette(frame);
+        dressBasemap(m, p);
+        addLayers(m, p, dataRef.current, hiRef.current, selectedRef.current);
         setCredits(creditsOf(m));
       };
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);

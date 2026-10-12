@@ -97,9 +97,14 @@ export const LAYER_RELIEF = "ffx-relief";
 
 /**
  * Give a gray basemap some life: land in the app's paper color, water and
- * rivers in a pale river blue, and shaded relief under the roads and labels.
- * Layers are found by what they draw rather than by id, so another
- * OpenMapTiles style works too; on the blank fallback this only adds relief.
+ * rivers in a pale river blue, labels in the app's muted ink with a halo of
+ * the land, and shaded relief under the roads and labels. Layers are found
+ * by what they draw rather than by id, so another OpenMapTiles style works
+ * too; on the blank fallback this only adds relief.
+ *
+ * The labels are recolored because the dark style's own gray never gets
+ * near readable on any dark ground. The relief is gentler in the dark
+ * palette: on a near-black ground a strong highlight reads as haze.
  */
 export function dressBasemap(map: MapLibreMap, p: Palette) {
   const layers = map.getStyle().layers;
@@ -108,6 +113,10 @@ export function dressBasemap(map: MapLibreMap, p: Palette) {
     if (l.type === "background") map.setPaintProperty(l.id, "background-color", p.mapLand);
     else if (l.type === "fill" && of === "water") map.setPaintProperty(l.id, "fill-color", p.mapWater);
     else if (l.type === "line" && of === "waterway") map.setPaintProperty(l.id, "line-color", p.mapWater);
+    else if (l.type === "symbol" && (l as { layout?: { "text-field"?: unknown } }).layout?.["text-field"]) {
+      map.setPaintProperty(l.id, "text-color", p.inkMut);
+      map.setPaintProperty(l.id, "text-halo-color", p.mapLand);
+    }
   }
   if (!TERRAIN_URL || map.getSource(SRC_TERRAIN)) return;
   map.addSource(SRC_TERRAIN, {
@@ -126,7 +135,7 @@ export function dressBasemap(map: MapLibreMap, p: Palette) {
       type: "hillshade",
       source: SRC_TERRAIN,
       paint: {
-        "hillshade-exaggeration": 0.5,
+        "hillshade-exaggeration": resolveTheme() === "dark" ? 0.3 : 0.5,
         "hillshade-shadow-color": p.mapShade,
         "hillshade-highlight-color": p.mapLight,
         "hillshade-accent-color": p.mapShade,

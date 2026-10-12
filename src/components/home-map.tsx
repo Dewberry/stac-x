@@ -132,9 +132,11 @@ function addLayers(
   map.addSource(SRC_ITEMS, { type: "geojson", data: items });
   map.addSource(SRC_BASINS, { type: "geojson", data: basinData(basin) });
 
+  // The surround token carries its own alpha, so each palette picks how
+  // much of the outside to dim.
   map.addLayer({
     id: L.mask, type: "fill", source: SRC_MASK,
-    paint: { "fill-color": p.mapSurround, "fill-opacity": 0.6 },
+    paint: { "fill-color": p.mapSurround, "fill-opacity": 1 },
   });
   // The fill can't be seen; it's the click target. A selected basin is
   // marked by its outline alone, so the land stays paper white.
