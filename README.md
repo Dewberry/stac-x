@@ -1,8 +1,15 @@
 # stac-x
 
-A STAC viewer for FFRD's Colorado data. It reads stac-geoparquet files
-straight from S3, draws every collection on a map of the South Platte basin,
-and lets a reviewer record QC on each collection. The one thing it writes is that QC record.
+A STAC viewer for FFRD's Colorado data. It reads static STAC catalogs and
+stac-geoparquet files, from S3 or local folders, draws every collection on a
+map of the South Platte basin, and lets a reviewer record QC on each
+collection. Approving a collection copies its files into the next environment
+(Development to Testing, Testing to Production).
+
+It writes two things. QC decisions go to a JSON sidecar beside the
+collection's file (`gages.parquet` gets `gages.edits.json`), never into the
+parquet itself, and a promoted collection is copied byte for byte into the
+next environment's first source.
 
 ![The stac-x homepage in Testing with Stream Gages selected: its 192 sites drawn as dots across the South Platte basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
 
@@ -27,6 +34,9 @@ Open http://localhost:3000, which lands in Development. Reading the S3
 catalogs needs AWS credentials with access to the `south-platte` bucket.
 Without them the pages still load, empty, with a note that collections
 couldn't be loaded.
+
+There's no identity provider yet. The sign-in page is a stand-in that opens
+Development whatever you type, and the account shown is a fixed role.
 
 For a demo, build for production and serve that instead, so pages don't
 compile on first click:
@@ -64,9 +74,11 @@ docker run --rm -p 3000:3000 --env-file .env stac-x
 ```
 
 The container reads the same variables as `.env.example`. Local sources
-(`./data/test`, `./data/prod`) live at `/app/data` inside the container and
-are lost when it stops, so mount the repo's `data` folder there to keep
-promoted collections and QC edits, the same place the dev server writes them:
+(`./data/prod` by default) live at `/app/data` inside the container and are
+lost when it stops, so mount the repo's `data` folder there to keep the
+collections promoted into Production and their QC edits, the same place the
+dev server writes them. Edits to collections read from S3 go to S3 sidecars
+either way:
 
 ```bash
 docker run --rm -p 3000:3000 --env-file .env -v "$PWD/data:/app/data" stac-x
@@ -99,8 +111,16 @@ cp .env.example .env
 
 Set `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and `STAC_SOURCES_PROD` to where
 each environment's files live: a STAC `catalog.json`, an S3 prefix, one
-object, a local folder, or a local file, separated by commas. Unset, Development
-reads `s3://south-platte/stac-metadata/catalog.json`, Testing reads
-`s3://south-platte/stac-portable/catalog.json`, and Production reads
-`./data/prod`. AWS credentials come from the SDK's usual chain: `AWS_PROFILE`,
-env keys, or an instance role. `.env.example` explains each variable.
+object, a local folder, or a local file, separated by commas. A prefix or
+folder is read for every parquet file and `catalog.json` in it. A catalog is
+followed through its `child` links to its collections, and each collection's
+items are the JSON files its `item` links point at or, when it has none, the
+rows of the parquet file it links to.
+
+Unset, Development reads `s3://south-platte/stac-metadata/catalog.json`,
+whose items are JSON, Testing reads
+`s3://south-platte/stac-portable/catalog.json`, whose collections each link
+to a parquet file, and Production reads `./data/prod`. Promotion copies
+parquet files, so a collection whose items are JSON can't be sent on yet.
+AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
+an instance role. `.env.example` explains each variable.

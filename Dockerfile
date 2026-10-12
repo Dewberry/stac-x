@@ -3,7 +3,7 @@
 #
 # Run it with the same variables as .env.example, for example:
 #   docker run -p 3000:3000 -e AWS_ACCESS_KEY_ID=... -e AWS_SECRET_ACCESS_KEY=... ghcr.io/dewberry/stac-x
-# Local sources (./data/test, ./data/prod) live under /app/data; mount a
+# Local sources (./data/prod by default) live under /app/data; mount a
 # volume there to keep promoted collections and QC edits across restarts.
 
 FROM node:24-alpine AS deps
