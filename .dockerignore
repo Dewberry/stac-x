@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+.git
+.idea
+.env*
+!.env.example
+data/**/*.edits.json
+data/test/*
+data/prod/*
+public/vendor
+docs
+*.tsbuildinfo
+npm-debug.log*
+.DS_Store

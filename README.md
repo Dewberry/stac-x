@@ -49,6 +49,24 @@ npm run lint
 npm run typecheck
 ```
 
+## Docker image
+
+Every push to `main` builds the image and publishes it to GitHub's container
+registry as `ghcr.io/dewberry/stac-x:main` (see
+`.github/workflows/docker.yml`). Tagging a release `v1.2.3` also publishes
+`1.2.3`, `1.2` and `latest`. The repo is private, so pulling needs a GitHub
+token with `read:packages`:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
+docker run -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
+```
+
+The container reads the same variables as `.env.example`. Local sources
+(`./data/test`, `./data/prod`) live at `/app/data` inside the container, so
+mount a volume there if promoted collections and QC edits should outlive
+the container. To build it yourself: `docker build -t stac-x .`
+
 ## Environment variables
 
 Make a `.env` file from the example. In PowerShell:
