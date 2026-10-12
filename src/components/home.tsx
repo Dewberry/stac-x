@@ -89,6 +89,8 @@ export type GroupBy = "kind" | "review";
 const REVIEW_GROUPS: QcStatus[] = ["needs_revision", "rejected", "pending", "approved"];
 const GROUP_KEY = "sx-home-group";
 const WIDE_SCREEN = "(min-width: 64rem)";
+/** How long, in ms, the pointer rests on a collection before the map previews it. */
+const PREVIEW_DELAY = 120;
 
 /**
  * The rail's grouping, a per-viewer preference kept in localStorage. Read
@@ -172,6 +174,17 @@ export function HomeConsole({
 
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
   const current = selected ? bySlug.get(selected) ?? null : null;
+  // The collection pointed at, a beat after the pointer gets there, so
+  // sweeping down the list doesn't flash every footprint on the way. The map
+  // previews it only while nothing is selected: the open row describes the
+  // selected footprint, so that one stays put.
+  const [pointed, setPointed] = useState<string | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => setPointed(hovered), PREVIEW_DELAY);
+    return () => clearTimeout(t);
+  }, [hovered]);
+  const preview = selected ? null : pointed;
+  const drawn = current ?? (preview ? bySlug.get(preview) ?? null : null);
 
   const mapBoxRef = useRef<HTMLDivElement>(null);
   const select = useCallback(
@@ -250,9 +263,10 @@ export function HomeConsole({
             items={items}
             highlight={selected ?? hovered}
             shown={selected}
+            preview={preview}
             filter={filter}
             basinHighlight={highlightedBasin}
-            basinCovered={current?.drawn === "basin"}
+            basinCovered={drawn?.drawn === "basin"}
             focus={focus}
             hoverKeys={hoverKeys}
             onHover={setHovered}

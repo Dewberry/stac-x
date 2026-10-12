@@ -3176,6 +3176,25 @@ main:focus {
   color: var(--ffx-ink-mut);
 }
 /* Under the home map: how many shapes the selected collection is. */
+/* Says the lit basin is a collection's footprint, which the fill alone
+   doesn't make clear, least of all in dark mode. */
+.sx-map-cover {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 0.3rem 0.75rem;
+  background: var(--ffx-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 999px;
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink);
+  white-space: nowrap;
+  pointer-events: none;
+}
 .sx-map-count {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);

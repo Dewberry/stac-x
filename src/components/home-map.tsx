@@ -50,13 +50,14 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * in blue. Everything beyond it sits under a darker, sand-colored wash, so
  * the basin reads as the lit shape on the card.
  *
- * Until something is selected the map holds only the pins, so it stays
- * readable however many collections there are. Selecting a collection draws
- * its footprint under the markers: small dots for point items like gages, a
- * faint fill and an outline for the area a model covers, three steps of
- * blue for how many shapes cover each spot when they overlap heavily, or a
- * dashed box when the shapes were too heavy to send (lib/overview.ts
- * decides which).
+ * Until something is selected or pointed at, the map holds only the pins, so
+ * it stays readable however many collections there are. Selecting a
+ * collection, or resting the pointer on one while nothing is selected, draws
+ * its footprint under the markers without moving the map: small dots for
+ * point items like gages, a faint fill and an outline for the area a model
+ * covers, three steps of blue for how many shapes cover each spot when they
+ * overlap heavily, or a dashed box when the shapes were too heavy to send
+ * (lib/overview.ts decides which).
  * When the footprint is a few shapes (a calibration collection's HMS and RAS
  * models of one basin, stacked), pointing at it names every shape under the
  * cursor and lights up their rows in the rail, and pointing at a row lights
@@ -64,8 +65,9 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * The pin says where a collection is; the footprint says how much ground it
  * covers. A collection whose shapes contain the whole basin has no footprint
  * of its own: the basin lights up instead, since the shape would tint the
- * whole map. Clicking the basin selects it, which zooms the map and
- * scrolls the rail to its group.
+ * whole map, and a note at the top of the map says so, since a lit basin on
+ * its own can read as the basin's usual styling. Clicking the basin selects
+ * it, which zooms the map and scrolls the rail to its group.
  */
 
 const SRC_ITEMS = "sx-items";
@@ -131,7 +133,7 @@ function addLayers(
   p: Palette,
   items: FeatureCollection,
   basin: Feature<Shape> | null,
-  shown: string | null,
+  drawn: string | null,
   hoverKeys: string[],
   basinHighlight: string | null,
   basinCovered: boolean,
@@ -166,7 +168,7 @@ function addLayers(
   });
 
   map.addLayer({
-    id: L.itemFill, type: "fill", source: SRC_ITEMS, filter: footprintFilter("fill", shown),
+    id: L.itemFill, type: "fill", source: SRC_ITEMS, filter: footprintFilter("fill", drawn),
     // Antialiasing draws a seam wherever two subbasins meet; the outline
     // layer already gives the edge. A few stacked shapes each get one of
     // the three blues (lib/overview.ts), the pale one stronger so it shows
@@ -175,7 +177,7 @@ function addLayers(
   });
   // Overlap density: three steps of river blue, palest for the fewest.
   map.addLayer({
-    id: L.density, type: "fill", source: SRC_ITEMS, filter: footprintFilter("density", shown),
+    id: L.density, type: "fill", source: SRC_ITEMS, filter: footprintFilter("density", drawn),
     paint: {
       "fill-color": ["match", ["get", "step"], 1, p.traceSoft, 2, p.trace, p.traceDeep],
       "fill-opacity": ["match", ["get", "step"], 1, 0.5, 2, 0.42, 0.62],
@@ -184,26 +186,26 @@ function addLayers(
   });
   // Each shape's own outline, once the map is close enough to tell them apart.
   map.addLayer({
-    id: L.densityLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("outline", shown), minzoom: 9,
+    id: L.densityLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("outline", drawn), minzoom: 9,
     paint: { "line-color": p.trace, "line-width": 0.6, "line-opacity": 0.6 },
   });
   map.addLayer({
-    id: L.itemExtent, type: "line", source: SRC_ITEMS, filter: footprintFilter("extent", shown),
+    id: L.itemExtent, type: "line", source: SRC_ITEMS, filter: footprintFilter("extent", drawn),
     paint: { "line-color": p.trace, "line-width": 1.75, "line-dasharray": [2, 1.5] },
   });
   map.addLayer({
-    id: L.itemLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("line", shown),
+    id: L.itemLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("line", drawn),
     layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": p.trace, "line-width": 1.75, "line-opacity": 0.9 },
   });
   // The shapes pointed at, outlined in ink over their neighbors.
   map.addLayer({
-    id: L.itemHi, type: "line", source: SRC_ITEMS, filter: hiFilter(shown, hoverKeys),
+    id: L.itemHi, type: "line", source: SRC_ITEMS, filter: hiFilter(drawn, hoverKeys),
     layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": p.ink, "line-width": 2.25, "line-opacity": 0.95 },
   });
   map.addLayer({
-    id: L.items, type: "circle", source: SRC_ITEMS, filter: footprintFilter("point", shown),
+    id: L.items, type: "circle", source: SRC_ITEMS, filter: footprintFilter("point", drawn),
     paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2.5, 9, 4.5],
       "circle-color": p.trace,
@@ -224,9 +226,9 @@ const FOOTPRINT_ROLES = [
   [L.items, "point"],
 ] as const;
 
-/** One part of the selected collection's footprint; nothing when none is selected. */
-function footprintFilter(role: string, shown: string | null): ExpressionSpecification {
-  return ["all", ["==", ["get", "role"], role], ["==", ["get", "slug"], shown ?? ""]];
+/** One part of the drawn collection's footprint; nothing when none is drawn. */
+function footprintFilter(role: string, slug: string | null): ExpressionSpecification {
+  return ["all", ["==", ["get", "role"], role], ["==", ["get", "slug"], slug ?? ""]];
 }
 
 /** The selected collection's shapes with these keys. */
@@ -239,7 +241,7 @@ const HIT = 4;
 /** The most names the tooltip lists before "and N more". */
 const TIP_ROWS = 6;
 
-/** The basin's own fill: on while the selected collection covers all of it, off otherwise. */
+/** The basin's own fill: on while the drawn collection covers all of it, off otherwise. */
 function basinCoverFilter(covered: boolean): ExpressionSpecification {
   return ["==", ["get", "huc4"], covered ? FOCUS_BASIN : ""];
 }
@@ -279,7 +281,7 @@ function placeLabels(
 ) {
   const box = map.getContainer().getBoundingClientRect();
   const blocked: Rect[] = [];
-  for (const sel of [".ffx-map-ctl", ".sx-density-box", ".sx-credit"]) {
+  for (const sel of [".ffx-map-ctl", ".sx-density-box", ".sx-credit", ".sx-map-cover"]) {
     const r = frame.querySelector(sel)?.getBoundingClientRect();
     if (r && r.width) blocked.push([r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top]);
   }
@@ -319,6 +321,7 @@ export function HomeMap({
   items,
   highlight,
   shown,
+  preview,
   filter,
   basinHighlight,
   basinCovered,
@@ -334,12 +337,14 @@ export function HomeMap({
   items: FeatureCollection;
   /** The pin to mark as active: the selected collection, or the one pointed at. */
   highlight: string | null;
-  /** The collection whose footprint is drawn: the selected one. */
+  /** The selected collection. */
   shown: string | null;
+  /** The collection pointed at while nothing is selected; its footprint is drawn as a preview. */
+  preview: string | null;
   /** The review state the rail is filtered to; pins in other states dim. */
   filter: QcStatus | null;
   basinHighlight: string | null;
-  /** The selected collection contains the whole basin, so the basin is lit up as its footprint. */
+  /** The drawn collection contains the whole basin, so the basin is lit up as its footprint. */
   basinCovered: boolean;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
   focus: { bbox: [number, number, number, number]; key: number } | null;
@@ -355,8 +360,14 @@ export function HomeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Map<string, { marker: Marker; pin: Pin }>>(new Map());
   const [credits, setCredits] = useState<Credit[]>([]);
-  const current = areas.find((a) => a.slug === shown) ?? null;
+  // The collection whose footprint is on the map: the selected one, or else
+  // the one pointed at.
+  const drawn = shown ?? preview;
+  const current = areas.find((a) => a.slug === drawn) ?? null;
   const dense = current?.drawn === "density" ? current : null;
+  // Pin names give way to a dense footprint only once it's selected, so
+  // they don't blink while the pointer moves down the list.
+  const denseShown = !!dense && drawn === shown;
   const [basemapDown, setBasemapDown] = useState(false);
   // The members under the cursor, named beside it. Kept with the slug they
   // belong to, so a new selection drops a stale one.
@@ -367,6 +378,7 @@ export function HomeMap({
   const areasRef = useRef(areas);
   const itemsRef = useRef(items);
   const shownRef = useRef(shown);
+  const drawnRef = useRef(drawn);
   const highlightRef = useRef(highlight);
   const denseRef = useRef(!!dense);
   const placeRef = useRef<() => void>(() => {});
@@ -382,8 +394,9 @@ export function HomeMap({
     areasRef.current = areas;
     itemsRef.current = items;
     shownRef.current = shown;
+    drawnRef.current = drawn;
     highlightRef.current = highlight;
-    denseRef.current = !!dense;
+    denseRef.current = denseShown;
     basinHighlightRef.current = basinHighlight;
     basinCoveredRef.current = basinCovered;
     hoverKeysRef.current = hoverKeys;
@@ -432,7 +445,7 @@ export function HomeMap({
       const draw = () => {
         if (m.getSource(SRC_ITEMS)) return;
         addLayers(
-          m, palette(frame), itemsRef.current, basinRef.current, shownRef.current, hoverKeysRef.current,
+          m, palette(frame), itemsRef.current, basinRef.current, drawnRef.current, hoverKeysRef.current,
           basinHighlightRef.current, basinCoveredRef.current,
         );
         setCredits(creditsOf(m));
@@ -575,13 +588,13 @@ export function HomeMap({
       pin.el.dataset.dim = String(!!a && slug !== highlight && ((!!shown && slug !== shown) || (!!filter && stateOf(a) !== filter)));
     });
     placeRef.current();
-  }, [areas, highlight, shown, filter, dense]);
+  }, [areas, highlight, shown, filter, denseShown, basinCovered]);
 
   useEffect(() => {
     const m = mapRef.current;
     if (!m?.getLayer(L.itemFill)) return;
-    for (const [id, role] of FOOTPRINT_ROLES) m.setFilter(id, footprintFilter(role, shown));
-  }, [shown]);
+    for (const [id, role] of FOOTPRINT_ROLES) m.setFilter(id, footprintFilter(role, drawn));
+  }, [drawn]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -630,6 +643,7 @@ export function HomeMap({
           {tip.rows.length > TIP_ROWS && <span className="ffx-map-tip-more">and {tip.rows.length - TIP_ROWS} more</span>}
         </div>
       )}
+      {basinCovered && <div className="sx-map-cover">Covers the whole South Platte basin</div>}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <MapCredits credits={credits} />
