@@ -3180,7 +3180,7 @@ main:focus {
    doesn't make clear, least of all in dark mode. */
 .sx-map-cover {
   position: absolute;
-  top: 14px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;

@@ -65,7 +65,7 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * The pin says where a collection is; the footprint says how much ground it
  * covers. A collection whose shapes contain the whole basin has no footprint
  * of its own: the basin lights up instead, since the shape would tint the
- * whole map, and a note at the top of the map says so, since a lit basin on
+ * whole map, and a note at the bottom of the map says so, since a lit basin on
  * its own can read as the basin's usual styling. Clicking the basin selects
  * it, which zooms the map and scrolls the rail to its group.
  */
