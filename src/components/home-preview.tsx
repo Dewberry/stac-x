@@ -142,7 +142,7 @@ export function PreviewBody({ area, hoverKeys, onHoverKeys }: { area: HomeArea }
           JSON
         </a>
         <Link href={area.href} className="ffx-btn ffx-btn-primary">
-          Open collection →
+          Open collection
         </Link>
       </div>
     </div>
