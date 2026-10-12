@@ -158,10 +158,17 @@ export function labelFont(style: StyleSpecification | undefined): string[] | nul
   return fonts.find((f) => /regular/i.test(f[0])) ?? fonts[0] ?? ["Noto Sans Regular"];
 }
 
+/** The basemap request in flight for each map, so a newer one can cancel it. */
+const inflight = new WeakMap<MapLibreMap, AbortController>();
+
 /**
  * Fetch the basemap for the current palette and apply it, then call `draw`
  * once the style is in so the app's layers go back on top. Falls back to a
  * blank ground and reports it.
+ *
+ * A newer call for the same map cancels the one still in flight. Without
+ * that, two quick theme flips could race their responses and leave the map
+ * on the earlier theme's style.
  */
 export function applyBasemap(
   map: MapLibreMap,
@@ -170,15 +177,25 @@ export function applyBasemap(
   onStatus: (down: boolean) => void,
   isDisposed: () => boolean,
 ) {
-  fetch(styleUrl())
+  inflight.get(map)?.abort();
+  const ctl = new AbortController();
+  inflight.set(map, ctl);
+  const settle = () => {
+    if (inflight.get(map) === ctl) inflight.delete(map);
+  };
+  fetch(styleUrl(), { signal: ctl.signal })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
     .then((style: StyleSpecification) => {
+      settle();
       if (isDisposed()) return;
       onStatus(false);
       map.setStyle(style);
       map.once("styledata", draw);
     })
     .catch(() => {
+      // Cancelled by a newer request: that one will draw.
+      if (ctl.signal.aborted) return;
+      settle();
       if (isDisposed()) return;
       onStatus(true);
       map.setStyle(blankStyle(palette(host)));
