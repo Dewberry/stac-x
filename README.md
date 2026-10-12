@@ -54,18 +54,34 @@ npm run typecheck
 Every push to `main` builds the image and publishes it to GitHub's container
 registry as `ghcr.io/dewberry/stac-x:main` (see
 `.github/workflows/docker.yml`). Tagging a release `v1.2.3` also publishes
-`1.2.3`, `1.2` and `latest`. The repo is private, so pulling needs a GitHub
-token with `read:packages`:
+`1.2.3`, `1.2` and `latest`.
+
+To run the app from a local build instead of the dev server:
 
 ```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
-docker run -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
+docker build -t stac-x .
+docker run --rm -p 3000:3000 --env-file .env stac-x
 ```
 
 The container reads the same variables as `.env.example`. Local sources
-(`./data/test`, `./data/prod`) live at `/app/data` inside the container, so
-mount a volume there if promoted collections and QC edits should outlive
-the container. To build it yourself: `docker build -t stac-x .`
+(`./data/test`, `./data/prod`) live at `/app/data` inside the container and
+are lost when it stops, so mount the repo's `data` folder there to keep
+promoted collections and QC edits, the same place the dev server writes them:
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env -v "$PWD/data:/app/data" stac-x
+```
+
+To run the published image, log in to ghcr.io first. The repo is private, so
+this needs a classic GitHub token with `read:packages`:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
+docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
+```
+
+The image is a production build with no hot reload, so keep using `npm run dev`
+for day-to-day work and reach for the container to check what actually ships.
 
 ## Environment variables
 
