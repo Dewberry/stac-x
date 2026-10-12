@@ -5,6 +5,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { fmtRange } from "@/lib/format";
 import type { EnvKey } from "@/lib/env";
 import { itemHref } from "@/lib/utils";
+import { useItemHover } from "./item-hover";
 
 /**
  * The items of a collection: a search box, a sort, and pages of rows. Filtering runs in the browser over a compact
@@ -17,6 +18,10 @@ export type ItemRow = {
   label: string | null;
   /** The label already says the id ("Storm event 1"), so it isn't repeated under it. */
   hideId?: boolean;
+  /** "HEC-HMS" or "HEC-RAS" in a calibration collection, where both models carry the basin's name. */
+  kind?: string | null;
+  /** Which blue the item's shape is drawn in on the map, when there are few enough shapes to color. */
+  tint?: 1 | 2 | 3;
   start: string | null;
   end: string | null;
 };
@@ -32,6 +37,8 @@ export function ItemsList({ env, collection, rows }: { env: EnvKey; collection: 
   const [sort, setSort] = useState<Sort>("id");
   const [page, setPage] = useState(0);
   const q = useDeferredValue(query.trim().toLowerCase());
+  // Shared with the page's map: pointing at a row lights up its shape.
+  const { hovered, setHovered } = useItemHover();
 
   const filtered = useMemo(() => {
     let out = rows;
@@ -83,10 +90,27 @@ export function ItemsList({ env, collection, rows }: { env: EnvKey; collection: 
       ) : (
         <div className="sx-rows">
           {slice.map((r) => (
-            <Link key={r.id} href={itemHref(env, collection, r.id)} className="sx-row">
+            <Link
+              key={r.id}
+              href={itemHref(env, collection, r.id)}
+              className="sx-row"
+              data-active={hovered === r.id || undefined}
+              onMouseEnter={() => setHovered(r.id)}
+              onMouseLeave={() => setHovered(null)}
+              onFocus={() => setHovered(r.id)}
+              onBlur={() => setHovered(null)}
+            >
               <div className="sx-row-main">
-                <div className="sx-row-title">{r.label ?? r.id}</div>
+                <div className="sx-row-title">
+                  {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
+                  {r.label ?? r.id}
+                </div>
                 <div className="sx-row-sub">
+                  {r.kind && (
+                    <span className="sx-tag" data-tone="muted">
+                      {r.kind}
+                    </span>
+                  )}
                   {r.label && !r.hideId && <span className="ffx-id">{r.id}</span>}
                   {(r.start || r.end) && <span className="ffx-num">{fmtRange(r.start, r.end)}</span>}
                 </div>

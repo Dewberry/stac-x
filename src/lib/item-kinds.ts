@@ -1,3 +1,4 @@
+import { collectionName, itemLabel, tidyCaps } from "./format";
 import { AREA_KIND_LABEL, guessKind, type AreaKind } from "./kinds";
 
 /** The collection's kind, for the label above a collection page's title ("USGS gages", "Storm catalog"). */
@@ -33,16 +34,49 @@ type CollectionLike = { id: string; title: string; keywords: string[]; descripti
  * is: whichever extension has values filled in (the other's fields are
  * there but null), then the id.
  */
-export function itemKindLabel(c: CollectionLike, item: { id: string; properties: Record<string, unknown> }): string {
+export function itemKindLabel(c: CollectionLike, item: ItemLike): string {
   const kind = guessKind(c);
   if (kind !== "models") return ITEM_KIND_LABEL[kind];
+  const model = modelOf(item);
+  return model ? `${model} calibration model` : ITEM_KIND_LABEL.models;
+}
+
+type ItemLike = { id: string; properties: Record<string, unknown> };
+
+/** "HEC-HMS" or "HEC-RAS" for a model item, by whichever extension has values filled in, then the id. */
+function modelOf(item: ItemLike): "HEC-HMS" | "HEC-RAS" | null {
   const filled = (re: RegExp) =>
     Object.entries(item.properties).filter(([k, v]) => re.test(k) && v !== null && v !== "" && !(Array.isArray(v) && !v.length)).length;
   const hms = filled(/^hms[:_]/i);
   const ras = filled(/^(hec-)?ras[:_]/i);
-  if (hms > ras || (!ras && /\bhms\b/i.test(item.id.replace(/[-_]/g, " ")))) return "HEC-HMS calibration model";
-  if (ras > hms || /\bras\b/i.test(item.id.replace(/[-_]/g, " "))) return "HEC-RAS calibration model";
-  return ITEM_KIND_LABEL.models;
+  const words = item.id.replace(/[-_]/g, " ");
+  if (hms > ras || (!ras && /\bhms\b/i.test(words))) return "HEC-HMS";
+  if (ras > hms || /\bras\b/i.test(words)) return "HEC-RAS";
+  return null;
+}
+
+/**
+ * The short kind that tells apart items of a calibration collection, which
+ * carries an HMS and a RAS model of the same basin under the same project
+ * title: "HEC-HMS" or "HEC-RAS". Null for every other collection, whose
+ * items are all one kind.
+ */
+export function itemKindShort(c: CollectionLike, item: ItemLike): string | null {
+  return guessKind(c) === "models" ? modelOf(item) : null;
+}
+
+/**
+ * How an item is named in a list or on a map, the same on every page: its
+ * title, else its project title, else what it is ("Storm event 1", "Terrain
+ * tile"), never its bare id. `hideId` says the label already carries the id.
+ */
+export function itemRowLabel(c: CollectionLike, item: ItemLike): { label: string; hideId: boolean; kind: string | null } {
+  const project = projectTitle(item.properties);
+  const label = itemLabel(item.properties) ?? (project ? collectionName(project, project) : null);
+  const kind = itemKindShort(c, item);
+  if (label) return { label: tidyCaps(label), hideId: false, kind };
+  const unnamed = untitledName(itemKindLabel(c, item), item.id);
+  return { label: unnamed.title, hideId: unnamed.idInTitle, kind };
 }
 
 /**

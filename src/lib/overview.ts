@@ -20,7 +20,9 @@ import type { StacItem } from "./stac";
  * - areas: the distinct polygons, as a faint fill, with an outline that
  *   drops the edges polygons share. Subbasins that tile a model domain then
  *   draw as one domain instead of a mesh. Identical geometries (every event
- *   of one model) are drawn once.
+ *   of one model) are drawn once. Up to a few shapes, each is its own keyed
+ *   feature and `members` says which items it stands for, so the map can
+ *   name the models stacked on one basin.
  * - density: when there are many distinct polygons and they mostly sit on
  *   top of each other (a storm catalog's transposition areas), how many
  *   cover each spot, in three steps. Drawn one by one they'd be a solid
@@ -49,12 +51,38 @@ export type Overview = {
   features: Feature[];
   /** For density: the count range each step covers, lowest first. */
   steps?: [number, number][];
+  /**
+   * For areas with a few shapes: each distinct polygon's `key` and the ids
+   * of the items that share it, so the page can name what the map draws.
+   */
+  members?: { key: string; ids: string[]; tint?: Tint }[];
 };
+
+/** Which of the three blues a shape is drawn in, when a collection has few enough shapes to tell apart by color. */
+export type Tint = 1 | 2 | 3;
 
 /** Past this many vertices in one collection, draw its box instead. */
 const MAX_VERTICES = 40_000;
 /** More distinct polygons than this, overlapping heavily, draw as density. */
 const DENSITY_MIN = 40;
+/**
+ * Up to this many distinct polygons, each is its own feature, keyed, so the
+ * map can name the shapes under the cursor and light one up from the rail.
+ * A calibration collection's two or three models stacked on one basin are
+ * the case; past this they merge into one fill as before.
+ */
+const FEW_SHAPES = 12;
+/**
+ * Up to this many shapes, each gets its own blue (the three the density view
+ * uses). More than that and the blues would repeat, so two shapes would read
+ * as one thing; those collections stay in one blue and rely on pointing.
+ */
+const TINTS = 3;
+
+/** The tint of the i-th of n shapes, when there are few enough to color. */
+export function tintOf(i: number, n: number): Tint | undefined {
+  return n <= TINTS ? ((i + 1) as Tint) : undefined;
+}
 /** Cells across the longer side of the density grid. About 2 km over the South Platte's storms. */
 const DENSITY_CELLS = 160;
 const PLACES = 4;
@@ -69,12 +97,18 @@ export function polygonsOf(items: StacItem[]): Position[][][] {
   return out;
 }
 
-export function overview(items: StacItem[], slug: string, bbox: [number, number, number, number] | null): Overview {
+/**
+ * The items' geometries sorted by shape: every point, every distinct line,
+ * and every distinct polygon with the ids of the items that share it, first
+ * seen first. Rounded, so a polygon repeated by every event of one model is
+ * one polygon.
+ */
+function shapes(items: Pick<StacItem, "id" | "geometry">[]) {
   const points: Position[] = [];
-  const polygons = new Map<string, Position[][]>();
+  const polygons = new Map<string, { rings: Position[][]; ids: string[] }>();
   const lines = new Map<string, Position[]>();
 
-  for (const { geometry: g } of items) {
+  for (const { id, geometry: g } of items) {
     if (!g) continue;
     for (const part of parts(g)) {
       if (part.type === "Point") points.push(round(part.coordinates));
@@ -83,10 +117,28 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
         lines.set(JSON.stringify(line), line);
       } else {
         const rings = part.coordinates.map(clean).filter((r) => r.length >= 4);
-        if (rings.length) polygons.set(JSON.stringify(rings), rings);
+        if (!rings.length) continue;
+        const k = JSON.stringify(rings);
+        const had = polygons.get(k);
+        if (had) had.ids.push(id);
+        else polygons.set(k, { rings, ids: [id] });
       }
     }
   }
+  return { points, polygons, lines };
+}
+
+/**
+ * The ids behind each distinct polygon, in the order the shapes are first
+ * seen: the same grouping the landing page draws, for the collection page
+ * to color its items the same way.
+ */
+export function shapeGroups(items: Pick<StacItem, "id" | "geometry">[]): string[][] {
+  return Array.from(shapes(items).polygons.values(), (p) => p.ids);
+}
+
+export function overview(items: StacItem[], slug: string, bbox: [number, number, number, number] | null): Overview {
+  const { points, polygons, lines } = shapes(items);
 
   const tag = (role: string, geometry: Geometry): Feature => ({ type: "Feature", properties: { slug, role }, geometry });
 
@@ -96,7 +148,7 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
       return { shape: "points", features: [tag("point", { type: "MultiPoint", coordinates: points })] };
     }
   } else {
-    const polys = Array.from(polygons.values());
+    const polys = Array.from(polygons.values(), (p) => p.rings);
     const vertices =
       polys.reduce((n, rings) => n + rings.reduce((m, r) => m + r.length, 0), 0) +
       Array.from(lines.values()).reduce((n, l) => n + l.length, 0);
@@ -114,14 +166,24 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
     }
     if (vertices <= MAX_VERTICES) {
       const features: Feature[] = [];
-      if (polys.length) {
+      let members: Overview["members"];
+      if (polys.length && polys.length <= FEW_SHAPES) {
+        // A few shapes: one keyed feature each, so they can be told apart.
+        members = Array.from(polygons.values(), ({ ids }, i) => ({ key: `${slug}:${i}`, ids, tint: tintOf(i, polys.length) }));
+        polys.forEach((coordinates, i) => {
+          const f = tag("fill", { type: "Polygon", coordinates });
+          f.properties!.key = members![i].key;
+          if (members![i].tint) f.properties!.tint = members![i].tint;
+          features.push(f);
+        });
+      } else if (polys.length) {
         features.push(tag("fill", { type: "MultiPolygon", coordinates: polys }));
-        features.push(tag("line", { type: "MultiLineString", coordinates: outline(polys) }));
       }
+      if (polys.length) features.push(tag("line", { type: "MultiLineString", coordinates: outline(polys) }));
       if (lines.size) features.push(tag("line", { type: "MultiLineString", coordinates: Array.from(lines.values()) }));
       // A collection with both shapes (gages beside a model, say) keeps its dots.
       if (points.length) features.push(tag("point", { type: "MultiPoint", coordinates: points }));
-      return { shape: "areas", features };
+      return members ? { shape: "areas", features, members } : { shape: "areas", features };
     }
   }
 

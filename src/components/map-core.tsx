@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { IControl, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import type { ExpressionSpecification, IControl, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 
 /**
  * What every map on the app shares: the palette read out of CSS, the basemap
@@ -75,6 +75,20 @@ export function palette(host: HTMLElement) {
   return p;
 }
 export type Palette = ReturnType<typeof palette>;
+
+/**
+ * A few stacked shapes each get one of the three blues (lib/overview.ts
+ * decides which, as the feature's `tint`): soft, river, deep. A shape with
+ * none is river blue. The swatches beside their names (.sx-swatch in
+ * globals.css) mix the same three tokens.
+ */
+export function tintColor(p: Palette): ExpressionSpecification {
+  return ["match", ["get", "tint"], 1, p.traceSoft, 2, p.trace, 3, p.traceDeep, p.trace];
+}
+/** The fill's opacity by its tint, the pale blue stronger so it shows on the white basin; `plain` for a shape with none. */
+export function tintOpacity(plain: number): ExpressionSpecification {
+  return ["match", ["get", "tint"], 1, 0.45, 2, 0.22, 3, 0.2, plain];
+}
 
 function rgb(css: string): string {
   const m = /^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)$/.exec(css);

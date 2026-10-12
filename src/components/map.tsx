@@ -9,7 +9,6 @@ import type {
   GeoJSONSource,
   LngLatBoundsLike,
   Map as MapLibreMap,
-  MapGeoJSONFeature,
   Popup,
 } from "maplibre-gl";
 import type { FeatureCollection } from "geojson";
@@ -23,6 +22,8 @@ import {
   dressBasemap,
   MapCredits,
   palette,
+  tintColor,
+  tintOpacity,
   watchTheme,
   WORKER_URL,
   type Credit,
@@ -33,11 +34,12 @@ import {
  * The map on every page.
  *
  * It draws one GeoJSON feature collection and fits itself to it. Pointing at
- * a feature lights it up and shows its id beside the cursor; clicking pins a
+ * a feature lights it up and names it beside the cursor; clicking pins a
  * small card with the id, a copy button and a link to the item's page. A
- * terrain collection is dozens of tiles that all look alike and overlap, so
- * the pin is also how you tell them apart: clicking the same spot again moves
- * it to the next tile stacked there. Points are river blue, the color for
+ * terrain collection is dozens of tiles that all look alike and overlap, and
+ * a calibration collection stacks two models on one basin, so the tooltip
+ * names everything under the cursor and the card lists the whole stack, each
+ * row a way to pick that one (clicking the same spot again also steps on). Points are river blue, the color for
  * data in this app; lines and polygons are drawn in ink, with an extent box
  * dashed so it never reads as data.
  *
@@ -57,6 +59,10 @@ export type MapProps = {
   bbox?: [number, number, number, number] | null;
   /** Feature id to ring. */
   selected?: string | null;
+  /** A feature pointed at elsewhere on the page (the items list), to light up here. */
+  hovered?: string | null;
+  /** Told which feature the cursor is on, so a list can light its row up. */
+  onHover?: (id: string | null) => void;
   /** What the map is of, for assistive tech. */
   label: string;
   /** Readout text before anything is hovered. */
@@ -69,6 +75,10 @@ export type MapFeatureProps = {
   id: string;
   href?: string;
   label?: string;
+  /** What kind of item, when a collection mixes kinds that share names ("HEC-HMS"). */
+  tag?: string;
+  /** Which of the three blues to draw it in, when the collection has few enough shapes to color. */
+  tint?: 1 | 2 | 3;
   /** "extent" draws a dashed box instead of a filled shape. */
   kind?: "extent" | "feature";
 };
@@ -86,8 +96,13 @@ const L = {
 };
 const INTERACTIVE = [L.points, L.line, L.fill, L.extentFill];
 const FIT = { padding: 36, maxZoom: 12, duration: 0 };
+/** How far around the cursor, in pixels, counts as pointing at a feature. */
+const HIT = 4;
+/** The most names the tooltip lists before "and N more". */
+const TIP_ROWS = 6;
 
-type Hover = { id: string; label?: string; x: number; y: number; flip: boolean };
+/** Everything under the cursor, top first. */
+type Hover = { hits: MapFeatureProps[]; x: number; y: number; flip: boolean };
 /** What a click landed on: every feature under the point, and which one the pin is on. */
 type Pin = { hits: MapFeatureProps[]; k: number; at: [number, number] };
 
@@ -135,6 +150,21 @@ function selectedFilter(ids: (string | null | undefined)[]): ExpressionSpecifica
   return ["all", point, idsIn(ids)];
 }
 
+/** Every feature within a few pixels of the point, once each, top first. */
+function hitsAt(m: MapLibreMap, at: { x: number; y: number }): MapFeatureProps[] {
+  const layers = INTERACTIVE.filter((l) => m.getLayer(l));
+  const seen = new Set<string>();
+  const hits: MapFeatureProps[] = [];
+  for (const h of m.queryRenderedFeatures([[at.x - HIT, at.y - HIT], [at.x + HIT, at.y + HIT]], { layers })) {
+    const props = h.properties as MapFeatureProps;
+    if (!seen.has(props.id)) {
+      seen.add(props.id);
+      hits.push(props);
+    }
+  }
+  return hits;
+}
+
 function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (string | null | undefined)[], selected: string | null) {
   map.addSource(SRC, { type: "geojson", data, promoteId: "id" });
 
@@ -146,9 +176,10 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (s
     id: L.extentLine, type: "line", source: SRC, filter: ["all", isExtent, poly],
     paint: { "line-color": p.inkMut, "line-width": 1.25, "line-dasharray": [2, 2] },
   });
+  // A few stacked shapes each get one of the three blues; see tintColor.
   map.addLayer({
     id: L.fill, type: "fill", source: SRC, filter: ["all", notExtent, poly],
-    paint: { "fill-color": p.trace, "fill-opacity": 0.18 },
+    paint: { "fill-color": tintColor(p), "fill-opacity": tintOpacity(0.18) },
   });
   map.addLayer({
     id: L.line, type: "line", source: SRC, filter: ["all", notExtent, ["any", poly, line]],
@@ -159,7 +190,7 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (s
   // lost under the neighbors they overlap.
   map.addLayer({
     id: L.hiFill, type: "fill", source: SRC, filter: ["all", notExtent, poly, idsIn(hi)],
-    paint: { "fill-color": p.trace, "fill-opacity": 0.3 },
+    paint: { "fill-color": tintColor(p), "fill-opacity": 0.3 },
   });
   map.addLayer({
     id: L.hiLine, type: "line", source: SRC, filter: ["all", notExtent, ["any", poly, line], idsIn(hi)],
@@ -187,7 +218,7 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (s
   });
 }
 
-export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapProps) {
+export function DataMap({ data, bbox, selected = null, hovered = null, onHover, label, hint, tip }: MapProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -202,15 +233,20 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
   const [credits, setCredits] = useState<Credit[]>([]);
   const [basemapDown, setBasemapDown] = useState(false);
   const pinned = pin ? pin.hits[pin.k] : null;
+  // What to light up: everything under the cursor, the pinned one, and the
+  // one pointed at in the list. As a string so the effect below can watch it.
+  const hiKey = JSON.stringify([...(hover?.hits.map((h) => h.id) ?? []), pinned?.id ?? null, hovered]);
   // Latest props, readable from the one-time map setup below without
   // rebuilding the map. Written in an effect, never during render.
   const dataRef = useRef(data);
   const selectedRef = useRef(selected);
   const hiRef = useRef<(string | null | undefined)[]>([]);
+  const onHoverRef = useRef(onHover);
   useEffect(() => {
     dataRef.current = data;
     selectedRef.current = selected;
-    hiRef.current = [hover?.id, pinned?.id];
+    hiRef.current = JSON.parse(hiKey);
+    onHoverRef.current = onHover;
     tipRef.current = tipped ? undefined : tip;
   });
 
@@ -283,27 +319,19 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
         m.on("mouseleave", layer, () => {
           canvas.style.cursor = "";
           setHover(null);
+          onHoverRef.current?.(null);
           if (tipRef.current) setTipped(true);
         });
         m.on("mousemove", layer, (e) => {
-          const f = e.features?.[0] as MapGeoJSONFeature | undefined;
-          const props = f?.properties as MapFeatureProps | undefined;
+          const hits = hitsAt(m, e.point);
           // The tooltip sits to the right of the cursor unless that would run it off the map.
-          const flip = e.point.x > canvas.clientWidth - 260;
-          setHover(props ? { id: props.id, label: props.label, x: e.point.x, y: e.point.y, flip } : null);
+          const flip = e.point.x > canvas.clientWidth - 300;
+          setHover(hits.length ? { hits, x: e.point.x, y: e.point.y, flip } : null);
+          onHoverRef.current?.(hits[0]?.id ?? null);
         });
       }
       m.on("click", (e) => {
-        const layers = INTERACTIVE.filter((l) => m.getLayer(l));
-        const seen = new Set<string>();
-        const hits: MapFeatureProps[] = [];
-        for (const h of m.queryRenderedFeatures(e.point, { layers })) {
-          const props = h.properties as MapFeatureProps;
-          if (!seen.has(props.id)) {
-            seen.add(props.id);
-            hits.push(props);
-          }
-        }
+        const hits = hitsAt(m, e.point);
         const at = e.lngLat.toArray() as [number, number];
         setPin((prev) => {
           if (hits.length === 0) return null;
@@ -344,15 +372,14 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
     if (src) src.setData(data);
   }, [data]);
 
-  const hoverId = hover?.id ?? null;
-  const pinnedId = pinned?.id ?? null;
   useEffect(() => {
     const m = mapRef.current;
     if (!m?.getLayer(L.hiLine)) return;
-    m.setFilter(L.hiFill, ["all", notExtent, poly, idsIn([hoverId, pinnedId])]);
-    m.setFilter(L.hiLine, ["all", notExtent, ["any", poly, line], idsIn([hoverId, pinnedId])]);
-    m.setFilter(L.selected, selectedFilter([selected, hoverId, pinnedId]));
-  }, [selected, hoverId, pinnedId]);
+    const hi = JSON.parse(hiKey) as (string | null)[];
+    m.setFilter(L.hiFill, ["all", notExtent, poly, idsIn(hi)]);
+    m.setFilter(L.hiLine, ["all", notExtent, ["any", poly, line], idsIn(hi)]);
+    m.setFilter(L.selected, selectedFilter([selected, ...hi]));
+  }, [selected, hiKey]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -362,24 +389,46 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
     else popup.remove();
   }, [pin]);
 
-  const name = (f: { id: string; label?: string } | null) => (f ? (f.label ? `${f.label} (${f.id})` : f.id) : null);
-  const readout = hover
-    ? tip && !tipped
-      ? `${name(hover)}. ${tip}`
-      : name(hover)
-    : (name(pinned) ?? hint ?? "");
+  const short = (f: MapFeatureProps) => [f.label, f.tag].filter(Boolean).join(" · ") || f.id;
+  const name = (f: MapFeatureProps | null) => (f ? (f.label ? `${short(f)} (${f.id})` : f.id) : null);
+  // A stack is named without ids, which the tooltip beside the cursor carries.
+  const hoverText = !hover
+    ? null
+    : hover.hits.length === 1
+      ? name(hover.hits[0])
+      : `${hover.hits.length} here: ${hover.hits.slice(0, 3).map(short).join(", ")}${hover.hits.length > 3 ? `, and ${hover.hits.length - 3} more` : ""}`;
+  const readout = hoverText ? (tip && !tipped ? `${hoverText}. ${tip}` : hoverText) : (name(pinned) ?? hint ?? "");
+  // The tooltip steps aside while the pinned card already lists the same stack.
+  const showTip =
+    hover && !(pin && hover.hits.length === pin.hits.length && hover.hits.every((h, i) => h.id === pin.hits[i].id));
 
   return (
     <figure ref={frameRef} className="ffx-map" aria-label={label}>
       <div ref={canvasRef} className="ffx-map-canvas" />
-      {hover && hover.id !== pinnedId && (
-        <div className="ffx-map-tip" style={{ left: hover.x, top: hover.y }} data-flip={hover.flip || undefined} aria-hidden="true">
-          {hover.label && <span className="ffx-map-tip-label">{hover.label}</span>}
-          <span className="ffx-id">{hover.id}</span>
+      {showTip && (
+        <div
+          className="ffx-map-tip"
+          data-stack={hover.hits.length > 1 || undefined}
+          data-flip={hover.flip || undefined}
+          style={{ left: hover.x, top: hover.y }}
+          aria-hidden="true"
+        >
+          {hover.hits.slice(0, TIP_ROWS).map((h) => (
+            <span key={h.id} className="ffx-map-tip-row">
+              {h.tint && <i className="sx-swatch" data-step={h.tint} aria-hidden="true" />}
+              {h.tag && <span className="ffx-map-tip-kind">{h.tag}</span>}
+              {h.label && <span className="ffx-map-tip-label">{h.label}</span>}
+              <span className="ffx-id">{h.id}</span>
+            </span>
+          ))}
+          {hover.hits.length > TIP_ROWS && <span className="ffx-map-tip-more">and {hover.hits.length - TIP_ROWS} more</span>}
         </div>
       )}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
-      {pinHost && pin && pinned && createPortal(<PinCard f={pinned} n={pin.hits.length} k={pin.k} />, pinHost)}
+      {pinHost && pin && pinned && createPortal(
+        <PinCard hits={pin.hits} k={pin.k} onPick={(k) => setPin((prev) => (prev ? { ...prev, k } : prev))} />,
+        pinHost,
+      )}
       <figcaption className="ffx-map-readout">
         <span>{readout}</span>
         <MapCredits credits={credits} />
@@ -388,11 +437,39 @@ export function DataMap({ data, bbox, selected = null, label, hint, tip }: MapPr
   );
 }
 
-/** The card on a pinned feature: its name, its id to copy, and the way to its page. */
-function PinCard({ f, n, k }: { f: MapFeatureProps; n: number; k: number }) {
+/**
+ * The card on a pinned feature: its name, its id to copy, and the way to its
+ * page. When several are stacked under the pin they're listed first, one row
+ * each, and the card is about whichever row is picked.
+ */
+function PinCard({ hits, k, onPick }: { hits: MapFeatureProps[]; k: number; onPick: (k: number) => void }) {
+  const f = hits[k];
   return (
     <div className="ffx-map-pin-card">
-      {f.label && <div className="ffx-map-pin-label">{f.label}</div>}
+      {hits.length > 1 && (
+        <>
+          <div className="ffx-map-pin-more">
+            <span className="ffx-num">{hits.length}</span> stacked here
+          </div>
+          <div className="ffx-map-pin-list">
+            {hits.map((h, i) => (
+              <button key={h.id} type="button" data-current={i === k || undefined} onClick={() => onPick(i)}>
+                {h.tint && <i className="sx-swatch" data-step={h.tint} aria-hidden="true" />}
+                {h.tag && <span className="ffx-map-tip-kind">{h.tag}</span>}
+                {h.label && <span>{h.label}</span>}
+                {/* Tiles are all "Terrain tile": the id is what tells them apart. */}
+                <span className="ffx-id ffx-map-pin-list-id">{h.id}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {f.label && (
+        <div className="ffx-map-pin-label">
+          {f.label}
+          {f.tag ? ` · ${f.tag}` : ""}
+        </div>
+      )}
       <div className="ffx-id ffx-map-pin-id">{f.id}</div>
       <div className="ffx-map-pin-actions">
         <CopyButton text={f.id} label="Copy id" />
@@ -402,11 +479,6 @@ function PinCard({ f, n, k }: { f: MapFeatureProps; n: number; k: number }) {
           </Link>
         )}
       </div>
-      {n > 1 && (
-        <div className="ffx-map-pin-more">
-          <span className="ffx-num">{k + 1} of {n}</span> stacked here. Click again for the next.
-        </div>
-      )}
     </div>
   );
 }

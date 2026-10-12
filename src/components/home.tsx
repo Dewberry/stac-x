@@ -8,6 +8,7 @@ import { clipToFocus } from "@/lib/basins";
 import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
+import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
 import { HomePreview, PreviewBody } from "./home-preview";
 import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
@@ -53,6 +54,11 @@ export type HomeArea = {
   drawn: "points" | "areas" | "density" | "extent" | "basin" | null;
   /** For a density footprint, the count range of each of its three steps. */
   steps?: [number, number][];
+  /**
+   * For an areas footprint of a few shapes: the items behind them, each with
+   * the `key` of the shape it's drawn as. Items with one geometry share a key.
+   */
+  members?: Member[];
   href: string;
   jsonHref: string;
   itemCount: number;
@@ -63,6 +69,18 @@ export type HomeArea = {
   version?: string | null;
   earlier?: number;
   blurb?: string;
+};
+
+export type Member = {
+  id: string;
+  key: string;
+  label: string;
+  /** The label already says the id ("Storm event 1"). */
+  hideId: boolean;
+  /** "HEC-HMS" or "HEC-RAS" in a calibration collection; null elsewhere. */
+  kind: string | null;
+  /** Which blue its shape is drawn in, when the collection has few enough shapes to color. */
+  tint?: Tint;
 };
 
 export type GroupBy = "kind" | "review";
@@ -123,6 +141,9 @@ export function HomeConsole({
   const router = useRouter();
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // The shape of the selected collection under the cursor, on the map or in
+  // its member list; the other side lights it up.
+  const [hoverKeys, setHoverKeys] = useState<string[]>([]);
   const [filter, setFilter] = useState<QcStatus | null>(null);
   const groupBy = useSyncExternalStore(subscribeGroup, readGroup, () => "kind");
   const [basin, setBasin] = useState<string | null>(null);
@@ -157,6 +178,7 @@ export function HomeConsole({
     (slug: string | null, fromList = false) => {
       const next = slug && slug === selected ? null : slug;
       setSelected(next);
+      setHoverKeys([]);
       const a = next ? bySlug.get(next) : null;
       if (!a) return;
       // On a phone the list is under the map, and the sheet opens on the map.
@@ -232,11 +254,13 @@ export function HomeConsole({
             basinHighlight={highlightedBasin}
             basinCovered={current?.drawn === "basin"}
             focus={focus}
+            hoverKeys={hoverKeys}
             onHover={setHovered}
+            onHoverKeys={setHoverKeys}
             onSelect={select}
             onBasinSelect={selectBasin}
           />
-          {current && <HomePreview area={current} onClose={() => setSelected(null)} />}
+          {current && <HomePreview area={current} hoverKeys={hoverKeys} onHoverKeys={setHoverKeys} onClose={() => setSelected(null)} />}
         </div>
         <aside className="sx-rail" aria-label="Collections">
           <div className="sx-rail-head">
@@ -318,7 +342,9 @@ export function HomeConsole({
                       showKind={groupBy === "review"}
                       active={(selected ?? hovered) === a.slug}
                       open={selected === a.slug}
+                      hoverKeys={hoverKeys}
                       onHover={setHovered}
+                      onHoverKeys={setHoverKeys}
                       onSelect={(slug) => select(slug, true)}
                       onOpen={() => router.push(a.href)}
                     />
@@ -338,7 +364,9 @@ function AreaRow({
   showKind,
   active,
   open,
+  hoverKeys,
   onHover,
+  onHoverKeys,
   onSelect,
   onOpen,
 }: {
@@ -346,7 +374,9 @@ function AreaRow({
   showKind: boolean;
   active: boolean;
   open: boolean;
+  hoverKeys: string[];
   onHover: (slug: string | null) => void;
+  onHoverKeys: (keys: string[]) => void;
   onSelect: (slug: string) => void;
   onOpen: () => void;
 }) {
@@ -386,7 +416,7 @@ function AreaRow({
       </button>
       {open && (
         <div className="sx-row-more">
-          <PreviewBody area={area} />
+          <PreviewBody area={area} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
         </div>
       )}
     </li>

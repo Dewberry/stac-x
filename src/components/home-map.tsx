@@ -2,7 +2,7 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, MapMouseEvent, Marker } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import {
   applyBasemap,
@@ -14,12 +14,15 @@ import {
   LAYER_RELIEF,
   palette,
   SRC_TERRAIN,
+  tintColor,
+  tintOpacity,
   watchTheme,
   WORKER_URL,
   type Credit,
   type Palette,
 } from "./map-core";
-import type { HomeArea } from "./home";
+import type { HomeArea, Member } from "./home";
+import { membersHead } from "./home-preview";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
 import type { QcStatus } from "@/lib/stac";
 import { QC_LABEL, stateOf } from "./qc-mark";
@@ -54,6 +57,10 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * blue for how many shapes cover each spot when they overlap heavily, or a
  * dashed box when the shapes were too heavy to send (lib/overview.ts
  * decides which).
+ * When the footprint is a few shapes (a calibration collection's HMS and RAS
+ * models of one basin, stacked), pointing at it names every shape under the
+ * cursor and lights up their rows in the rail, and pointing at a row lights
+ * up its shape here, since stacked fills look like one.
  * The pin says where a collection is; the footprint says how much ground it
  * covers. A collection whose shapes contain the whole basin has no footprint
  * of its own: the basin lights up instead, since the shape would tint the
@@ -72,6 +79,7 @@ const L = {
   itemFill: "sx-live-fill",
   itemExtent: "sx-live-extent",
   itemLine: "sx-live-line",
+  itemHi: "sx-live-hi",
   density: "sx-live-density",
   densityLine: "sx-live-density-line",
   items: "sx-live-items",
@@ -124,6 +132,7 @@ function addLayers(
   items: FeatureCollection,
   basin: Feature<Shape> | null,
   shown: string | null,
+  hoverKeys: string[],
   basinHighlight: string | null,
   basinCovered: boolean,
 ) {
@@ -159,8 +168,10 @@ function addLayers(
   map.addLayer({
     id: L.itemFill, type: "fill", source: SRC_ITEMS, filter: footprintFilter("fill", shown),
     // Antialiasing draws a seam wherever two subbasins meet; the outline
-    // layer already gives the edge.
-    paint: { "fill-color": p.trace, "fill-opacity": 0.16, "fill-antialias": false },
+    // layer already gives the edge. A few stacked shapes each get one of
+    // the three blues (lib/overview.ts), the pale one stronger so it shows
+    // on the white basin.
+    paint: { "fill-color": tintColor(p), "fill-opacity": tintOpacity(0.16), "fill-antialias": false },
   });
   // Overlap density: three steps of river blue, palest for the fewest.
   map.addLayer({
@@ -184,6 +195,12 @@ function addLayers(
     id: L.itemLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("line", shown),
     layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": p.trace, "line-width": 1.75, "line-opacity": 0.9 },
+  });
+  // The shapes pointed at, outlined in ink over their neighbors.
+  map.addLayer({
+    id: L.itemHi, type: "line", source: SRC_ITEMS, filter: hiFilter(shown, hoverKeys),
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": p.ink, "line-width": 2.25, "line-opacity": 0.95 },
   });
   map.addLayer({
     id: L.items, type: "circle", source: SRC_ITEMS, filter: footprintFilter("point", shown),
@@ -211,6 +228,16 @@ const FOOTPRINT_ROLES = [
 function footprintFilter(role: string, shown: string | null): ExpressionSpecification {
   return ["all", ["==", ["get", "role"], role], ["==", ["get", "slug"], shown ?? ""]];
 }
+
+/** The selected collection's shapes with these keys. */
+function hiFilter(shown: string | null, keys: string[]): ExpressionSpecification {
+  return ["all", footprintFilter("fill", shown), ["in", ["get", "key"], ["literal", keys]]];
+}
+
+/** How far around the cursor, in pixels, counts as pointing at a shape. */
+const HIT = 4;
+/** The most names the tooltip lists before "and N more". */
+const TIP_ROWS = 6;
 
 /** The basin's own fill: on while the selected collection covers all of it, off otherwise. */
 function basinCoverFilter(covered: boolean): ExpressionSpecification {
@@ -296,7 +323,9 @@ export function HomeMap({
   basinHighlight,
   basinCovered,
   focus,
+  hoverKeys,
   onHover,
+  onHoverKeys,
   onSelect,
   onBasinSelect,
 }: {
@@ -314,7 +343,10 @@ export function HomeMap({
   basinCovered: boolean;
   /** A box to fit to; the key changes on every request so the same box can be refit. */
   focus: { bbox: [number, number, number, number]; key: number } | null;
+  /** The shapes of the shown collection to outline: pointed at here or in the rail. */
+  hoverKeys: string[];
   onHover: (slug: string | null) => void;
+  onHoverKeys: (keys: string[]) => void;
   onSelect: (slug: string) => void;
   onBasinSelect: (huc4: string) => void;
 }) {
@@ -326,6 +358,10 @@ export function HomeMap({
   const current = areas.find((a) => a.slug === shown) ?? null;
   const dense = current?.drawn === "density" ? current : null;
   const [basemapDown, setBasemapDown] = useState(false);
+  // The members under the cursor, named beside it. Kept with the slug they
+  // belong to, so a new selection drops a stale one.
+  const [tipState, setTip] = useState<{ slug: string; x: number; y: number; flip: boolean; rows: Member[] } | null>(null);
+  const tip = tipState?.slug === shown ? tipState : null;
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
   const areasRef = useRef(areas);
@@ -336,8 +372,10 @@ export function HomeMap({
   const placeRef = useRef<() => void>(() => {});
   const basinHighlightRef = useRef(basinHighlight);
   const basinCoveredRef = useRef(basinCovered);
+  const hoverKeysRef = useRef(hoverKeys);
   const basinRef = useRef<Feature<Shape> | null>(null);
   const onHoverRef = useRef(onHover);
+  const onHoverKeysRef = useRef(onHoverKeys);
   const onSelectRef = useRef(onSelect);
   const onBasinSelectRef = useRef(onBasinSelect);
   useEffect(() => {
@@ -348,7 +386,9 @@ export function HomeMap({
     denseRef.current = !!dense;
     basinHighlightRef.current = basinHighlight;
     basinCoveredRef.current = basinCovered;
+    hoverKeysRef.current = hoverKeys;
     onHoverRef.current = onHover;
+    onHoverKeysRef.current = onHoverKeys;
     onSelectRef.current = onSelect;
     onBasinSelectRef.current = onBasinSelect;
   });
@@ -391,7 +431,10 @@ export function HomeMap({
 
       const draw = () => {
         if (m.getSource(SRC_ITEMS)) return;
-        addLayers(m, palette(frame), itemsRef.current, basinRef.current, shownRef.current, basinHighlightRef.current, basinCoveredRef.current);
+        addLayers(
+          m, palette(frame), itemsRef.current, basinRef.current, shownRef.current, hoverKeysRef.current,
+          basinHighlightRef.current, basinCoveredRef.current,
+        );
         setCredits(creditsOf(m));
       };
       // The basin polygon comes from a static file; it arrives once and is
@@ -483,6 +526,27 @@ export function HomeMap({
       m.on("mousemove", L.basinFill, () => (m.getCanvas().style.cursor = "pointer"));
       m.on("mouseleave", L.basinFill, () => (m.getCanvas().style.cursor = ""));
 
+      // Pointing at the shown collection's shapes names every one under the
+      // cursor, which is how stacked models are told apart.
+      const clearTip = () => {
+        setTip(null);
+        onHoverKeysRef.current([]);
+      };
+      const tipAt = (e: MapMouseEvent) => {
+        const area = areasRef.current.find((a) => a.slug === shownRef.current);
+        if (!area?.members) return clearTip();
+        const { x, y } = e.point;
+        const hits = m.queryRenderedFeatures([[x - HIT, y - HIT], [x + HIT, y + HIT]], { layers: [L.itemFill] });
+        const keys = new Set<string>();
+        for (const h of hits) if (typeof h.properties?.key === "string") keys.add(h.properties.key);
+        if (!keys.size) return clearTip();
+        const rows = area.members.filter((mm) => keys.has(mm.key));
+        setTip({ slug: area.slug, x, y, flip: x > m.getCanvas().clientWidth - 300, rows });
+        onHoverKeysRef.current(Array.from(keys));
+      };
+      m.on("mousemove", L.itemFill, tipAt);
+      m.on("mouseleave", L.itemFill, clearTip);
+
       unwatch = watchTheme(() => {
         for (const id of [...Object.values(L), LAYER_RELIEF]) if (m.getLayer(id)) m.removeLayer(id);
         for (const id of [SRC_MASK, SRC_ITEMS, SRC_BASINS, SRC_TERRAIN]) if (m.getSource(id)) m.removeSource(id);
@@ -526,6 +590,11 @@ export function HomeMap({
   }, [basinCovered]);
 
   useEffect(() => {
+    const m = mapRef.current;
+    if (m?.getLayer(L.itemHi)) m.setFilter(L.itemHi, hiFilter(shown, hoverKeys));
+  }, [shown, hoverKeys]);
+
+  useEffect(() => {
     const src = mapRef.current?.getSource(SRC_ITEMS) as GeoJSONSource | undefined;
     if (src) src.setData(items);
   }, [items]);
@@ -548,9 +617,23 @@ export function HomeMap({
   return (
     <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Collections in the South Platte basin">
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
+      {tip && (
+        <div className="ffx-map-tip" data-stack={tip.rows.length > 1 || undefined} data-flip={tip.flip || undefined} style={{ left: tip.x, top: tip.y }} aria-hidden="true">
+          {tip.rows.slice(0, TIP_ROWS).map((r) => (
+            <span key={r.id} className="ffx-map-tip-row">
+              {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
+              {r.kind && <span className="ffx-map-tip-kind">{r.kind}</span>}
+              <span className="ffx-map-tip-label">{r.label}</span>
+              {!r.hideId && <span className="ffx-id">{r.id}</span>}
+            </span>
+          ))}
+          {tip.rows.length > TIP_ROWS && <span className="ffx-map-tip-more">and {tip.rows.length - TIP_ROWS} more</span>}
+        </div>
+      )}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <MapCredits credits={credits} />
+        {current?.members && !dense && <span className="sx-map-count">{membersHead(current)}</span>}
         {dense?.steps && (
           <span className="sx-map-key">
             {dense?.steps && (

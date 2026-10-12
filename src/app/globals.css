@@ -1066,7 +1066,8 @@
 .sx-row:last-child {
   border-bottom: 0;
 }
-.sx-row:hover {
+.sx-row:hover,
+.sx-rows .sx-row[data-active] {
   background: var(--ffx-surface-sunken);
 }
 .sx-row-main {
@@ -2476,6 +2477,26 @@ main:focus {
 .ffx-map-tip-label {
   color: var(--ffx-ink-mut);
 }
+/* Several features under the cursor: one row each, the top one first. */
+.ffx-map-tip[data-stack] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.125rem;
+}
+.ffx-map-tip-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+.ffx-map-tip-kind {
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-sec);
+}
+.ffx-map-tip-more {
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
 
 /* The pinned feature's card: a MapLibre popup, restyled as one of ours. */
 .ffx-map .maplibregl-popup {
@@ -2530,6 +2551,43 @@ main:focus {
 .ffx-map-pin-more {
   font-size: var(--ffx-t-tiny);
   color: var(--ffx-ink-mut);
+}
+/* The stack under a pin: a row per feature, the one the card is about marked. */
+.ffx-map-pin-list {
+  display: grid;
+  max-height: 11rem;
+  margin: 0 -0.25rem;
+  overflow-y: auto;
+}
+.ffx-map-pin-list button {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.2rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  color: var(--ffx-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.ffx-map-pin-list-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ffx-ink-mut);
+}
+.ffx-map-pin-list button[data-current] .ffx-map-pin-list-id {
+  color: var(--ffx-ink);
+}
+.ffx-map-pin-list button:hover {
+  background: var(--ffx-surface-sunken);
+}
+.ffx-map-pin-list button[data-current] {
+  background: var(--ffx-surface-sunken);
+  font-weight: 600;
 }
 
 /* The map on a collection or item page: a card as wide as the columns
@@ -3081,6 +3139,48 @@ main:focus {
     box-shadow: 0 0 0 1px var(--ffx-rule);
   }
 }
+/* The items behind a footprint of a few shapes, each row lighting its shape up. */
+.sx-pv-members {
+  display: grid;
+  gap: 4px;
+}
+.sx-pv-members-head {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-pv-members ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sx-pv-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin: 0 -8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+}
+.sx-pv-member[data-active] {
+  background: var(--ffx-surface-sunken);
+}
+.sx-pv-member-name {
+  font-weight: 600;
+}
+.sx-pv-member-note {
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
+/* Under the home map: how many shapes the selected collection is. */
+.sx-map-count {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
 .sx-pv-btns {
   display: flex;
   gap: 0.5rem;
@@ -3425,6 +3525,28 @@ main:focus {
 }
 .sx-legend-step[data-step="3"] {
   background: color-mix(in srgb, var(--ffx-trace-deep) 62%, transparent);
+}
+/* Beside a shape's name in a list, tooltip or card: which of the three
+   blues it's drawn in (tintColor in map-core.ts). Stronger than the fills,
+   which are translucent over the ground, so the three stay apart at 10px
+   in both themes. */
+.sx-swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.sx-swatch[data-step="1"] {
+  background: color-mix(in srgb, var(--ffx-trace) 90%, transparent);
+}
+.sx-swatch[data-step="2"] {
+  background: color-mix(in srgb, var(--ffx-trace-strong) 75%, transparent);
+}
+.sx-swatch[data-step="3"] {
+  background: color-mix(in srgb, var(--ffx-trace-deep) 85%, transparent);
 }
 /* On a phone the menu's buttons are in the rail head instead. */
 @media (max-width: 63.99rem) {

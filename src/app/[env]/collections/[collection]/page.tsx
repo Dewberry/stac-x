@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
+import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
 import { ItemsList, type ItemRow } from "@/components/items-list";
-import { DataMap } from "@/components/map";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
@@ -12,8 +12,9 @@ import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
-import { collectionName, fmtNum, fmtRange, itemLabel, tidyCaps } from "@/lib/format";
-import { collectionKindLabel, itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
+import { fmtNum, fmtRange } from "@/lib/format";
+import { collectionKindLabel, itemRowLabel } from "@/lib/item-kinds";
+import { shapeGroups, tintOf } from "@/lib/overview";
 import { baseName } from "@/lib/storage";
 import { collectionJsonHref, itemHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
@@ -44,20 +45,21 @@ export default async function CollectionPage({ params }: Props) {
   if (!c) return <NotInEnv env={env} collection={id} />;
 
   // An item without a title is named for what it is ("Storm event 1",
-  // "Terrain tile"), the same as on its own page, never its bare id.
-  const rows: ItemRow[] = c.items.map((i) => {
-    const project = projectTitle(i.properties);
-    const label = itemLabel(i.properties) ?? (project ? collectionName(project, project) : null);
-    const unnamed = label ? null : untitledName(itemKindLabel(c, i), i.id);
-    return {
-      id: i.id,
-      label: label ? tidyCaps(label) : unnamed!.title,
-      hideId: unnamed?.idInTitle ?? false,
-      start: str(i.properties.start_datetime) ?? str(i.properties.datetime),
-      end: str(i.properties.end_datetime) ?? null,
-    };
-  });
-  const nameOf = new Map(rows.map((r) => [r.id, r.label]));
+  // "Terrain tile"), the same as on its own page, never its bare id. In a
+  // calibration collection the HMS and RAS models share the basin's name,
+  // so each row also says which it is.
+  // A few distinct shapes each get their own blue, the same as on the
+  // landing page, and the row carries the swatch.
+  const groups = shapeGroups(c.items);
+  const tintOfItem = new Map(groups.flatMap((ids, i) => ids.map((id) => [id, tintOf(i, groups.length)] as const)));
+  const rows: ItemRow[] = c.items.map((i) => ({
+    id: i.id,
+    ...itemRowLabel(c, i),
+    tint: tintOfItem.get(i.id),
+    start: str(i.properties.start_datetime) ?? str(i.properties.datetime),
+    end: str(i.properties.end_datetime) ?? null,
+  }));
+  const rowOf = new Map(rows.map((r) => [r.id, r]));
 
   const geo: FeatureCollection = {
     type: "FeatureCollection",
@@ -69,7 +71,9 @@ export default async function CollectionPage({ params }: Props) {
         properties: {
           id: i.id,
           href: itemHref(env, c.id, i.id),
-          label: nameOf.get(i.id),
+          label: rowOf.get(i.id)?.label,
+          tag: rowOf.get(i.id)?.kind ?? undefined,
+          tint: rowOf.get(i.id)?.tint,
         },
         geometry: i.geometry!,
       })),
@@ -136,6 +140,7 @@ export default async function CollectionPage({ params }: Props) {
 
       <VersionNotice env={env} c={c} />
 
+      <ItemHoverProvider>
       <div className="sx-cols">
         <div className="sx-col">
           {(c.description || c.keywords.length > 0 || facts.length > 0) && (
@@ -156,7 +161,7 @@ export default async function CollectionPage({ params }: Props) {
             </Panel>
           )}
           <div className="sx-mapcard">
-            <DataMap
+            <LinkedMap
               data={geo}
               bbox={c.bbox}
               label={`Items of ${c.title}`}
@@ -183,6 +188,7 @@ export default async function CollectionPage({ params }: Props) {
           </Panel>
         </div>
       </div>
+      </ItemHoverProvider>
     </div>
   );
 }

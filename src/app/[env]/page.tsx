@@ -6,6 +6,7 @@ import { basinAt, basinCovered, basinShare } from "@/lib/basin-at";
 import { FOCUS_BASIN } from "@/lib/basins";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
+import { itemRowLabel } from "@/lib/item-kinds";
 import { guessKind } from "@/lib/kinds";
 import { overview, polygonsOf } from "@/lib/overview";
 import { pageEnv } from "@/lib/page-env";
@@ -28,6 +29,9 @@ export const dynamic = "force-dynamic";
  * since its middle says nothing and every such pin would land on the same
  * spot; the rail says "Whole basin" instead.
  */
+
+/** The most items a selected collection lists by name in its row. */
+const MEMBERS_MAX = 24;
 
 /** Share of the basin a collection's extent has to cover to count as basin-wide. */
 const WIDE = 0.7;
@@ -85,6 +89,20 @@ async function HomeData({ env }: { env: EnvKey }) {
   const drawn = new Map(footprints.map((f) => [f.slug, f]));
   const items: FeatureCollection = { type: "FeatureCollection", features: footprints.flatMap((f) => f.features) };
 
+  // The items behind each of a few drawn shapes, named as the collection
+  // page names them, in the collection's own order.
+  const membersOf = (c: Collection): HomeArea["members"] => {
+    const shapes = drawn.get(c.series.id)?.members;
+    // A few shapes can still be thousands of items (every event of one
+    // model); a list that long belongs on the collection page.
+    if (!shapes || c.items.length > MEMBERS_MAX) return undefined;
+    const shapeOf = new Map(shapes.flatMap((m) => m.ids.map((id) => [id, m] as const)));
+    return c.items.flatMap((i) => {
+      const shape = shapeOf.get(i.id);
+      return shape ? [{ id: i.id, key: shape.key, tint: shape.tint, ...itemRowLabel(c, i) }] : [];
+    });
+  };
+
   const areas: HomeArea[] = [];
   for (const c of latest) {
     const bbox = c.bbox ?? unionBbox(c.items) ?? [-109.06, 36.99, -102.04, 41.0];
@@ -98,6 +116,7 @@ async function HomeData({ env }: { env: EnvKey }) {
       blurb: c.description ?? undefined,
       drawn: drawn.get(c.series.id)?.shape ?? null,
       steps: drawn.get(c.series.id)?.steps,
+      members: membersOf(c),
       wide: (await basinShare(FOCUS_BASIN, bbox)) >= WIDE,
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
