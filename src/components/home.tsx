@@ -6,11 +6,10 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import type { FeatureCollection } from "geojson";
 import { clipToFocus } from "@/lib/basins";
 import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
-import { fmtNum, fmtYears } from "@/lib/format";
-import { versionName } from "@/lib/versions";
+import { fmtNum } from "@/lib/format";
 import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
-import { HomePreview, PreviewBody } from "./home-preview";
+import { AreaSub, HomePreview, PreviewBody } from "./home-preview";
 import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
 
 /**
@@ -394,11 +393,6 @@ function AreaRow({
   onSelect: (slug: string) => void;
   onOpen: () => void;
 }) {
-  const meta = [
-    showKind ? AREA_KIND_LABEL[area.kind] : null,
-    fmtYears(area.temporal) ?? "No dates",
-    area.wide ? "Whole basin" : null,
-  ].filter(Boolean);
   return (
     <li className="sx-rail-item" data-active={active} data-open={open} data-slug={area.slug}>
       <button
@@ -421,10 +415,7 @@ function AreaRow({
           <span className="sx-row-title">
             {area.name}
           </span>
-          <span className="sx-row-sub">
-            <span className="ffx-num">{meta.join(" · ")}</span>
-            {area.version && <span className="sx-tag">{versionName(area.version)}</span>}
-          </span>
+          <AreaSub area={area} showKind={showKind} />
         </span>
         <span className="sx-row-aside ffx-num">{fmtNum(area.itemCount)}</span>
       </button>

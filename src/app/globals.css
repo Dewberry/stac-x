@@ -3139,14 +3139,14 @@ main:focus {
     box-shadow: 0 0 0 1px var(--ffx-rule);
   }
 }
-/* The items behind a footprint of a few shapes, each row lighting its shape up. */
+/* The items behind a footprint of a few shapes, each row lighting its shape up.
+   The count tile above is its heading, so it sits closer to that than the rest. */
 .sx-pv-members {
   display: grid;
   gap: 4px;
 }
-.sx-pv-members-head {
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
+.sx-pv-figs + .sx-pv-members {
+  margin-top: -6px;
 }
 .sx-pv-members ul {
   display: grid;
@@ -3251,6 +3251,11 @@ main:focus {
 }
 .sx-preview-x:hover {
   color: var(--ffx-ink);
+}
+.sx-preview-head {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
 }
 .sx-preview-title {
   font-family: var(--ffx-display);
