@@ -47,13 +47,6 @@ export function countOf(area: HomeArea): { n: string; noun: string } {
   return { n: fmtNum(m.length), noun: `items on ${fmtNum(shapes)} ${noun}${shapes === 1 ? "" : "s"}` };
 }
 
-/** The same as one string, for the note under the map. */
-export function membersHead(area: HomeArea): string | null {
-  if (!area.members?.length) return null;
-  const { n, noun } = countOf(area);
-  return `${n} ${noun}`;
-}
-
 type HoverProps = {
   /** The shapes under the cursor, on the map or here; their rows light up. */
   hoverKeys: string[];

@@ -245,6 +245,7 @@ export function HomeConsole({
             basinCovered={drawn?.drawn === "basin"}
             hoverKeys={hoverKeys}
             onHoverKeys={setHoverKeys}
+            onClear={() => setSelected(null)}
           />
           {current && <HomePreview area={current} hoverKeys={hoverKeys} onHoverKeys={setHoverKeys} onClose={() => setSelected(null)} />}
         </div>

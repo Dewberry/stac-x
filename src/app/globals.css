@@ -3062,12 +3062,14 @@ main:focus {
   color: var(--ffx-ink);
 }
 .sx-rail-item .sx-row:hover,
-.sx-rail-item[data-active="true"] .sx-row,
-.sx-rail-item[data-open="true"] {
+.sx-rail-item[data-active="true"] .sx-row {
   background: var(--ffx-surface-sunken);
 }
+/* The selected row is tinted river blue, the color its footprint is drawn
+   in, so it reads as the one on the map and not as a hover. */
 .sx-rail-item[data-open="true"] {
-  box-shadow: inset 3px 0 0 var(--ffx-river);
+  background: color-mix(in srgb, var(--ffx-active) 9%, var(--ffx-surface));
+  box-shadow: inset 4px 0 0 var(--ffx-river);
 }
 .sx-rail-item[data-active="true"]:not([data-open="true"]) .sx-row {
   box-shadow: inset 3px 0 0 var(--ffx-river);
@@ -3197,30 +3199,52 @@ main:focus {
   font-size: var(--ffx-t-tiny);
   color: var(--ffx-ink-mut);
 }
-/* Under the home map: how many shapes the selected collection is. */
-/* Says the lit basin is a collection's footprint, which the fill alone
-   doesn't make clear, least of all in dark mode. */
-.sx-map-cover {
+/* The home map's corner label: what the map is drawing. Muted while it's
+   only a preview of the row pointed at. The sheet names it on a phone. */
+.sx-map-label {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 12px;
+  left: 12px;
   z-index: 2;
-  padding: 0.3rem 0.75rem;
-  background: var(--ffx-glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 999px;
-  box-shadow: var(--ffx-shadow-float);
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink);
-  white-space: nowrap;
-  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: min(28rem, calc(100% - 80px));
+  padding: 0.625rem 0.625rem 0.625rem 0.875rem;
+  background: var(--ffx-surface);
+  border-radius: 10px;
+  box-shadow: var(--ffx-shadow-float), inset 3px 0 0 var(--ffx-river);
 }
-.sx-map-count {
+.sx-map-label .sx-qc-mark {
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+.sx-map-label-text {
+  display: grid;
+  min-width: 0;
+}
+.sx-map-label-name {
+  font: 600 1rem / 1.25 var(--ffx-display);
+  letter-spacing: -0.01em;
+  color: var(--ffx-ink);
+}
+.sx-map-label-sub {
   font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
   color: var(--ffx-ink-mut);
-  white-space: nowrap;
+}
+.sx-map-label[data-preview] {
+  background: var(--ffx-glass);
+  box-shadow: var(--ffx-shadow-float);
+}
+.sx-map-label[data-preview] .sx-map-label-name {
+  color: var(--ffx-ink-sec);
+}
+@media (max-width: 63.99rem) {
+  .sx-map-label {
+    display: none;
+  }
 }
 .sx-pv-btns {
   display: flex;

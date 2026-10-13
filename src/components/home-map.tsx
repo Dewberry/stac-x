@@ -23,7 +23,8 @@ import {
   type Palette,
 } from "./map-core";
 import type { HomeArea, Member } from "./home";
-import { membersHead } from "./home-preview";
+import { countOf } from "./home-preview";
+import { QcMark, stateOf } from "./qc-mark";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
 import { fmtNum } from "@/lib/format";
 import { MapCard } from "./map-card";
@@ -66,8 +67,14 @@ import { MapCard } from "./map-card";
  *
  * A collection whose shapes contain the whole basin has no footprint
  * of its own: the basin lights up instead, since the shape would tint the
- * whole map, and a note at the bottom of the map says so, since a lit basin on
- * its own can read as the basin's usual styling.
+ * whole map, and the label says so, since a lit basin on its own can read as
+ * the basin's usual styling.
+ *
+ * A label in the top-left corner names the collection whose footprint is
+ * drawn, with its review mark and what it holds, so the map says what it's
+ * showing without a look back at the rail. A selected collection's label
+ * has the way to clear it; a preview's is muted and has none. On a phone
+ * the sheet over the map names the selection instead.
  */
 
 const SRC_ITEMS = "sx-items";
@@ -302,6 +309,7 @@ export function HomeMap({
   basinCovered,
   hoverKeys,
   onHoverKeys,
+  onClear,
 }: {
   areas: HomeArea[];
   /** Every collection's footprint, from lib/overview.ts. */
@@ -316,6 +324,8 @@ export function HomeMap({
   /** The shapes of the shown collection to outline: pointed at here or in the rail. */
   hoverKeys: string[];
   onHoverKeys: (keys: string[]) => void;
+  /** Clears the selection, from the label's close button. */
+  onClear: () => void;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -546,11 +556,10 @@ export function HomeMap({
         </div>
       )}
       {cardHost && card && current && createPortal(<HomeCard area={current} hits={card.hits} />, cardHost)}
-      {basinCovered && <div className="sx-map-cover">Covers the whole South Platte basin</div>}
+      {current && <MapLabel area={current} selected={drawn === shown} covered={basinCovered} onClear={onClear} />}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <MapCredits credits={credits} />
-        {current?.members && !dense && <span className="sx-map-count">{membersHead(current)}</span>}
         {dense?.steps && (
           <span className="sx-map-key">
             {dense?.steps && (
@@ -588,5 +597,29 @@ function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
       }
       rows={hits.map((h) => ({ ...h, href: `${area.href}/items/${encodeURIComponent(h.id)}` }))}
     />
+  );
+}
+
+/** What's drawn, named in the map's corner. */
+function MapLabel({ area, selected, covered, onClear }: { area: HomeArea; selected: boolean; covered: boolean; onClear: () => void }) {
+  const { n, noun } = countOf(area);
+  return (
+    <div className="sx-map-label" data-preview={!selected || undefined} role="status">
+      <QcMark state={stateOf(area)} />
+      <div className="sx-map-label-text">
+        <span className="sx-map-label-name">{area.name}</span>
+        <span className="sx-map-label-sub">
+          <span className="ffx-num">{n}</span> {noun}
+          {covered && " · covers the whole South Platte basin"}
+        </span>
+      </div>
+      {selected && (
+        <button type="button" className="sx-preview-x" onClick={onClear} aria-label={`Clear ${area.name}`}>
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }
