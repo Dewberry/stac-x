@@ -2498,7 +2498,7 @@ main:focus {
   color: var(--ffx-ink-mut);
 }
 
-/* The pinned feature's card: a MapLibre popup, restyled as one of ours. */
+/* The click card's popup (map-card.tsx), restyled as one of ours. */
 .ffx-map .maplibregl-popup {
   z-index: 3;
 }
@@ -2525,69 +2525,91 @@ main:focus {
 .ffx-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: var(--ffx-surface);
 }
-.ffx-map-pin-card {
-  display: grid;
-  gap: 0.3rem;
-  min-width: 12rem;
-  max-width: 22rem;
+/* The card a click on a map opens (map-card.tsx): the items under the
+   click as rows, under a tinted band naming the collection on the landing
+   map. */
+.ffx-map .sx-map-card .maplibregl-popup-content {
+  padding: 0;
+  overflow: hidden;
+}
+/* Under the point, the tip touches the band. */
+.ffx-map .sx-map-card-band.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.ffx-map .sx-map-card-band.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.ffx-map .sx-map-card-band.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--ffx-surface-sunken);
+}
+.sx-card {
+  min-width: 15rem;
+  max-width: 24rem;
   font-size: var(--ffx-t-micro);
   line-height: var(--ffx-t-micro-lh);
   color: var(--ffx-ink);
 }
-.ffx-map-pin-label {
-  color: var(--ffx-ink-mut);
-}
-.ffx-map-pin-id {
-  overflow-wrap: anywhere;
-  user-select: all;
-}
-.ffx-map-pin-actions {
+.sx-card-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem;
-  padding-top: 0.125rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--ffx-surface-sunken);
+  border-bottom: 1px solid var(--ffx-rule);
 }
-.ffx-map-pin-more {
+.sx-card-name {
+  min-width: 0;
+  font-family: var(--ffx-display);
+  font-size: var(--ffx-t-small);
+  line-height: var(--ffx-t-small-lh);
+  font-weight: 600;
+}
+.sx-card-open {
+  flex: none;
+  font-weight: 600;
+}
+.sx-card-body {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem 0.5rem;
+}
+.sx-card-label {
+  padding: 0 0.25rem;
   font-size: var(--ffx-t-tiny);
   color: var(--ffx-ink-mut);
 }
-/* The stack under a pin: a row per feature, the one the card is about marked. */
-.ffx-map-pin-list {
+.sx-card-items {
   display: grid;
-  max-height: 11rem;
-  margin: 0 -0.25rem;
+  max-height: 13rem;
+  margin: 0;
+  padding: 0;
   overflow-y: auto;
+  list-style: none;
 }
-.ffx-map-pin-list button {
+.sx-card-item {
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
-  padding: 0.2rem 0.25rem;
-  border: 0;
+  padding: 0.3rem 0.25rem;
   border-radius: 4px;
-  background: none;
-  font: inherit;
   color: var(--ffx-ink);
-  text-align: left;
-  cursor: pointer;
+  text-decoration: none;
 }
-.ffx-map-pin-list-id {
+.sx-card-item:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-card-item-name {
+  font-weight: 600;
+}
+.sx-card-item-id {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ffx-ink-mut);
 }
-.ffx-map-pin-list button[data-current] .ffx-map-pin-list-id {
-  color: var(--ffx-ink);
-}
-.ffx-map-pin-list button:hover {
-  background: var(--ffx-surface-sunken);
-}
-.ffx-map-pin-list button[data-current] {
-  background: var(--ffx-surface-sunken);
-  font-weight: 600;
+.sx-card-item svg {
+  flex: none;
+  align-self: center;
+  margin-left: auto;
+  color: var(--ffx-ink-mut);
 }
 
 /* The map on a collection or item page: a card as wide as the columns
@@ -3389,90 +3411,6 @@ main:focus {
   }
   to {
     background-position: -120% 0;
-  }
-}
-
-/* Pins on the landing map: the review mark at the collection's middle and
-   its name beside it, one focusable control. The marker element is a
-   zero-size point; the pill hangs off it so the mark sits on the point
-   whichever side the name is on (data-place, set by placeLabels). */
-.sx-pin {
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-.sx-pin-btn {
-  position: absolute;
-  top: 0;
-  left: -11px;
-  transform: translateY(-50%);
-  pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 3px 8px 3px 6px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--ffx-glass);
-  box-shadow: 0 1px 2px rgb(19 26 34 / 0.12), 0 3px 10px rgb(19 26 34 / 0.1);
-  font: 600 var(--ffx-t-micro) / 1.4 var(--ffx-sans);
-  color: var(--ffx-ink);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 90ms linear, box-shadow 90ms linear, opacity 90ms linear;
-}
-.sx-pin-btn .sx-qc-mark {
-  width: 10px;
-  height: 10px;
-}
-.sx-pin[data-place="left"] .sx-pin-btn {
-  left: auto;
-  right: -11px;
-  flex-direction: row-reverse;
-  padding: 3px 6px 3px 8px;
-}
-.sx-pin[data-place="none"] .sx-pin-btn {
-  padding: 6px;
-}
-.sx-pin[data-place="none"] .sx-pin-label {
-  display: none;
-}
-.sx-pin[data-active="true"] .sx-pin-btn,
-.sx-pin-btn:hover {
-  background: var(--ffx-surface);
-  box-shadow: 0 0 0 2px var(--ffx-river), 0 3px 10px rgb(19 26 34 / 0.15);
-}
-.sx-pin[data-active="true"] {
-  z-index: 3;
-}
-/* On the button: MapLibre sets an inline opacity on the marker element. */
-.sx-pin[data-dim="true"] .sx-pin-btn {
-  opacity: 0.4;
-}
-/* On a phone the pins are marks only; the names are in the list under the map. */
-@media (max-width: 63.99rem) {
-  .sx-pin .sx-pin-btn,
-  .sx-pin[data-place] .sx-pin-btn {
-    left: -6px;
-    right: auto;
-    padding: 0;
-    background: none;
-    box-shadow: none;
-  }
-  .sx-pin .sx-pin-label {
-    display: none;
-  }
-  .sx-pin-btn .sx-qc-mark {
-    width: 12px;
-    height: 12px;
-    box-shadow: 0 0 0 2px #fff;
-  }
-  .sx-pin-btn .sx-qc-mark[data-qc="pending"] {
-    background: #fff;
-    box-shadow: inset 0 0 0 2px var(--ffx-qc-none), 0 0 0 2px #fff;
-  }
-  .sx-pin[data-active="true"] .sx-qc-mark {
-    box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ffx-river);
   }
 }
 

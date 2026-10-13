@@ -2,7 +2,8 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
-import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, MapMouseEvent, Marker } from "maplibre-gl";
+import { createPortal } from "react-dom";
+import type { ExpressionSpecification, GeoJSONSource, LngLat, Map as MapLibreMap, Point, Popup } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import {
   applyBasemap,
@@ -24,25 +25,17 @@ import {
 import type { HomeArea, Member } from "./home";
 import { membersHead } from "./home-preview";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
-import type { QcStatus } from "@/lib/stac";
-import { QC_LABEL, stateOf } from "./qc-mark";
+import { fmtNum } from "@/lib/format";
+import { MapCard } from "./map-card";
 
 /**
- * The landing page map: the South Platte basin, with every model area named
- * on it.
+ * The landing page map: the South Platte basin, and the footprint of the
+ * collection picked in the rail.
  *
- * Follows the Alaska Ground Watch home map. Each area is an HTML marker with
- * its name beside it, so it is focusable and named for assistive tech, and
- * pointing at one lights up its row in the rail (and the other way round).
- * Clicking a pin selects the area, which opens its row in the rail; the row
- * is the way into a collection. The mark carries the collection's review
- * state: filled green, amber or red, or a hollow ring when nobody has
- * reviewed it.
- *
- * A collection that covers most of the basin gets no pin: its middle is the
- * basin's middle, so every such pin would stack on the same spot. Names
- * that would overlap another pin, or run off the map, move to the other
- * side of their mark or hide, leaving the mark (placeLabels below).
+ * There are no pins. Most collections cover the whole basin, so a pin at
+ * each one's middle would stack on the basin's middle, and the one local
+ * collection would be the only name on the map. The rail is the way in;
+ * the map shows how much ground the collection covers.
  *
  * The South Platte is the only basin the program cares about, so the map
  * opens on it and its outline is the only boundary drawn. Inside the line
@@ -50,10 +43,10 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * in blue. Everything beyond it sits under a darker, sand-colored wash, so
  * the basin reads as the lit shape on the card.
  *
- * Until something is selected or pointed at, the map holds only the pins, so
+ * Until something is selected or pointed at, the map holds only the basin, so
  * it stays readable however many collections there are. Selecting a
  * collection, or resting the pointer on one while nothing is selected, draws
- * its footprint under the markers without moving the map: small dots for
+ * its footprint without moving the map: small dots for
  * point items like gages, a faint fill and an outline for the area a model
  * covers, three steps of blue for how many shapes cover each spot when they
  * overlap heavily, or a dashed box when the shapes were too heavy to send
@@ -61,13 +54,20 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * When the footprint is a few shapes (a calibration collection's HMS and RAS
  * models of one basin, stacked), pointing at it names every shape under the
  * cursor and lights up their rows in the rail, and pointing at a row lights
- * up its shape here, since stacked fills look like one.
- * The pin says where a collection is; the footprint says how much ground it
- * covers. A collection whose shapes contain the whole basin has no footprint
+ * up its shape here, since stacked fills look like one. Pointing at a dot
+ * names its item too.
+ *
+ * Clicking the selected collection's footprint opens a card there: the
+ * collection as its heading, with the way to it, and under that every item
+ * under the click, each row the way to its page. Where the map
+ * can't tell the items apart (a dense footprint, an extent box, the lit
+ * basin, or one shape shared by many items) the card is the collection
+ * alone. Clicking anywhere else closes it; the map never moves on a click.
+ *
+ * A collection whose shapes contain the whole basin has no footprint
  * of its own: the basin lights up instead, since the shape would tint the
  * whole map, and a note at the bottom of the map says so, since a lit basin on
- * its own can read as the basin's usual styling. Clicking the basin selects
- * it, which zooms the map and scrolls the rail to its group.
+ * its own can read as the basin's usual styling.
  */
 
 const SRC_ITEMS = "sx-items";
@@ -75,7 +75,6 @@ const SRC_BASINS = "sx-basins";
 const SRC_MASK = "sx-mask";
 const L = {
   mask: "sx-outside-mask",
-  basinFill: "sx-basin-fill",
   basinCover: "sx-basin-cover",
   basinLine: "sx-basin-line",
   itemFill: "sx-live-fill",
@@ -149,14 +148,9 @@ function addLayers(
     id: L.mask, type: "fill", source: SRC_MASK,
     paint: { "fill-color": p.mapSurround, "fill-opacity": 1 },
   });
-  // The fill can't be seen; it's the click target. A selected basin is
-  // marked by its outline alone, so the land stays paper white.
-  map.addLayer({
-    id: L.basinFill, type: "fill", source: SRC_BASINS,
-    paint: { "fill-color": p.mapLand, "fill-opacity": 0.01 },
-  });
-  // Except while the selected collection covers the whole basin: then the
-  // basin itself is its footprint, in the same blue the fills use.
+  // A selected basin is marked by its outline alone, so the land stays paper
+  // white, except while the selected collection covers the whole basin:
+  // then the basin itself is its footprint, in the same blue the fills use.
   map.addLayer({
     id: L.basinCover, type: "fill", source: SRC_BASINS, filter: basinCoverFilter(basinCovered),
     paint: { "fill-color": p.trace, "fill-opacity": 0.16, "fill-antialias": false },
@@ -254,156 +248,116 @@ function basinLineWidth(basinHighlight: string | null) {
   return basinHighlight === FOCUS_BASIN ? 3.25 : 2.5;
 }
 
-type Pin = { slug: string; lngLat: [number, number]; el: HTMLElement; btn: HTMLElement; width?: number };
-type Rect = [number, number, number, number];
+/** An item the map can name: a dot, or one of a few keyed shapes. */
+type Hit = Omit<Member, "key">;
 
-/** From the pin's left edge to the middle of its mark: padding plus half the mark. */
-const MARK_INSET = 11;
-const MARK_HALF = 6;
-
-const overlaps = (a: Rect, b: Rect) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+/** What a click can land on: the shapes and dots of the selected collection, or the lit basin. */
+const PICK = [L.items, L.itemFill, L.itemLine, L.density, L.densityLine, L.basinCover];
 
 /**
- * Where each pin's name goes: to the right of its mark, to the left, or
- * nowhere, so no name covers another name or another mark and none runs off
- * the map or under its controls and legend. The active pin is placed first,
- * so its name always shows. While a collection is selected only its own pin
- * keeps a name, so the other names don't sit on its footprint. The marks
- * themselves never move or hide.
+ * What of the shown collection is under a point: null when the point misses
+ * it, else the items there the map can name (none when it can't tell them
+ * apart) and the keys of the shapes, for the rail to light up.
  */
-function placeLabels(
-  map: MapLibreMap,
-  frame: HTMLElement,
-  pins: Pin[],
-  active: string | null,
-  selected: string | null,
-  marksOnly: boolean,
-) {
-  const box = map.getContainer().getBoundingClientRect();
-  const blocked: Rect[] = [];
-  for (const sel of [".ffx-map-ctl", ".sx-density-box", ".sx-credit", ".sx-map-cover"]) {
-    const r = frame.querySelector(sel)?.getBoundingClientRect();
-    if (r && r.width) blocked.push([r.left - box.left, r.top - box.top, r.right - box.left, r.bottom - box.top]);
-  }
-  const at = new Map(pins.map((p) => [p.slug, map.project(p.lngLat)]));
-  const marks: [string, Rect][] = pins.map((p) => {
-    const { x, y } = at.get(p.slug)!;
-    return [p.slug, [x - MARK_HALF, y - MARK_HALF, x + MARK_HALF, y + MARK_HALF]];
-  });
-  const order = [...pins].sort((a, b) => Number(b.slug === active) - Number(a.slug === active));
-  for (const p of order) {
-    if (marksOnly || (selected && p.slug !== selected)) {
-      p.el.dataset.place = "none";
-      continue;
+function pickAt(m: MapLibreMap, point: Point, lngLat: LngLat, area: HomeArea | undefined) {
+  if (!area) return null;
+  const { x, y } = point;
+  const layers = PICK.filter((l) => m.getLayer(l));
+  const found = layers.length ? m.queryRenderedFeatures([[x - HIT, y - HIT], [x + HIT, y + HIT]], { layers }) : [];
+  // A dashed extent box is a line; anywhere inside it counts.
+  const [w, s, e, n] = area.bbox;
+  const inBox = area.drawn === "extent" && lngLat.lng >= w && lngLat.lng <= e && lngLat.lat >= s && lngLat.lat <= n;
+  if (!found.length && !inBox) return null;
+  const keys = new Set<string>();
+  const seen = new Set<string>();
+  const hits: Hit[] = [];
+  for (const f of found) {
+    const p = f.properties ?? {};
+    if (typeof p.key === "string") keys.add(p.key);
+    if (f.layer.id === L.items && typeof p.id === "string" && !seen.has(p.id)) {
+      seen.add(p.id);
+      hits.push({ id: p.id, label: typeof p.label === "string" ? p.label : p.id, hideId: p.hideId === true, kind: typeof p.kind === "string" ? p.kind : null });
     }
-    if (p.width === undefined) {
-      p.el.dataset.place = "right";
-      p.width = p.btn.offsetWidth;
-    }
-    const h = p.btn.offsetHeight || 22;
-    const { x, y } = at.get(p.slug)!;
-    const sides: [string, Rect][] = [
-      ["right", [x - MARK_INSET, y - h / 2, x - MARK_INSET + p.width, y + h / 2]],
-      ["left", [x + MARK_INSET - p.width, y - h / 2, x + MARK_INSET, y + h / 2]],
-    ];
-    const fits = ([, r]: [string, Rect]) =>
-      r[0] >= 0 && r[2] <= box.width && r[1] >= 0 && r[3] <= box.height &&
-      !blocked.some((b) => overlaps(r, b)) &&
-      !marks.some(([slug, m]) => slug !== p.slug && overlaps(r, m));
-    const side = sides.find(fits);
-    p.el.dataset.place = side ? side[0] : "none";
-    if (side) blocked.push(side[1]);
   }
+  for (const mm of area.members ?? []) {
+    if (keys.has(mm.key) && !seen.has(mm.id)) {
+      seen.add(mm.id);
+      hits.push(mm);
+    }
+  }
+  return { hits, keys: Array.from(keys) };
 }
+
+const sameIds = (a: Hit[], b: Hit[]) => a.length === b.length && a.every((h, i) => h.id === b[i].id);
+
+/** A clicked spot on the map and what's under it. */
+type Card = { slug: string; at: [number, number]; hits: Hit[] };
 
 export function HomeMap({
   areas,
   items,
-  highlight,
   shown,
   preview,
-  filter,
   basinHighlight,
   basinCovered,
-  focus,
   hoverKeys,
-  onHover,
   onHoverKeys,
-  onSelect,
-  onBasinSelect,
 }: {
   areas: HomeArea[];
   /** Every collection's footprint, from lib/overview.ts. */
   items: FeatureCollection;
-  /** The pin to mark as active: the selected collection, or the one pointed at. */
-  highlight: string | null;
   /** The selected collection. */
   shown: string | null;
   /** The collection pointed at while nothing is selected; its footprint is drawn as a preview. */
   preview: string | null;
-  /** The review state the rail is filtered to; pins in other states dim. */
-  filter: QcStatus | null;
   basinHighlight: string | null;
   /** The drawn collection contains the whole basin, so the basin is lit up as its footprint. */
   basinCovered: boolean;
-  /** A box to fit to; the key changes on every request so the same box can be refit. */
-  focus: { bbox: [number, number, number, number]; key: number } | null;
   /** The shapes of the shown collection to outline: pointed at here or in the rail. */
   hoverKeys: string[];
-  onHover: (slug: string | null) => void;
   onHoverKeys: (keys: string[]) => void;
-  onSelect: (slug: string) => void;
-  onBasinSelect: (huc4: string) => void;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const markersRef = useRef<Map<string, { marker: Marker; pin: Pin }>>(new Map());
+  const popupRef = useRef<Popup | null>(null);
+  // Where the card renders: a div the popup owns, portaled into from React.
+  const [cardHost, setCardHost] = useState<HTMLDivElement | null>(null);
   const [credits, setCredits] = useState<Credit[]>([]);
   // The collection whose footprint is on the map: the selected one, or else
   // the one pointed at.
   const drawn = shown ?? preview;
   const current = areas.find((a) => a.slug === drawn) ?? null;
   const dense = current?.drawn === "density" ? current : null;
-  // Pin names give way to a dense footprint only once it's selected, so
-  // they don't blink while the pointer moves down the list.
-  const denseShown = !!dense && drawn === shown;
   const [basemapDown, setBasemapDown] = useState(false);
   // The members under the cursor, named beside it. Kept with the slug they
   // belong to, so a new selection drops a stale one.
-  const [tipState, setTip] = useState<{ slug: string; x: number; y: number; flip: boolean; rows: Member[] } | null>(null);
-  const tip = tipState?.slug === shown ? tipState : null;
+  const [tipState, setTip] = useState<{ slug: string; x: number; y: number; flip: boolean; rows: Hit[] } | null>(null);
+  // The card on a clicked spot, kept with its slug the same way.
+  const [cardState, setCard] = useState<Card | null>(null);
+  const card = cardState?.slug === shown ? cardState : null;
+  // The tooltip steps aside while the card already lists the same stack.
+  const tip = tipState?.slug === shown && !(card && sameIds(card.hits, tipState.rows)) ? tipState : null;
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
   const areasRef = useRef(areas);
   const itemsRef = useRef(items);
   const shownRef = useRef(shown);
   const drawnRef = useRef(drawn);
-  const highlightRef = useRef(highlight);
-  const denseRef = useRef(!!dense);
-  const placeRef = useRef<() => void>(() => {});
   const basinHighlightRef = useRef(basinHighlight);
   const basinCoveredRef = useRef(basinCovered);
   const hoverKeysRef = useRef(hoverKeys);
   const basinRef = useRef<Feature<Shape> | null>(null);
-  const onHoverRef = useRef(onHover);
   const onHoverKeysRef = useRef(onHoverKeys);
-  const onSelectRef = useRef(onSelect);
-  const onBasinSelectRef = useRef(onBasinSelect);
   useEffect(() => {
     areasRef.current = areas;
     itemsRef.current = items;
     shownRef.current = shown;
     drawnRef.current = drawn;
-    highlightRef.current = highlight;
-    denseRef.current = denseShown;
     basinHighlightRef.current = basinHighlight;
     basinCoveredRef.current = basinCovered;
     hoverKeysRef.current = hoverKeys;
-    onHoverRef.current = onHover;
     onHoverKeysRef.current = onHoverKeys;
-    onSelectRef.current = onSelect;
-    onBasinSelectRef.current = onBasinSelect;
   });
 
   useEffect(() => {
@@ -432,6 +386,16 @@ export function HomeMap({
       mapRef.current = m;
       // A handle for the console while developing: __sxMap.getStyle(), etc.
       if (process.env.NODE_ENV !== "production") (window as unknown as { __sxMap?: unknown }).__sxMap = m;
+
+      const cardDiv = document.createElement("div");
+      popupRef.current = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        maxWidth: "none",
+        className: "ffx-map-pin sx-map-card sx-map-card-band",
+      }).setDOMContent(cardDiv);
+      setCardHost(cardDiv);
 
       const fit = () => m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration: 300 });
       // The map already fills the window, so there's no full screen button.
@@ -464,101 +428,38 @@ export function HomeMap({
         .catch(() => {});
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
 
-      // Markers: one per local collection, name beside the mark. Built once.
-      // A basin-wide collection has none (see above).
-      for (const a of areasRef.current) {
-        if (a.wide) continue;
-        const el = document.createElement("div");
-        el.className = "sx-pin";
-        el.dataset.place = "right";
-        const btn = document.createElement("button");
-        btn.className = "sx-pin-btn";
-        btn.type = "button";
-        const state = stateOf(a);
-        const label = QC_LABEL[state].toLowerCase();
-        btn.setAttribute("aria-label", `${a.name}, ${label}`);
-        const mark = document.createElement("span");
-        mark.className = "sx-qc-mark";
-        mark.dataset.qc = state;
-        mark.setAttribute("aria-hidden", "true");
-        const name = document.createElement("span");
-        name.className = "sx-pin-label";
-        name.textContent = a.name;
-        btn.append(mark, name);
-        el.appendChild(btn);
-        let downX = 0, downY = 0;
-        btn.addEventListener("pointerdown", (e) => { downX = e.clientX; downY = e.clientY; });
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
-          onSelectRef.current(a.slug);
-        });
-        btn.addEventListener("pointerenter", (e) => { if (e.pointerType === "mouse") onHoverRef.current(a.slug); });
-        btn.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") onHoverRef.current(null); });
-        btn.addEventListener("focus", () => onHoverRef.current(a.slug));
-        btn.addEventListener("blur", () => onHoverRef.current(null));
-        const [w, s, e, n] = a.bbox;
-        const lngLat: [number, number] = [(w + e) / 2, (s + n) / 2];
-        const marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(lngLat).addTo(m);
-        markersRef.current.set(a.slug, { marker, pin: { slug: a.slug, lngLat, el, btn } });
-      }
-
-      // Labels are re-placed once per frame while the map moves.
-      let frameReq = 0;
-      placeRef.current = () => {
-        cancelAnimationFrame(frameReq);
-        frameReq = requestAnimationFrame(() => {
-          if (disposed) return;
-          const pins = Array.from(markersRef.current.values(), (x) => x.pin);
-          // On a phone the pins are marks only (see globals.css).
-          const marksOnly = denseRef.current || !matchMedia("(min-width: 64rem)").matches;
-          placeLabels(m, frame, pins, highlightRef.current, shownRef.current, marksOnly);
-        });
-      };
-      m.on("move", () => placeRef.current());
-      m.on("resize", () => placeRef.current());
-      void document.fonts?.ready.then(() => {
-        markersRef.current.forEach(({ pin }) => (pin.width = undefined));
-        placeRef.current();
-      });
-
       m.on("load", () => {
         draw();
         basemap();
-        placeRef.current();
       });
       m.on("sourcedata", () => setCredits(creditsOf(m)));
-      // A click on a basin selects it; a click on bare map clears the hover.
-      m.on("click", (e) => {
-        const hits = m.getLayer(L.basinFill) ? m.queryRenderedFeatures(e.point, { layers: [L.basinFill] }) : [];
-        const huc = hits[0]?.properties?.huc4;
-        if (huc) onBasinSelectRef.current(String(huc));
-        else onHoverRef.current(null);
-      });
-      m.on("mousemove", L.basinFill, () => (m.getCanvas().style.cursor = "pointer"));
-      m.on("mouseleave", L.basinFill, () => (m.getCanvas().style.cursor = ""));
 
-      // Pointing at the shown collection's shapes names every one under the
-      // cursor, which is how stacked models are told apart.
-      const clearTip = () => {
-        setTip(null);
-        onHoverKeysRef.current([]);
+      // Pointing at the shown collection names the items under the cursor,
+      // which is how stacked models are told apart, and says it can be
+      // clicked.
+      const shownArea = () => areasRef.current.find((a) => a.slug === shownRef.current);
+      // Only a change goes up, so moving over bare map doesn't render the page.
+      const hoverKeysTo = (keys: string[]) => {
+        if (keys.join("|") !== hoverKeysRef.current.join("|")) onHoverKeysRef.current(keys);
       };
-      const tipAt = (e: MapMouseEvent) => {
-        const area = areasRef.current.find((a) => a.slug === shownRef.current);
-        if (!area?.members) return clearTip();
+      m.on("mousemove", (e) => {
+        const area = shownArea();
+        const got = pickAt(m, e.point, e.lngLat, area);
+        m.getCanvas().style.cursor = got ? "pointer" : "";
+        hoverKeysTo(got?.keys ?? []);
+        if (!area || !got?.hits.length) return setTip(null);
         const { x, y } = e.point;
-        const hits = m.queryRenderedFeatures([[x - HIT, y - HIT], [x + HIT, y + HIT]], { layers: [L.itemFill] });
-        const keys = new Set<string>();
-        for (const h of hits) if (typeof h.properties?.key === "string") keys.add(h.properties.key);
-        if (!keys.size) return clearTip();
-        const rows = area.members.filter((mm) => keys.has(mm.key));
-        setTip({ slug: area.slug, x, y, flip: x > m.getCanvas().clientWidth - 300, rows });
-        onHoverKeysRef.current(Array.from(keys));
-      };
-      m.on("mousemove", L.itemFill, tipAt);
-      m.on("mouseleave", L.itemFill, clearTip);
+        setTip({ slug: area.slug, x, y, flip: x > m.getCanvas().clientWidth - 300, rows: got.hits });
+      });
+      m.on("mouseout", () => {
+        setTip(null);
+        hoverKeysTo([]);
+      });
+      m.on("click", (e) => {
+        const area = shownArea();
+        const got = pickAt(m, e.point, e.lngLat, area);
+        setCard(area && got ? { slug: area.slug, at: e.lngLat.toArray() as [number, number], hits: got.hits } : null);
+      });
 
       unwatch = watchTheme(() => {
         for (const id of [...Object.values(L), LAYER_RELIEF]) if (m.getLayer(id)) m.removeLayer(id);
@@ -567,12 +468,11 @@ export function HomeMap({
       });
     });
 
-    const markers = markersRef.current;
     return () => {
       disposed = true;
       unwatch?.();
-      markers.forEach(({ marker }) => marker.remove());
-      markers.clear();
+      popupRef.current?.remove();
+      popupRef.current = null;
       map?.remove();
       mapRef.current = null;
     };
@@ -581,14 +481,25 @@ export function HomeMap({
   }, []);
 
   useEffect(() => {
-    markersRef.current.forEach(({ pin }, slug) => {
-      const a = areas.find((x) => x.slug === slug);
-      pin.el.dataset.active = String(slug === highlight);
-      // While something is selected or filtered, everything else steps back.
-      pin.el.dataset.dim = String(!!a && slug !== highlight && ((!!shown && slug !== shown) || (!!filter && stateOf(a) !== filter)));
-    });
-    placeRef.current();
-  }, [areas, highlight, shown, filter, denseShown, basinCovered]);
+    const m = mapRef.current;
+    const popup = popupRef.current;
+    if (!m || !popup) return;
+    if (card) popup.setLngLat(card.at).addTo(m);
+    else popup.remove();
+  }, [card]);
+
+  // Escape closes the card before it closes the selected row.
+  const open = !!card;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      setCard(null);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -614,18 +525,9 @@ export function HomeMap({
 
   useEffect(() => {
     const m = mapRef.current;
-    if (!m?.getLayer(L.basinFill)) return;
+    if (!m?.getLayer(L.basinLine)) return;
     m.setPaintProperty(L.basinLine, "line-width", basinLineWidth(basinHighlight));
   }, [basinHighlight]);
-
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m || !focus) return;
-    const [w, s, e, n] = focus.bbox;
-    // On a phone the sheet covers the bottom of the map.
-    const wide = matchMedia("(min-width: 64rem)").matches;
-    m.fitBounds([[w, s], [e, n]], { padding: { top: 40, bottom: wide ? 60 : 220, left: 40, right: 56 }, maxZoom: 9, duration: 500 });
-  }, [focus]);
 
   return (
     <figure ref={frameRef} className="ffx-map sx-home-map" aria-label="Collections in the South Platte basin">
@@ -643,6 +545,7 @@ export function HomeMap({
           {tip.rows.length > TIP_ROWS && <span className="ffx-map-tip-more">and {tip.rows.length - TIP_ROWS} more</span>}
         </div>
       )}
+      {cardHost && card && current && createPortal(<HomeCard area={current} hits={card.hits} />, cardHost)}
       {basinCovered && <div className="sx-map-cover">Covers the whole South Platte basin</div>}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
@@ -665,5 +568,25 @@ export function HomeMap({
         )}
       </figcaption>
     </figure>
+  );
+}
+
+/**
+ * The card on a clicked spot: the collection as the heading, with the way
+ * to it, and the items under the click below. When the map can't name the
+ * items, the collection's count in their place.
+ */
+function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
+  return (
+    <MapCard
+      head={area.name}
+      action={{ href: area.href, label: "Open collection" }}
+      note={
+        <>
+          <span className="ffx-num">{fmtNum(area.itemCount)}</span> {area.itemCount === 1 ? "item" : "items"}
+        </>
+      }
+      rows={hits.map((h) => ({ ...h, href: `${area.href}/items/${encodeURIComponent(h.id)}` }))}
+    />
   );
 }

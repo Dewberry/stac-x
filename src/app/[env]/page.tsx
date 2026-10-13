@@ -22,12 +22,9 @@ export const dynamic = "force-dynamic";
  * Every collection in the catalog is an area here: it links to the
  * collection, its counts are real, and its footprint is drawn on the map
  * when it's selected (points for gages, the covered area for a model; see
- * lib/overview.ts). It's
- * placed in the basin under the middle of its extent, so a new parquet file
- * in the bucket shows up here with no code change. A collection whose
- * extent covers most of the basin (gages, a storm catalog) gets no pin,
- * since its middle says nothing and every such pin would land on the same
- * spot; the rail says "Whole basin" instead.
+ * lib/overview.ts), so a new parquet file in the bucket shows up here with
+ * no code change. A collection whose extent covers most of the basin (gages,
+ * a storm catalog) says "Whole basin" in the rail.
  */
 
 /** The most items a selected collection lists by name in its row. */
@@ -65,7 +62,7 @@ async function HomeData({ env }: { env: EnvKey }) {
   });
 
   // One footprint per collection, tagged with its series id so the map can
-  // light it up with its pin. Biggest first, so a small model inside a big
+  // draw the selected one. Biggest first, so a small model inside a big
   // one draws on top of it.
   const extentArea = (b: [number, number, number, number] | null) => (b ? (b[2] - b[0]) * (b[3] - b[1]) : 0);
   const footprints = await Promise.all(
@@ -73,6 +70,13 @@ async function HomeData({ env }: { env: EnvKey }) {
       .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
       .map(async (c) => {
         const o = overview(c.items, c.series.id, c.bbox);
+        // Each dot is named the way the collection page names its item, for
+        // the card a click on it opens.
+        const byId = new Map(c.items.map((i) => [i.id, i]));
+        for (const f of o.features) {
+          const item = f.properties?.role === "point" ? byId.get(f.properties.id) : undefined;
+          if (item) Object.assign(f.properties!, itemRowLabel(c, item));
+        }
         // Shapes that contain the whole basin (a national inventory's extent
         // box) would tint the whole map, so such a collection is drawn as
         // the basin itself; the map lights the basin up for it.

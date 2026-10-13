@@ -16,7 +16,8 @@ import type { StacItem } from "./stac";
  *
  * So the map draws each collection by its shape, not its kind:
  *
- * - points: every point item, as a dot.
+ * - points: every point item, as a dot. Each dot is its own feature with
+ *   the item's `id`, so a click on the map can name the gage under it.
  * - areas: the distinct polygons, as a faint fill, with an outline that
  *   drops the edges polygons share. Subbasins that tile a model domain then
  *   draw as one domain instead of a mesh. Identical geometries (every event
@@ -104,14 +105,14 @@ export function polygonsOf(items: StacItem[]): Position[][][] {
  * one polygon.
  */
 function shapes(items: Pick<StacItem, "id" | "geometry">[]) {
-  const points: Position[] = [];
+  const points: { at: Position; id: string }[] = [];
   const polygons = new Map<string, { rings: Position[][]; ids: string[] }>();
   const lines = new Map<string, Position[]>();
 
   for (const { id, geometry: g } of items) {
     if (!g) continue;
     for (const part of parts(g)) {
-      if (part.type === "Point") points.push(round(part.coordinates));
+      if (part.type === "Point") points.push({ at: round(part.coordinates), id });
       else if (part.type === "LineString") {
         const line = clean(part.coordinates);
         lines.set(JSON.stringify(line), line);
@@ -141,11 +142,17 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
   const { points, polygons, lines } = shapes(items);
 
   const tag = (role: string, geometry: Geometry): Feature => ({ type: "Feature", properties: { slug, role }, geometry });
+  const dots = () =>
+    points.map(({ at, id }) => {
+      const f = tag("point", { type: "Point", coordinates: at });
+      f.properties!.id = id;
+      return f;
+    });
 
   if (!polygons.size && !lines.size) {
     if (!points.length) return { shape: null, features: [] };
     if (points.length <= MAX_VERTICES / 4) {
-      return { shape: "points", features: [tag("point", { type: "MultiPoint", coordinates: points })] };
+      return { shape: "points", features: dots() };
     }
   } else {
     const polys = Array.from(polygons.values(), (p) => p.rings);
@@ -182,7 +189,7 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
       if (polys.length) features.push(tag("line", { type: "MultiLineString", coordinates: outline(polys) }));
       if (lines.size) features.push(tag("line", { type: "MultiLineString", coordinates: Array.from(lines.values()) }));
       // A collection with both shapes (gages beside a model, say) keeps its dots.
-      if (points.length) features.push(tag("point", { type: "MultiPoint", coordinates: points }));
+      if (points.length) features.push(...dots());
       return members ? { shape: "areas", features, members } : { shape: "areas", features };
     }
   }

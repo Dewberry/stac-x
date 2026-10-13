@@ -4,7 +4,6 @@ import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection } from "geojson";
-import { clipToFocus } from "@/lib/basins";
 import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { fmtNum } from "@/lib/format";
 import type { Tint } from "@/lib/overview";
@@ -16,15 +15,15 @@ import { QC_LABEL, QcMark, STATE_ORDER, stateOf } from "./qc-mark";
  * The home page, a console for people who already know FFRD: the
  * collections rail on the left and the map on the right, filling the window
  * under the environment band. Nothing here says what stac-x is; the header
- * does that. One shared hover joins the list and the pins, so pointing at a
- * name finds its mark and pointing at a mark finds its name.
+ * does that. Pointing at a row previews its footprint on the map.
  *
- * The map's review menu is the legend for the pins' marks and the review
- * filter in one: each state's row shows its count and narrows the rail to
- * that state, dimming the other pins. The rail groups by kind or by review
- * state. Selecting a collection expands its row in place with enough to
- * decide whether to open it, and draws its footprint on the map; nothing
- * covers the map. Enter on a row opens the collection, Escape closes the row.
+ * The review states in the rail's head are the legend for the rows' marks
+ * and the review filter in one: each shows its count and narrows the rail to
+ * that state. The rail groups by kind or by review state. Selecting a
+ * collection expands its row in place with enough to decide whether to open
+ * it, and draws its footprint on the map; clicking the footprint opens a
+ * card with the items there. Enter on a row opens the collection, Escape
+ * closes the row.
  *
  * On a phone the page is a plain column: the map, then the rail with the
  * state buttons in its head, and a selection opens a sheet over the map
@@ -43,7 +42,7 @@ export type HomeArea = {
   kind: AreaKind;
   huc4: string;
   bbox: [number, number, number, number];
-  /** Covers most of the basin: no pin, and "Whole basin" in the rail. */
+  /** Covers most of the basin: "Whole basin" in the rail. */
   wide?: boolean;
   /**
    * How the collection's footprint is drawn on the map; null when it isn't.
@@ -148,7 +147,6 @@ export function HomeConsole({
   const [filter, setFilter] = useState<QcStatus | null>(null);
   const groupBy = useSyncExternalStore(subscribeGroup, readGroup, () => "kind");
   const [basin, setBasin] = useState<string | null>(null);
-  const [focus, setFocus] = useState<{ bbox: [number, number, number, number]; key: number } | null>(null);
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
   const listRef = useRef<HTMLUListElement>(null);
@@ -206,25 +204,6 @@ export function HomeConsole({
     [bySlug, selected],
   );
 
-  const selectBasin = useCallback(
-    (huc4: string) => {
-      setBasin(huc4);
-      setSelected(null);
-      // Zoom to the union of the basin's areas, which is what the catalog has there.
-      const list = areas.filter((a) => a.huc4 === huc4);
-      if (list.length) {
-        const bbox: [number, number, number, number] = [
-          Math.min(...list.map((a) => a.bbox[0])),
-          Math.min(...list.map((a) => a.bbox[1])),
-          Math.max(...list.map((a) => a.bbox[2])),
-          Math.max(...list.map((a) => a.bbox[3])),
-        ];
-        setFocus({ bbox: clipToFocus(bbox), key: Date.now() });
-      }
-    },
-    [areas],
-  );
-
   // Escape closes the open row from anywhere on the page.
   useEffect(() => {
     if (!selected) return;
@@ -260,18 +239,12 @@ export function HomeConsole({
           <HomeMap
             areas={areas}
             items={items}
-            highlight={selected ?? hovered}
             shown={selected}
             preview={preview}
-            filter={filter}
             basinHighlight={highlightedBasin}
             basinCovered={drawn?.drawn === "basin"}
-            focus={focus}
             hoverKeys={hoverKeys}
-            onHover={setHovered}
             onHoverKeys={setHoverKeys}
-            onSelect={select}
-            onBasinSelect={selectBasin}
           />
           {current && <HomePreview area={current} hoverKeys={hoverKeys} onHoverKeys={setHoverKeys} onClose={() => setSelected(null)} />}
         </div>
