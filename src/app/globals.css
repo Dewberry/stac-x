@@ -3199,47 +3199,58 @@ main:focus {
   font-size: var(--ffx-t-tiny);
   color: var(--ffx-ink-mut);
 }
-/* The home map's corner label: what the map is drawing. Muted while it's
-   only a preview of the row pointed at. The sheet names it on a phone. */
+/* The home map's corner bar: the selected collection on one line, at the
+   height of the map controls. The sheet names it on a phone. */
 .sx-map-label {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 14px;
+  left: 14px;
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  max-width: min(28rem, calc(100% - 80px));
-  padding: 0.625rem 0.625rem 0.625rem 0.875rem;
+  gap: 0.5rem;
+  height: 34px;
+  max-width: min(32rem, calc(100% - 80px));
+  padding: 0 4px 0 12px;
   background: var(--ffx-surface);
   border-radius: 10px;
   box-shadow: var(--ffx-shadow-float), inset 3px 0 0 var(--ffx-river);
+  font-size: var(--ffx-t-small);
+  line-height: 1;
+  white-space: nowrap;
 }
 .sx-map-label .sx-qc-mark {
   flex: none;
-  width: 10px;
-  height: 10px;
-}
-.sx-map-label-text {
-  display: grid;
-  min-width: 0;
+  width: 9px;
+  height: 9px;
 }
 .sx-map-label-name {
-  font: 600 1rem / 1.25 var(--ffx-display);
-  letter-spacing: -0.01em;
+  min-width: 4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
   color: var(--ffx-ink);
 }
 .sx-map-label-sub {
-  font-size: var(--ffx-t-micro);
-  line-height: var(--ffx-t-micro-lh);
+  flex: none;
   color: var(--ffx-ink-mut);
 }
-.sx-map-label[data-preview] {
-  background: var(--ffx-glass);
-  box-shadow: var(--ffx-shadow-float);
+.sx-map-label-x {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
 }
-.sx-map-label[data-preview] .sx-map-label-name {
-  color: var(--ffx-ink-sec);
+.sx-map-label-x:hover {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
 }
 @media (max-width: 63.99rem) {
   .sx-map-label {

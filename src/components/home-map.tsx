@@ -70,11 +70,11 @@ import { MapCard } from "./map-card";
  * whole map, and the label says so, since a lit basin on its own can read as
  * the basin's usual styling.
  *
- * A label in the top-left corner names the collection whose footprint is
- * drawn, with its review mark and what it holds, so the map says what it's
- * showing without a look back at the rail. A selected collection's label
- * has the way to clear it; a preview's is muted and has none. On a phone
- * the sheet over the map names the selection instead.
+ * A bar in the top-left corner names the selected collection, with its
+ * review mark and what it holds, so the map says what it's showing without
+ * a look back at the rail, and has the way to clear it. A preview has no
+ * bar: the cursor is on the row that names it. On a phone the sheet over
+ * the map names the selection instead.
  */
 
 const SRC_ITEMS = "sx-items";
@@ -556,7 +556,7 @@ export function HomeMap({
         </div>
       )}
       {cardHost && card && current && createPortal(<HomeCard area={current} hits={card.hits} />, cardHost)}
-      {current && <MapLabel area={current} selected={drawn === shown} covered={basinCovered} onClear={onClear} />}
+      {current && drawn === shown && <MapLabel area={current} covered={basinCovered} onClear={onClear} />}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <MapCredits credits={credits} />
@@ -600,26 +600,22 @@ function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
   );
 }
 
-/** What's drawn, named in the map's corner. */
-function MapLabel({ area, selected, covered, onClear }: { area: HomeArea; selected: boolean; covered: boolean; onClear: () => void }) {
+/** The selected collection, named in the map's corner on one line. */
+function MapLabel({ area, covered, onClear }: { area: HomeArea; covered: boolean; onClear: () => void }) {
   const { n, noun } = countOf(area);
   return (
-    <div className="sx-map-label" data-preview={!selected || undefined} role="status">
+    <div className="sx-map-label" role="status">
       <QcMark state={stateOf(area)} />
-      <div className="sx-map-label-text">
-        <span className="sx-map-label-name">{area.name}</span>
-        <span className="sx-map-label-sub">
-          <span className="ffx-num">{n}</span> {noun}
-          {covered && " · covers the whole South Platte basin"}
-        </span>
-      </div>
-      {selected && (
-        <button type="button" className="sx-preview-x" onClick={onClear} aria-label={`Clear ${area.name}`}>
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" />
-          </svg>
-        </button>
-      )}
+      <span className="sx-map-label-name">{area.name}</span>
+      <span className="sx-map-label-sub">
+        <span className="ffx-num">{n}</span> {noun}
+        {covered && ", whole South Platte basin"}
+      </span>
+      <button type="button" className="sx-map-label-x" onClick={onClear} aria-label={`Clear ${area.name}`}>
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+          <path d="M4 4l8 8M12 4l-8 8" />
+        </svg>
+      </button>
     </div>
   );
 }
