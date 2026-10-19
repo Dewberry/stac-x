@@ -3,7 +3,7 @@ import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
-import { ItemsList, type ItemRow } from "@/components/items-list";
+import { ItemsList } from "@/components/items-list";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
@@ -13,8 +13,8 @@ import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
-import { collectionKindLabel, itemRowLabel } from "@/lib/item-kinds";
-import { shapeGroups, tintOf } from "@/lib/overview";
+import { collectionKindLabel } from "@/lib/item-kinds";
+import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
 import { collectionJsonHref, itemHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
@@ -44,21 +44,7 @@ export default async function CollectionPage({ params }: Props) {
   const c = await getCollection(env, id);
   if (!c) return <NotInEnv env={env} collection={id} />;
 
-  // An item without a title is named for what it is ("Storm event 1",
-  // "Terrain tile"), the same as on its own page, never its bare id. In a
-  // calibration collection the HMS and RAS models share the basin's name,
-  // so each row also says which it is.
-  // A few distinct shapes each get their own blue, the same as on the
-  // landing page, and the row carries the swatch.
-  const groups = shapeGroups(c.items);
-  const tintOfItem = new Map(groups.flatMap((ids, i) => ids.map((id) => [id, tintOf(i, groups.length)] as const)));
-  const rows: ItemRow[] = c.items.map((i) => ({
-    id: i.id,
-    ...itemRowLabel(c, i),
-    tint: tintOfItem.get(i.id),
-    start: str(i.properties.start_datetime) ?? str(i.properties.datetime),
-    end: str(i.properties.end_datetime) ?? null,
-  }));
+  const rows = itemRowsOf(c);
   const rowOf = new Map(rows.map((r) => [r.id, r]));
 
   const geo: FeatureCollection = {
@@ -191,8 +177,4 @@ export default async function CollectionPage({ params }: Props) {
       </ItemHoverProvider>
     </div>
   );
-}
-
-function str(v: unknown): string | null {
-  return typeof v === "string" && v ? v : null;
 }

@@ -26,4 +26,5 @@ export const ICONS = {
   external: "M7 3H3v10h10V9M9 3h4v4M13 3 7 9",
   chevron: "m4 6 4 4 4-4",
   chevronRight: "m6 4 4 4-4 4",
+  sidebar: "M2.5 3h11v10h-11zM6 3v10",
 };

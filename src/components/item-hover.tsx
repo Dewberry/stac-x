@@ -10,9 +10,11 @@ import { DataMap, type MapProps } from "./map";
  * the map finds the row.
  */
 
-type ItemHover = { hovered: string | null; setHovered: (id: string | null) => void };
+export type ItemHover = { hovered: string | null; setHovered: (id: string | null) => void };
 
-const Ctx = createContext<ItemHover>({ hovered: null, setHovered: () => {} });
+/** Exported for a page that keeps the hovered item itself (the home console, which maps it to a shape on its map). */
+export const ItemHoverContext = createContext<ItemHover>({ hovered: null, setHovered: () => {} });
+const Ctx = ItemHoverContext;
 
 export function ItemHoverProvider({ children }: { children: ReactNode }) {
   const [hovered, setHovered] = useState<string | null>(null);

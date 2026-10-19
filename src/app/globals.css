@@ -2634,41 +2634,220 @@ main:focus {
   }
 }
 
-/* ============================== home page ===============================
+/* ============================== home ==============================
+   The home page (components/home.tsx): three columns under the band, each
+   a one-line header over a card. The collections rail, the selected
+   collection, its map. The page scrolls; the rail and the map stick to the
+   window while the collection's items scroll past. On a phone it's one
+   column: the rail, the collection header, the map, the items. */
 
-   A console for people who already know FFRD: the collections rail on the
-   left, the map on the right, edge to edge under the environment band. From
-   lg the page doesn't scroll; only the rail's list does. The body becomes
-   exactly the window's height and main takes what the header and the band
-   leave, so a band that wraps is accounted for. The footer, and its theme
-   control, are on every other page. On a phone it's a plain column: the
-   map, then the rail. */
-.sx-home {
-  display: block;
+/* A column header: one line, the same in every column (components/col-head.tsx).
+   The title stays on one line and gives way (an ellipsis) before the
+   controls do; the line keeps a button's height even when it holds only the
+   title, so the three headers are the same height and sit on the same line. */
+.sx-colhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  min-height: 2rem;
+  align-self: end;
+  min-width: 0;
+}
+.sx-colhead-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  font-family: var(--ffx-display);
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ffx-ink);
+}
+/* The text is its own box, since an ellipsis doesn't apply to bare text in a flex row. */
+.sx-colhead-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sx-colhead-title .sx-tag {
+  flex: none;
+}
+.sx-colhead-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+.sx-colhead .sx-group-switch-l {
+  display: none;
+}
+.sx-colhead .ffx-btn-sm {
+  height: 1.875rem;
+}
+/* A bare icon button, for the rail's fold toggle: no border or fill, just
+   the glyph, darkening on hover. The box stays tap-sized for a finger. */
+.sx-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ffx-radius-sm);
+  background: none;
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+}
+.sx-iconbtn:hover:not(:disabled) {
+  color: var(--ffx-ink);
+  background: var(--ffx-surface-sunken);
+}
+.sx-iconbtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+@media (pointer: coarse) {
+  .sx-iconbtn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+/* The placeholder for the collection's name while the catalog loads. */
+.sx-loading-title {
+  display: inline-block;
+  width: 12rem;
+  height: 0.9em;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--ffx-rule) 0 38%, var(--ffx-surface-inset) 50%, var(--ffx-rule) 62% 100%);
+  background-size: 240% 100%;
+  animation: sx-shimmer 1.8s ease-in-out infinite;
+}
+
+.sx-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--ffx-deck-gap);
+  align-items: start;
+}
+.sx-pane {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  align-items: start;
+  min-width: 0;
+  scroll-margin-top: calc(var(--ffx-header) + 0.5rem);
+}
+.sx-pane-side {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  min-width: 0;
+}
+/* The collection card opens with what the collection is, then its items. */
+.sx-items-about {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem var(--ffx-panel-pad);
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-items-about .sx-row-sub {
+  font-size: var(--ffx-t-small);
+}
+.sx-items > .ffx-toolbar {
+  padding-top: 0.75rem;
 }
 @media (min-width: 64rem) {
-  body:has(.sx-home) {
-    height: 100dvh;
-    overflow: hidden;
+  .sx-console {
+    /* The collection and the map always split what the rail leaves evenly. */
+    grid-template-columns: minmax(16rem, 19rem) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    row-gap: 0.75rem;
   }
-  body:has(.sx-home) > main {
-    display: flex;
-    min-height: 0;
-    max-width: none;
+  /* Folded away, the rail takes no column at all; its toggle moves into the collection header. */
+  .sx-console[data-rail="closed"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
-  body:has(.sx-home) > .sx-footer {
-    display: none;
+  .sx-console[data-rail="closed"] > .sx-pane {
+    grid-column: 1 / -1;
   }
-  /* The header and the band run the full width too, with their edges on
-     the rail's 16px so the wordmark sits over "Collections". */
-  body:has(.sx-home) :is(.sx-header-inner, .ffx-envband-inner) {
-    max-width: none;
-    padding-inline: 16px;
+  .sx-console > .sx-colhead {
+    grid-row: 1;
+    grid-column: 1;
   }
-  .sx-home {
+  .sx-console > .sx-rail {
+    grid-row: 2;
+    grid-column: 1;
+    position: sticky;
+    top: calc(var(--ffx-header) + 0.75rem);
+    max-height: calc(100dvh - var(--ffx-header) - 1.5rem);
+  }
+  .sx-console > .sx-rail .sx-rail-list {
     flex: 1;
-    display: flex;
-    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  /* The pane takes the console's own columns and rows (subgrid), so its
+     headers share the first row with the rail's and its cards the second. */
+  .sx-pane {
+    grid-row: 1 / 3;
+    grid-column: 2 / -1;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+    row-gap: 0.75rem;
+  }
+  .sx-pane > .sx-pane-head {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .sx-pane > .sx-map-head {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .sx-pane > .sx-items {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  /* The map column holds still beside a long list and fills the window's
+     height, the way the rail does, so there's no gap under the map. */
+  .sx-pane > .sx-pane-side {
+    grid-row: 2;
+    grid-column: 2;
+    position: sticky;
+    top: calc(var(--ffx-header) + 0.75rem);
+    height: calc(100dvh - var(--ffx-header) - 1.5rem);
+    min-height: 24rem;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .sx-pane-side > .sx-console-map {
+    height: auto;
+    min-height: 0;
+  }
+}
+/* On a phone the rail's list keeps to its own scroll, and the pane is one
+   column: the collection's header, the map with its header, then the items. */
+@media (max-width: 63.99rem) {
+  .sx-console > .sx-rail .sx-rail-list {
+    max-height: 22rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .sx-pane > .sx-pane-side {
+    display: contents;
+  }
+  .sx-pane > .sx-map-head {
+    order: 1;
+  }
+  .sx-pane > .sx-pane-side > .sx-console-map {
+    order: 2;
+  }
+  .sx-pane > .sx-items {
+    order: 3;
+  }
+  .sx-colhead {
+    flex-wrap: wrap;
   }
 }
 
@@ -2791,17 +2970,12 @@ main:focus {
   }
 }
 
-/* The console. On a phone the map is a band across the top and the rail a
-   plain block under it. From lg the rail is a fixed column and the map
-   takes the rest, both full height. */
-.sx-console {
-  display: flex;
-  flex-direction: column;
-}
+/* The map card. On a phone it's a band; from 64rem the sticky column above
+   gives it the window's height. The map inside is absolute, so the card
+   only needs a definite height. */
 .sx-console-map {
   position: relative;
-  scroll-margin-top: var(--ffx-header);
-  height: 360px;
+  height: 22rem;
   overflow: hidden;
   background: var(--ffx-surface-inset);
 }
@@ -2867,7 +3041,6 @@ main:focus {
 .sx-rail {
   display: flex;
   flex-direction: column;
-  background: var(--ffx-surface);
 }
 .sx-rail-head {
   display: flex;
@@ -2883,25 +3056,6 @@ main:focus {
   line-height: 1.45;
   color: var(--ffx-bad-text);
   background: var(--ffx-bad-pale);
-}
-.sx-rail-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.sx-rail-title h2 {
-  font-family: var(--ffx-display);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-}
-.sx-rail-count {
-  font-size: var(--ffx-t-small);
-  color: var(--ffx-ink-mut);
-}
-.sx-rail-title .sx-group-switch {
-  margin-left: auto;
-  align-self: center;
 }
 .sx-rail-head .ffx-field {
   height: 44px;
@@ -3078,14 +3232,6 @@ main:focus {
 .sx-rail-item[data-open="true"] .sx-row {
   background: none;
 }
-.sx-row-more {
-  padding: 2px 16px 16px 36px;
-}
-@media (max-width: 63.99rem) {
-  .sx-row-more {
-    display: none;
-  }
-}
 
 /* What a selected collection shows, in its row or in the phone's sheet. */
 .sx-pv {
@@ -3163,196 +3309,7 @@ main:focus {
     box-shadow: 0 0 0 1px var(--ffx-rule);
   }
 }
-/* The items behind a footprint of a few shapes, each row lighting its shape up.
-   The count tile above is its heading, so it sits closer to that than the rest. */
-.sx-pv-members {
-  display: grid;
-  gap: 4px;
-}
-.sx-pv-figs + .sx-pv-members {
-  margin-top: -6px;
-}
-.sx-pv-members ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.sx-pv-member {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 8px;
-  margin: 0 -8px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: var(--ffx-t-small);
-  color: var(--ffx-ink);
-}
-.sx-pv-member[data-active] {
-  background: var(--ffx-surface-sunken);
-}
-.sx-pv-member-name {
-  font-weight: 600;
-}
-.sx-pv-member-note {
-  font-size: var(--ffx-t-tiny);
-  color: var(--ffx-ink-mut);
-}
-/* The home map's corner bar: the selected collection on one line, at the
-   height of the map controls. The sheet names it on a phone. */
-.sx-map-label {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  height: 34px;
-  max-width: min(32rem, calc(100% - 80px));
-  padding: 0 4px 0 12px;
-  background: var(--ffx-surface);
-  border-radius: 10px;
-  box-shadow: var(--ffx-shadow-float), inset 3px 0 0 var(--ffx-river);
-  font-size: var(--ffx-t-small);
-  line-height: 1;
-  white-space: nowrap;
-}
-.sx-map-label .sx-qc-mark {
-  flex: none;
-  width: 9px;
-  height: 9px;
-}
-.sx-map-label-name {
-  min-width: 4rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 600;
-  color: var(--ffx-ink);
-}
-.sx-map-label-sub {
-  flex: none;
-  color: var(--ffx-ink-mut);
-}
-.sx-map-label-x {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-left: 2px;
-  border: 0;
-  border-radius: 7px;
-  background: none;
-  color: var(--ffx-ink-mut);
-  cursor: pointer;
-}
-.sx-map-label-x:hover {
-  background: var(--ffx-surface-sunken);
-  color: var(--ffx-ink);
-}
-@media (max-width: 63.99rem) {
-  .sx-map-label {
-    display: none;
-  }
-}
-.sx-pv-btns {
-  display: flex;
-  gap: 0.5rem;
-}
-.sx-pv-btns .ffx-btn {
-  height: 32px;
-}
-/* JSON sits on the left, the primary action on the right. */
-.sx-pv-btns > .ffx-btn-primary {
-  margin-left: auto;
-}
 
-/* The phone's sheet at the bottom of the map. On a wide screen the
-   selected row opens in the rail instead. */
-.sx-preview {
-  position: absolute;
-  left: 0.75rem;
-  right: 0.75rem;
-  bottom: 0.75rem;
-  z-index: 5;
-  max-height: calc(100% - 1.5rem);
-  overflow-y: auto;
-  padding: 0.75rem 1rem 1rem;
-  background: var(--ffx-glass);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: var(--ffx-radius-md);
-  box-shadow: var(--ffx-shadow-float);
-  color: var(--ffx-ink);
-}
-.sx-preview-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 0.625rem;
-}
-.sx-preview-x {
-  flex: none;
-  width: 1.625rem;
-  height: 1.625rem;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: var(--ffx-surface-sunken);
-  color: var(--ffx-ink-mut);
-  cursor: pointer;
-}
-.sx-preview-x:hover {
-  color: var(--ffx-ink);
-}
-.sx-preview-head {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 0;
-}
-.sx-preview-title {
-  font-family: var(--ffx-display);
-  font-size: 1.125rem;
-  line-height: 1.15;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-.sx-preview .sx-pv-desc {
-  display: none;
-}
-@media (min-width: 64rem) {
-  .sx-preview {
-    display: none;
-  }
-}
-@media (min-width: 64rem) {
-  .sx-console {
-    flex: 1;
-    flex-direction: row-reverse;
-    min-width: 0;
-    min-height: 0;
-  }
-  .sx-console-map {
-    flex: 1;
-    min-width: 0;
-    height: auto;
-  }
-  .sx-rail {
-    width: 372px;
-    flex: none;
-    min-height: 0;
-    border-right: 1px solid var(--ffx-rule);
-  }
-  .sx-rail-list {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-  }
-}
 
 /* The landing page while the catalog loads (components/home-loading.tsx):
    the basin traced where the map goes, placeholder rows in the rail. */

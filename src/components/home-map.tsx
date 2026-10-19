@@ -23,8 +23,6 @@ import {
   type Palette,
 } from "./map-core";
 import type { HomeArea, Member } from "./home";
-import { countOf } from "./home-preview";
-import { QcMark, stateOf } from "./qc-mark";
 import { BASINS_URL, FOCUS_BASIN, FOCUS_BBOX } from "@/lib/basins";
 import { fmtNum } from "@/lib/format";
 import { MapCard } from "./map-card";
@@ -44,9 +42,9 @@ import { MapCard } from "./map-card";
  * in blue. Everything beyond it sits under a darker, sand-colored wash, so
  * the basin reads as the lit shape on the card.
  *
- * Until something is selected or pointed at, the map holds only the basin, so
+ * A collection is always selected, and only its footprint is on the map, so
  * it stays readable however many collections there are. Selecting a
- * collection, or resting the pointer on one while nothing is selected, draws
+ * collection, or resting the pointer on another one in the rail, draws
  * its footprint without moving the map: small dots for
  * point items like gages, a faint fill and an outline for the area a model
  * covers, three steps of blue for how many shapes cover each spot when they
@@ -309,14 +307,13 @@ export function HomeMap({
   basinCovered,
   hoverKeys,
   onHoverKeys,
-  onClear,
 }: {
   areas: HomeArea[];
   /** Every collection's footprint, from lib/overview.ts. */
   items: FeatureCollection;
   /** The selected collection. */
   shown: string | null;
-  /** The collection pointed at while nothing is selected; its footprint is drawn as a preview. */
+  /** Another collection pointed at in the rail; its footprint is drawn in place of the selected one's until the pointer leaves. */
   preview: string | null;
   basinHighlight: string | null;
   /** The drawn collection contains the whole basin, so the basin is lit up as its footprint. */
@@ -324,8 +321,6 @@ export function HomeMap({
   /** The shapes of the shown collection to outline: pointed at here or in the rail. */
   hoverKeys: string[];
   onHoverKeys: (keys: string[]) => void;
-  /** Clears the selection, from the label's close button. */
-  onClear: () => void;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -334,9 +329,9 @@ export function HomeMap({
   // Where the card renders: a div the popup owns, portaled into from React.
   const [cardHost, setCardHost] = useState<HTMLDivElement | null>(null);
   const [credits, setCredits] = useState<Credit[]>([]);
-  // The collection whose footprint is on the map: the selected one, or else
-  // the one pointed at.
-  const drawn = shown ?? preview;
+  // The collection whose footprint is on the map: the one pointed at while
+  // the pointer rests on it, else the selected one.
+  const drawn = preview ?? shown;
   const current = areas.find((a) => a.slug === drawn) ?? null;
   const dense = current?.drawn === "density" ? current : null;
   const [basemapDown, setBasemapDown] = useState(false);
@@ -407,13 +402,22 @@ export function HomeMap({
       }).setDOMContent(cardDiv);
       setCardHost(cardDiv);
 
-      const fit = () => m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration: 300 });
-      // The map already fills the window, so there's no full screen button.
-      m.addControl(new Controls(m, frame, fit, "Fit to the South Platte", { fullscreen: false }), "top-right");
-      // The map takes the window, so a resize changes what fits. With nothing
-      // selected, keep the basin framed.
+      // Whether the viewer has moved the map by hand. MapLibre watches the
+      // card's size (trackResize), so folding the rail or resizing the
+      // window fires "resize"; the basin is framed again unless they've
+      // gone somewhere themselves, and Fit brings it back either way.
+      let movedByHand = false;
+      m.on("moveend", (e) => {
+        if ((e as { originalEvent?: Event }).originalEvent) movedByHand = true;
+      });
+      const fit = (duration = 300) => {
+        movedByHand = false;
+        m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration });
+      };
+      // The map fills its column, so there's no full screen button.
+      m.addControl(new Controls(m, frame, () => fit(), "Fit to the South Platte", { fullscreen: false }), "top-right");
       m.on("resize", () => {
-        if (!shownRef.current) m.fitBounds([[FOCUS_BBOX[0], FOCUS_BBOX[1]], [FOCUS_BBOX[2], FOCUS_BBOX[3]]], { ...fitPadding(), duration: 0 });
+        if (!movedByHand) fit(0);
       });
 
       const draw = () => {
@@ -556,7 +560,6 @@ export function HomeMap({
         </div>
       )}
       {cardHost && card && current && createPortal(<HomeCard area={current} hits={card.hits} />, cardHost)}
-      {current && drawn === shown && <MapLabel area={current} covered={basinCovered} onClear={onClear} />}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <MapCredits credits={credits} />
@@ -597,25 +600,5 @@ function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
       }
       rows={hits.map((h) => ({ ...h, href: `${area.href}/items/${encodeURIComponent(h.id)}` }))}
     />
-  );
-}
-
-/** The selected collection, named in the map's corner on one line. */
-function MapLabel({ area, covered, onClear }: { area: HomeArea; covered: boolean; onClear: () => void }) {
-  const { n, noun } = countOf(area);
-  return (
-    <div className="sx-map-label" role="status">
-      <QcMark state={stateOf(area)} />
-      <span className="sx-map-label-name">{area.name}</span>
-      <span className="sx-map-label-sub">
-        <span className="ffx-num">{n}</span> {noun}
-        {covered && ", whole South Platte basin"}
-      </span>
-      <button type="button" className="sx-map-label-x" onClick={onClear} aria-label={`Clear ${area.name}`}>
-        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-          <path d="M4 4l8 8M12 4l-8 8" />
-        </svg>
-      </button>
-    </div>
   );
 }

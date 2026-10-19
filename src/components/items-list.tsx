@@ -32,7 +32,18 @@ const PAGE = 12;
 
 type Sort = "id" | "label" | "start";
 
-export function ItemsList({ env, collection, rows }: { env: EnvKey; collection: string; rows: ItemRow[] }) {
+export function ItemsList({
+  env,
+  collection,
+  rows,
+  activeIds,
+}: {
+  env: EnvKey;
+  collection: string;
+  rows: ItemRow[];
+  /** Items lit up from elsewhere (a shape under the cursor on the home map), besides the one pointed at here. */
+  activeIds?: ReadonlySet<string>;
+}) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("id");
   const [page, setPage] = useState(0);
@@ -94,7 +105,7 @@ export function ItemsList({ env, collection, rows }: { env: EnvKey; collection: 
               key={r.id}
               href={itemHref(env, collection, r.id)}
               className="sx-row"
-              data-active={hovered === r.id || undefined}
+              data-active={hovered === r.id || activeIds?.has(r.id) || undefined}
               onMouseEnter={() => setHovered(r.id)}
               onMouseLeave={() => setHovered(null)}
               onFocus={() => setHovered(r.id)}
