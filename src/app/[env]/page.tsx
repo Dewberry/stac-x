@@ -7,7 +7,6 @@ import { FOCUS_BASIN } from "@/lib/basins";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { itemRowLabel } from "@/lib/item-kinds";
-import { itemRowsOf } from "@/lib/item-rows";
 import { guessKind } from "@/lib/kinds";
 import { overview, polygonsOf } from "@/lib/overview";
 import { pageEnv } from "@/lib/page-env";
@@ -137,18 +136,12 @@ async function HomeData({ env }: { env: EnvKey }) {
   const byState = Object.fromEntries(QC_STATUSES.map((s) => [s.value, 0])) as Record<QcStatus, number>;
   for (const a of areas) byState[a.qc?.qc ?? "pending"]++;
 
-  // The console opens on the first collection, so its items go with the
-  // page; the others are fetched when they're picked.
-  const first = latest.find((c) => c.series.id === areas[0]?.slug);
-  const initialRows = first ? { slug: first.series.id, rows: itemRowsOf(first) } : null;
-
   return (
     <HomeConsole
       env={env}
       areas={areas}
       items={items}
       byState={byState}
-      initialRows={initialRows}
       // Only shown when something is wrong. The details go to the server log.
       notice={catalog.errors.length > 0 ? "Some collections couldn't be loaded and may be missing. Try again in a minute." : null}
       emptyText={EMPTY[env]}

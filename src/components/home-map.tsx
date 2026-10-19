@@ -42,7 +42,7 @@ import { MapCard } from "./map-card";
  * in blue. Everything beyond it sits under a darker, sand-colored wash, so
  * the basin reads as the lit shape on the card.
  *
- * A collection is always selected, and only its footprint is on the map, so
+ * Until something is selected or pointed at, the map holds only the basin, so
  * it stays readable however many collections there are. Selecting a
  * collection, or resting the pointer on another one in the rail, draws
  * its footprint without moving the map: small dots for

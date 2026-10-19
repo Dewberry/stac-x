@@ -8,7 +8,6 @@ import type { EnvKey } from "@/lib/env";
 import type { AreaKind } from "@/lib/kinds";
 import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
-import { ColHead } from "./col-head";
 import { HomePane } from "./home-pane";
 import { HomeRail, RailToggle } from "./home-rail";
 import { ItemHoverContext } from "./item-hover";
@@ -21,12 +20,12 @@ import type { ItemRow } from "./items-list";
  * its items) in the middle, and the map on the right. Nothing here says
  * what stac-x is; the header does that.
  *
- * A collection is always selected: the first in the rail until one is
- * picked, so the page is never empty. Selecting one shows it in the middle
- * column and draws its footprint on the map; clicking the footprint opens a
- * card with the items there. Pointing at another row previews that one's
- * footprint, and the selected one returns when the pointer leaves. Enter on
- * a row opens the collection.
+ * The page opens on the bare basin, with the middle column waiting for a
+ * pick. Selecting a collection shows it there and draws its footprint on
+ * the map; clicking the footprint opens a card with the items there.
+ * Selecting it again, or Escape, clears it. Pointing at another row
+ * previews that one's footprint, and the selected one returns when the
+ * pointer leaves. Enter on a row opens the collection.
  *
  * The rail folds away (its toggle, kept in localStorage) to give the
  * collection and the map the width. The rail and the map stick to the
@@ -129,7 +128,6 @@ export function HomeConsole({
   areas,
   items,
   byState,
-  initialRows,
   emptyText,
   notice,
 }: {
@@ -138,8 +136,6 @@ export function HomeConsole({
   items: FeatureCollection;
   /** How many collections are in each review state. */
   byState: Record<QcStatus, number>;
-  /** The first collection's items, sent with the page so the console opens full. */
-  initialRows: { slug: string; rows: ItemRow[] } | null;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
   /** A problem loading the catalog, shown at the top of the list. */
@@ -147,8 +143,7 @@ export function HomeConsole({
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState<string | null>(null);
-  // The row picked in the rail; the first row stands in until one is.
-  const [picked, setPicked] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   // The shape of the selected collection under the cursor, on the map or in
   // its item rows; the other side lights it up.
   const [hoverKeys, setHoverKeys] = useState<string[]>([]);
@@ -158,12 +153,10 @@ export function HomeConsole({
   const toggleRail = useCallback(() => setRail(!readRail()), []);
 
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
-  const selected = picked && bySlug.has(picked) ? picked : (areas[0]?.slug ?? null);
   const current = selected ? (bySlug.get(selected) ?? null) : null;
 
-  // Each collection's items, fetched when it's first picked and kept. The
-  // first collection's come with the page.
-  const [rowsBySlug, setRowsBySlug] = useState<Record<string, Rows>>(() => (initialRows ? { [initialRows.slug]: initialRows.rows } : {}));
+  // Each collection's items, fetched when it's first picked and kept.
+  const [rowsBySlug, setRowsBySlug] = useState<Record<string, Rows>>({});
   const rows = selected ? (rowsBySlug[selected] ?? null) : null;
   useEffect(() => {
     if (!current || rows) return;
@@ -192,10 +185,11 @@ export function HomeConsole({
   const paneRef = useRef<HTMLDivElement>(null);
   const select = useCallback(
     (slug: string) => {
-      setPicked(slug);
+      const next = slug === selected ? null : slug;
+      setSelected(next);
       setHoverKeys([]);
       setHoveredItem(null);
-      const a = bySlug.get(slug);
+      const a = next ? bySlug.get(next) : null;
       if (!a) return;
       // On a phone the pane is under the rail, so a pick scrolls to it.
       if (!matchMedia(WIDE_SCREEN).matches) {
@@ -207,8 +201,19 @@ export function HomeConsole({
       // was clicked is already on screen.
       setBasin(a.huc4);
     },
-    [bySlug],
+    [bySlug, selected],
   );
+
+  // Escape clears the selection from anywhere on the page. The map's card
+  // takes it first when it's open.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) setSelected(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [selected]);
 
   // An item row pointed at lights its shape on the map, when the collection
   // draws as a few shapes; a shape pointed at on the map lights its rows.
@@ -253,28 +258,17 @@ export function HomeConsole({
           onSelect={select}
           onOpen={(href) => router.push(href)}
         />
-        {current ? (
-          <ItemHoverContext.Provider value={hoverValue}>
-            <HomePane
-              env={env}
-              area={current}
-              rows={rows}
-              railToggle={railOpen ? undefined : <RailToggle open={false} onToggle={toggleRail} />}
-              activeIds={activeIds}
-              map={map}
-              paneRef={paneRef}
-            />
-          </ItemHoverContext.Provider>
-        ) : (
-          <div className="sx-pane">
-            <ColHead className="sx-pane-head" title="No collections" lead={railOpen ? undefined : <RailToggle open={false} onToggle={toggleRail} />} />
-            <ColHead className="sx-map-head" title="Map" />
-            <div className="sx-pane-side">{map}</div>
-            <section className="ffx-panel sx-items">
-              <p className="sx-empty">{emptyText}</p>
-            </section>
-          </div>
-        )}
+        <ItemHoverContext.Provider value={hoverValue}>
+          <HomePane
+            env={env}
+            area={current}
+            rows={rows}
+            railToggle={railOpen ? undefined : <RailToggle open={false} onToggle={toggleRail} />}
+            activeIds={activeIds}
+            map={map}
+            paneRef={paneRef}
+          />
+        </ItemHoverContext.Provider>
       </div>
     </div>
   );
