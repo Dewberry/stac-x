@@ -1,6 +1,8 @@
-# Builds the Docker image and publishes it to GitHub's container registry at
-# ghcr.io/dewberry/stac-x. Pull requests only build, to catch a broken
-# Dockerfile; pushes to main and version tags also push the image.
+# Builds the Docker image for linux/amd64 and linux/arm64 and publishes it to
+# GitHub's container registry at ghcr.io/dewberry/stac-x, one tag covering
+# both. Pull requests only build, to catch a broken Dockerfile on either
+# platform; pushes to main and version tags also push the image. The arm64
+# half builds under QEMU, which is why it takes longer than the amd64 half.
 #
 # Tags: `main` and `sha-<short sha>` for every push to main, `latest` plus
 # `1.2.3`, `1.2` for a tag like v1.2.3.
@@ -27,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3
 
@@ -55,6 +59,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
