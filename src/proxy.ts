@@ -43,5 +43,5 @@ export const config = {
   // asset and preview proxies) and the static files in public/. The bare "/"
   // is listed on its own because under a base path the pattern only matches
   // /stac/..., never /stac itself.
-  matcher: ["/", "/((?!_next/|api/asset|api/preview|signin|data/|vendor/|favicon\\.ico).*)"],
+  matcher: ["/", "/((?!_next/|api/asset|api/preview|signin|data/|vendor/|favicon\\.ico|apple-icon\\.png).*)"],
 };
