@@ -31,17 +31,17 @@ import type { StacItem } from "./stac";
  *   in far enough to tell them apart.
  * - extent: when the shapes are too heavy to send to the browser, the
  *   collection's box, dashed, the same as the collection page does.
- * - basin: a collection whose polygons contain the whole basin (a national
- *   inventory whose items carry a country-sized extent box) is drawn as the
- *   basin itself, lit up, since its own shape would tint the whole map. The
- *   page decides that, since it needs the basin polygon; here it's a shape
- *   with no features.
+ * - area: a collection whose polygons contain the deployment's whole area
+ *   (a national inventory whose items carry a country-sized extent box) is
+ *   drawn as the area itself, lit up, since its own shape would tint the
+ *   whole map. The page decides that, since it needs the area's polygon
+ *   (lib/map-area.ts); here it's a shape with no features.
  *
  * Coordinates are rounded to about 10 m first. That shrinks the payload and
  * makes shared edges match exactly.
  */
 
-export type OverviewShape = "points" | "areas" | "density" | "extent" | "basin";
+export type OverviewShape = "points" | "areas" | "density" | "extent" | "area";
 
 export type Overview = {
   shape: OverviewShape | null;
@@ -84,11 +84,11 @@ const TINTS = 3;
 export function tintOf(i: number, n: number): Tint | undefined {
   return n <= TINTS ? ((i + 1) as Tint) : undefined;
 }
-/** Cells across the longer side of the density grid. About 2 km over the South Platte's storms. */
+/** Cells across the longer side of the density grid. About 2 km over a storm catalog 300 km across. */
 const DENSITY_CELLS = 160;
 const PLACES = 4;
 
-/** Every polygon's rings, outer ring first, for the page to test against the basin. */
+/** Every polygon's rings, outer ring first, for the page to test against the deployment's area. */
 export function polygonsOf(items: StacItem[]): Position[][][] {
   const out: Position[][][] = [];
   for (const { geometry: g } of items) {

@@ -53,7 +53,7 @@ export function landingFolder(env: EnvKey): string {
 export const catalogTitle = process.env.STAC_TITLE || "STAC";
 export const catalogDescription =
   process.env.STAC_DESCRIPTION ||
-  "Gages, models and storm catalogs for the South Platte. Open a collection to browse its items and record QC.";
+  "Collections from the STAC catalog. Open a collection to browse its items and record QC.";
 
 /** How long a parsed file is trusted before its ETag is checked again. */
 export const refreshMs = Number(process.env.STAC_REFRESH_SECONDS || 30) * 1000;

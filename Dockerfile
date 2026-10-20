@@ -38,6 +38,8 @@ RUN addgroup --system --gid 1001 nodejs \
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build --chown=nextjs:nodejs /app/public ./public
+# Area files for STAC_MAP_AREA. Mount over /app/areas to use your own.
+COPY --from=build --chown=nextjs:nodejs /app/areas ./areas
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]

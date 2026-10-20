@@ -3126,7 +3126,7 @@ main:focus {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
 }
-/* The line under the figures when the collection covers the whole basin. */
+/* The line under the figures when the collection covers the whole area. */
 .sx-pv-cover {
   margin: 0;
   font-size: var(--ffx-t-micro);
@@ -3368,18 +3368,18 @@ main:focus {
 }
 
 /* The landing page while the catalog loads (components/home-loading.tsx):
-   the basin traced where the map goes, placeholder rows in the rail. */
+   the area traced where the map goes, placeholder rows in the rail. */
 .sx-loading-map {
   display: grid;
   place-items: center;
 }
-.sx-loading-basin {
+.sx-loading-area {
   position: absolute;
   inset: 24px;
   width: calc(100% - 48px);
   height: calc(100% - 48px);
 }
-.sx-loading-basin-under {
+.sx-loading-area-under {
   fill: var(--ffx-trace);
   fill-opacity: 0.1;
   stroke: var(--ffx-ink);
@@ -3388,7 +3388,7 @@ main:focus {
   vector-effect: non-scaling-stroke;
   stroke-linejoin: round;
 }
-.sx-loading-basin-trace {
+.sx-loading-area-trace {
   fill: none;
   stroke: var(--ffx-trace-strong);
   stroke-width: 2.5;

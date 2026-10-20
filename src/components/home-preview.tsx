@@ -18,12 +18,12 @@ import type { HomeArea, Member } from "./home";
  * it's a sheet at the bottom of the map (HomePreview).
  */
 
-/** The line under a collection's name: kind, dates, whole-basin note, and its version chip. */
+/** The line under a collection's name: kind, dates, whole-area note, and its version chip. */
 export function AreaSub({ area, showKind }: { area: HomeArea; showKind: boolean }) {
   const meta = [
     showKind ? AREA_KIND_LABEL[area.kind] : null,
     fmtYears(area.temporal) ?? "No dates",
-    area.wide ? "Whole basin" : null,
+    area.wide ? "Whole area" : null,
   ].filter(Boolean);
   return (
     <span className="sx-row-sub">
@@ -92,7 +92,7 @@ function Members({ area, hoverKeys, onHoverKeys }: { area: HomeArea } & HoverPro
   );
 }
 
-export function PreviewBody({ area, hoverKeys, onHoverKeys }: { area: HomeArea } & HoverProps) {
+export function PreviewBody({ area, areaName, hoverKeys, onHoverKeys }: { area: HomeArea; areaName: string | null } & HoverProps) {
   const state = stateOf(area);
   const note = (state === "needs_revision" || state === "rejected") && area.qc?.note ? area.qc.note : null;
   const count = countOf(area);
@@ -105,7 +105,7 @@ export function PreviewBody({ area, hoverKeys, onHoverKeys }: { area: HomeArea }
           <span>{count.noun}</span>
         </div>
       </div>
-      {area.drawn === "basin" && <p className="sx-pv-cover">Covers the whole South Platte.</p>}
+      {area.drawn === "area" && areaName && <p className="sx-pv-cover">Covers all of {areaName}.</p>}
       <Members area={area} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
       <dl className="sx-pv-facts">
         <div>
@@ -143,7 +143,13 @@ export function PreviewBody({ area, hoverKeys, onHoverKeys }: { area: HomeArea }
 }
 
 /** The phone's sheet over the map. Hidden on a wide screen, where the row opens instead. */
-export function HomePreview({ area, hoverKeys, onHoverKeys, onClose }: { area: HomeArea; onClose: () => void } & HoverProps) {
+export function HomePreview({
+  area,
+  areaName,
+  hoverKeys,
+  onHoverKeys,
+  onClose,
+}: { area: HomeArea; areaName: string | null; onClose: () => void } & HoverProps) {
   return (
     <div className="sx-preview" role="dialog" aria-label={area.name}>
       <div className="sx-preview-top">
@@ -157,7 +163,7 @@ export function HomePreview({ area, hoverKeys, onHoverKeys, onClose }: { area: H
           </svg>
         </button>
       </div>
-      <PreviewBody area={area} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
+      <PreviewBody area={area} areaName={areaName} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
     </div>
   );
 }

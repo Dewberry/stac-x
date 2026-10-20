@@ -1,22 +1,25 @@
-import { basinOutline } from "@/lib/basin-outline";
+import { areaOutline, mapArea } from "@/lib/map-area";
 
 /**
  * The landing page while its catalog loads. The real page waits on every
  * collection in the environment, which from S3 can take seconds, and until
  * now that wait was a blank page. This stands in with the same console
- * shape: the basin traced where the map goes, and placeholder rows in the
- * rail. Next streams the real page in over it.
+ * shape: the deployment's area traced where the map goes (when one is set),
+ * and placeholder rows in the rail. Next streams the real page in over it.
  */
 export function HomeLoading() {
-  const basin = basinOutline();
+  const area = mapArea();
+  const outline = area && areaOutline(area);
   return (
     <div className="sx-home" aria-busy="true">
       <div className="sx-console">
         <div className="sx-console-map sx-loading-map">
-          <svg className="sx-loading-basin" viewBox={basin.viewBox} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <path className="sx-loading-basin-under" d={basin.d} />
-            <path className="sx-loading-basin-trace" d={basin.d} pathLength={1} />
-          </svg>
+          {outline && (
+            <svg className="sx-loading-area" viewBox={outline.viewBox} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <path className="sx-loading-area-under" d={outline.d} />
+              <path className="sx-loading-area-trace" d={outline.d} pathLength={1} />
+            </svg>
+          )}
           <p className="sx-loading-status" role="status">
             Loading the catalog…
           </p>

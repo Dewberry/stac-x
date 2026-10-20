@@ -3,7 +3,7 @@
 import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { FeatureCollection } from "geojson";
+import type { FeatureCollection, MultiPolygon } from "geojson";
 import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { fmtNum } from "@/lib/format";
 import type { Tint } from "@/lib/overview";
@@ -40,16 +40,17 @@ export type HomeArea = {
   slug: string;
   name: string;
   kind: AreaKind;
-  huc4: string;
-  bbox: [number, number, number, number];
-  /** Covers most of the basin: "Whole basin" in the rail. */
+  /** The middle of its extent is in the deployment's area. */
+  inArea: boolean;
+  bbox: [number, number, number, number] | null;
+  /** Covers most of the deployment's area: "Whole area" in the rail. */
   wide?: boolean;
   /**
    * How the collection's footprint is drawn on the map; null when it isn't.
-   * "basin" means it contains the whole basin, which lights up instead. See
-   * lib/overview.ts.
+   * "area" means it contains the deployment's whole area, which lights up
+   * instead. See lib/overview.ts.
    */
-  drawn: "points" | "areas" | "density" | "extent" | "basin" | null;
+  drawn: "points" | "areas" | "density" | "extent" | "area" | null;
   /** For a density footprint, the count range of each of its three steps. */
   steps?: [number, number][];
   /**
@@ -68,6 +69,9 @@ export type HomeArea = {
   earlier?: number;
   blurb?: string;
 };
+
+/** The deployment's area (lib/map-area.ts), as the map draws it. */
+export type FocusArea = { name: string; geometry: MultiPolygon };
 
 export type Member = {
   id: string;
@@ -124,12 +128,18 @@ function regroup(v: GroupBy) {
 
 export function HomeConsole({
   areas,
+  area,
+  frame,
   items,
   byState,
   emptyText,
   notice,
 }: {
   areas: HomeArea[];
+  /** The deployment's area; null when none is set. */
+  area: FocusArea | null;
+  /** Where the map opens, west, south, east, north. */
+  frame: [number, number, number, number];
   items: FeatureCollection;
   /** How many collections are in each review state. */
   byState: Record<QcStatus, number>;
@@ -146,7 +156,9 @@ export function HomeConsole({
   const [hoverKeys, setHoverKeys] = useState<string[]>([]);
   const [filter, setFilter] = useState<QcStatus | null>(null);
   const groupBy = useSyncExternalStore(subscribeGroup, readGroup, () => "kind");
-  const [basin, setBasin] = useState<string | null>(null);
+  // Whether the last selected collection is in the area, which outlines
+  // the area more heavily.
+  const [pickedInArea, setPickedInArea] = useState<boolean | null>(null);
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
   const listRef = useRef<HTMLUListElement>(null);
@@ -196,10 +208,9 @@ export function HomeConsole({
         const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
         mapBoxRef.current?.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "auto" });
       }
-      // Selecting a collection lights up its basin and draws its footprint,
-      // but doesn't move the map: the whole South Platte is in view, so what
-      // was clicked is already on screen.
-      setBasin(a.huc4);
+      // Selecting a collection draws its footprint but doesn't move the map:
+      // the whole area is in view, so what was clicked is already on screen.
+      setPickedInArea(a.inArea);
     },
     [bySlug, selected],
   );
@@ -230,7 +241,7 @@ export function HomeConsole({
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = Math.min(top - headH, bottom - list.clientHeight);
   }, [selected, groupBy]);
 
-  const highlightedBasin = basin ?? (hovered ? bySlug.get(hovered)?.huc4 ?? null : null);
+  const areaHighlight = pickedInArea ?? (hovered ? bySlug.get(hovered)?.inArea ?? false : false);
 
   return (
     <div className="sx-home">
@@ -241,13 +252,15 @@ export function HomeConsole({
             items={items}
             shown={selected}
             preview={preview}
-            basinHighlight={highlightedBasin}
-            basinCovered={drawn?.drawn === "basin"}
+            area={area}
+            frame={frame}
+            areaHighlight={areaHighlight}
+            areaCovered={drawn?.drawn === "area"}
             hoverKeys={hoverKeys}
             onHoverKeys={setHoverKeys}
             onClear={() => setSelected(null)}
           />
-          {current && <HomePreview area={current} hoverKeys={hoverKeys} onHoverKeys={setHoverKeys} onClose={() => setSelected(null)} />}
+          {current && <HomePreview area={current} areaName={area?.name ?? null} hoverKeys={hoverKeys} onHoverKeys={setHoverKeys} onClose={() => setSelected(null)} />}
         </div>
         <aside className="sx-rail" aria-label="Collections">
           <div className="sx-rail-head">
@@ -326,6 +339,7 @@ export function HomeConsole({
                     <AreaRow
                       key={a.slug}
                       area={a}
+                      areaName={area?.name ?? null}
                       showKind={groupBy === "review"}
                       active={(selected ?? hovered) === a.slug}
                       open={selected === a.slug}
@@ -348,6 +362,7 @@ export function HomeConsole({
 
 function AreaRow({
   area,
+  areaName,
   showKind,
   active,
   open,
@@ -358,6 +373,7 @@ function AreaRow({
   onOpen,
 }: {
   area: HomeArea;
+  areaName: string | null;
   showKind: boolean;
   active: boolean;
   open: boolean;
@@ -395,7 +411,7 @@ function AreaRow({
       </button>
       {open && (
         <div className="sx-row-more">
-          <PreviewBody area={area} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
+          <PreviewBody area={area} areaName={areaName} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
         </div>
       )}
     </li>

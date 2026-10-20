@@ -1,9 +1,9 @@
 # stac-x
 
-A STAC viewer for FFRD's Colorado data. It reads static STAC catalogs and
-stac-geoparquet files, from S3 or local folders, draws every collection on a
-map of the South Platte basin, and lets a reviewer record QC on each
-collection. Approving a collection copies its files into the next environment
+A STAC viewer for reviewing a catalog before it's published. It reads static
+STAC catalogs and stac-geoparquet files, from S3 or local folders, draws every
+collection on a map, and lets a reviewer record QC on each collection.
+Approving a collection copies its files into the next environment
 (Development to Test, Test to Production).
 
 It writes two things. QC decisions go to a JSON sidecar beside the
@@ -11,7 +11,7 @@ collection's file (`gages.parquet` gets `gages.edits.json`), never into the
 parquet itself, and a promoted collection is copied byte for byte into the
 next environment's first source.
 
-![The stac-x homepage in Test with Stream Gages selected: its 192 sites drawn as dots across the South Platte basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
+![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
 
 ## Running it
 
@@ -30,10 +30,9 @@ Start the dev server:
 npm run dev
 ```
 
-Open http://localhost:3000, which lands in Development. Reading the S3
-catalogs needs AWS credentials with access to the `south-platte` bucket.
-Without them the pages still load, empty, with a note that collections
-couldn't be loaded.
+Open http://localhost:3000, which lands in Development. Reading catalogs on
+S3 needs AWS credentials with access to their bucket. Without them the pages
+still load, empty, with a note that collections couldn't be loaded.
 
 There's no identity provider yet. The sign-in page is a stand-in that opens
 Development whatever you type, and the account shown is a fixed role.
@@ -121,11 +120,41 @@ rows of the parquet file it links to.
 
 There are no defaults in the code: an environment left unset reads nothing
 and its pages load empty. The example file points Sandbox at `./data/sandbox`,
-Development at `s3://south-platte/stac-metadata/catalog.json`, whose items are
-JSON, Test at `s3://south-platte/stac-portable/catalog.json`, whose
-collections each link to a parquet file, and Production at `./data/prod`.
+Development and Test at placeholder S3 catalogs to replace with your own, and
+Production at `./data/prod`.
 Sandbox sits outside promotion: approving a collection there records the
 decision and copies nothing, and nothing is promoted into it. Promotion copies
 parquet files, so a collection whose items are JSON can't be sent on yet.
 AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
 an instance role. `.env.example` explains each variable.
+
+### The map's area
+
+The home map can focus on one area, such as a state or a river basin. Set
+`STAC_MAP_AREA` to a GeoJSON file of its polygons and the map opens on it,
+outlines it, and dims everything outside. Collections that cover most of it
+say "Whole area" in the list. `STAC_MAP_AREA_NAME` is what the page calls it,
+in phrases like "Fit to the South Platte basin", so include "the" if it reads
+better. Without a name the file's `name` property is used.
+
+```bash
+STAC_MAP_AREA=./areas/south-platte.geojson
+STAC_MAP_AREA_NAME=the South Platte basin
+```
+
+Without `STAC_MAP_AREA` the map opens on everything the catalog covers and
+draws no outline. A collection whose box is national or world-sized, far
+bigger than the rest, is left out of that view. Both are read when the server starts, so changing them
+needs a restart, not a rebuild.
+
+The polygons are sent to the browser with the page, so simplify them first.
+Around 10 to 50 KB is plenty for a state or a large basin. The Docker image
+includes the `areas` folder; mount your own over `/app/areas` to use a
+different file.
+
+---
+
+<div align="center">
+    <sub>Built with ❤️ by Dewberry</sub><br/>
+    <sub>Full-Stack Software Engineering</sub>
+  </div>

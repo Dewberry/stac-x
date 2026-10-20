@@ -153,15 +153,24 @@ export function itemLabel(properties: Record<string, unknown>): string | null {
   return null;
 }
 
-/** Title case for gage names that arrive shouting: "MOSQUITO CREEK NEAR ALMA, CO". */
+/** US state and territory codes, which stay capitals at the end of a name. */
+const STATES = new Set(
+  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY AS GU MP PR VI".split(" "),
+);
+
+/**
+ * Title case for gage names that arrive shouting: "MOSQUITO CREEK NEAR ALMA, CO".
+ * A state code at the end after a comma ("…, CO" or "…, CO.") stays capitals.
+ */
 export function tidyCaps(s: string): string {
   if (s !== s.toUpperCase() || !/[A-Z]/.test(s)) return s;
   return s
     .toLowerCase()
     .replace(/\b([a-z])/g, (m) => m.toUpperCase())
-    .replace(/\b(Co|Nr|Nw|Ne|Sw|Se|Usgs|Hwy|Mt|St|Ft)\b/g, (m) => m.toUpperCase())
+    .replace(/\b(Nr|Nw|Ne|Sw|Se|Usgs|Hwy|Mt|St|Ft)\b/g, (m) => m.toUpperCase())
     .replace(/\b(At|Near|Below|Above|Of|And|The|In|On|Nr)\b/g, (m) => m.toLowerCase())
-    .replace(/^([a-z])/, (m) => m.toUpperCase());
+    .replace(/^([a-z])/, (m) => m.toUpperCase())
+    .replace(/,\s*([a-z]{2})(\.?)$/i, (m, st: string, dot: string) => (STATES.has(st.toUpperCase()) ? `, ${st.toUpperCase()}${dot}` : m));
 }
 
 /**
