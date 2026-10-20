@@ -31,8 +31,10 @@ concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
+# Spelled out rather than taken from github.repository, which is
+# "Dewberry/stac-x": image names must be lowercase and buildx won't fold it.
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  IMAGE: ghcr.io/dewberry/stac-x
 
 jobs:
   build:
