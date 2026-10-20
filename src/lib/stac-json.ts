@@ -12,7 +12,7 @@ import { NotFound, parseRef, readJson } from "./storage";
  * collections, whatever their files are called (collection-v1.0.json is
  * fine). Each collection is one source. Its items are the ones its `item`
  * links point at (the Development catalog), or, when it has none, the rows
- * of the stac-geoparquet file it links to as an `alternate` (the Testing
+ * of the stac-geoparquet file it links to as an `alternate` (the Test
  * catalog). Hrefs in a static catalog are usually relative, so every link
  * and asset href is resolved against the file it came from; after that the
  * rest of the app treats these items exactly like ones read from parquet.

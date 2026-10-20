@@ -9,7 +9,7 @@ import { QcChip } from "./qc-chip";
 import { QcMark } from "./qc-mark";
 import { Caret, DecisionCards, HistoryRow, decisionCopy, type Decision } from "./review";
 import { saveQcAction } from "@/app/actions";
-import { ENVS, envMeta, type EnvKey } from "@/lib/env";
+import { envMeta, PATH, type EnvKey } from "@/lib/env";
 import { fmtAge, fmtAgo, fmtDate, fmtNum } from "@/lib/format";
 import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { qcMeta, type QcEdit, type QcEvent, type QcStatus } from "@/lib/stac";
@@ -586,13 +586,13 @@ function Short({ long, short }: { long: string; short: string }) {
   );
 }
 
-/** Three small marks, one per environment, filled where the collection is. The words are for screen readers. */
+/** Three small marks, one per environment on the path, filled where the collection is. The words are for screen readers. */
 function MiniPath({ stages }: { stages: QueueRow["stages"] }) {
   const word = (qc: string | null) => (qc ? qcMeta(qc).label : "not there yet");
   return (
     <span className="sx-minipath">
       <span className="sr-only">{stages.map((s) => `${envMeta(s.env).label}: ${word(s.qc)}`).join(", ")}</span>
-      {ENVS.map((e) => {
+      {PATH.map((e) => {
         const s = stages.find((x) => x.env === e.key);
         return (
           <span
@@ -901,7 +901,9 @@ function OneReview({
       />
 
       <div className="sx-sheet-scroll">
-        <PromotionPath current={env} stages={row.stages} here={row.since ? `Waiting ${fmtAge(row.since, now)}` : "Waiting"} />
+        {envMeta(env).onPath && (
+          <PromotionPath current={env} stages={row.stages} here={row.since ? `Waiting ${fmtAge(row.since, now)}` : "Waiting"} />
+        )}
 
         <dl className="sx-sheet-facts">
           <div>
@@ -946,7 +948,7 @@ function OneReview({
           <p className="sx-confirm">
             <span>
               <b>This publishes {row.id} to Production.</b> Everyone who uses the catalog will see it. Its current copy in
-              Testing is what gets sent.
+              Test is what gets sent.
             </span>
           </p>
         )}

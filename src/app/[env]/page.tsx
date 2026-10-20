@@ -35,9 +35,10 @@ const WIDE = 0.7;
 
 /** What the rail says when an environment has nothing in it yet. */
 const EMPTY: Record<EnvKey, string> = {
+  sandbox: "Collections show up here once they land in the Sandbox catalog.",
   dev: "Collections show up here once they land in the Development catalog.",
   test: "Collections show up here once they're approved in Development.",
-  prod: "Collections show up here once they're approved in Testing.",
+  prod: "Collections show up here once they're approved in Test.",
 };
 
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {

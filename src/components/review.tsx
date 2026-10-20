@@ -25,14 +25,16 @@ export function decisionCopy(env: EnvKey, decision: QcStatus | null, count = 1) 
       label: "Approve",
       hint: next
         ? `Sends a copy to ${next.label}, where it starts unreviewed. Today is recorded as the approval date.`
-        : "Marks it approved. Production is the last step. Today is recorded as the approval date.",
+        : envMeta(env).onPath
+          ? "Marks it approved. Production is the last step. Today is recorded as the approval date."
+          : `Marks it approved. ${here} is outside promotion, so nothing is copied. Today is recorded as the approval date.`,
     },
     {
       value: "needs_revision",
       label: "Needs revision",
       hint:
         next?.key === "prod"
-          ? "It stays in Testing, blocked, until a fixed version is approved in Development and sent again."
+          ? "It stays in Test, blocked, until a fixed version is approved in Development and sent again."
           : "It stays here until a fixed version comes in.",
     },
     { value: "rejected", label: "Reject", hint: "It stays here and won't move forward." },

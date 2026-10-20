@@ -55,10 +55,12 @@ export type Catalog = {
   refreshedAt: string;
 };
 
-const g = globalThis as unknown as { __stacxEnvs?: Record<EnvKey, Cache> };
-const caches: Record<EnvKey, Cache> = (g.__stacxEnvs ??= Object.fromEntries(
-  ENVS.map((e) => [e.key, { sources: new Map(), listing: null, docs: new Map(), building: null }]),
-) as Record<EnvKey, Cache>);
+// Kept on globalThis so hot reload doesn't drop it. An environment added
+// while the server runs gets its entry here, since the object outlives the code.
+const g = globalThis as unknown as { __stacxEnvs?: Partial<Record<EnvKey, Cache>> };
+const kept = (g.__stacxEnvs ??= {});
+for (const e of ENVS) kept[e.key] ??= { sources: new Map(), listing: null, docs: new Map(), building: null };
+const caches = kept as Record<EnvKey, Cache>;
 
 export async function getCatalog(env: EnvKey): Promise<Catalog> {
   const cache = caches[env];

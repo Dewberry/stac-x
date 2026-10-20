@@ -3,7 +3,7 @@ import "server-only";
 import { getCatalog, invalidate } from "./catalog";
 import { landingFolder } from "./config";
 import { logEvent, updateEdits } from "./edits";
-import { nextEnv, type EnvKey } from "./env";
+import { envMeta, nextEnv, type EnvKey } from "./env";
 import type { Collection } from "./stac";
 import { baseName, isJsonSource, parseRef, read, write } from "./storage";
 
@@ -14,7 +14,7 @@ import { baseName, isJsonSource, parseRef, read, write } from "./storage";
  * environment's landing folder, so what arrives is exactly what was approved,
  * never a regenerated copy. A file that already sits there under the same
  * name is replaced, which is how a fix made in Development reaches a
- * collection that was sent back from Testing.
+ * collection that was sent back from Test.
  *
  * The copy in the next environment starts unreviewed: its QC record is
  * cleared, because an approval there was for the version it replaces. Both
@@ -27,7 +27,7 @@ import { baseName, isJsonSource, parseRef, read, write } from "./storage";
  */
 export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
   const to = nextEnv(env);
-  if (!to) throw new Error("Production is the last environment; there is nowhere to promote to.");
+  if (!to) throw new Error(`Nothing is promoted out of ${envMeta(env).label}.`);
   if (c.sources.length === 0) throw new Error("This collection has no source file to promote.");
   // Promotion copies parquet files. Moving a STAC JSON collection, and the
   // catalog links that point at it, isn't built yet.

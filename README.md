@@ -4,14 +4,14 @@ A STAC viewer for FFRD's Colorado data. It reads static STAC catalogs and
 stac-geoparquet files, from S3 or local folders, draws every collection on a
 map of the South Platte basin, and lets a reviewer record QC on each
 collection. Approving a collection copies its files into the next environment
-(Development to Testing, Testing to Production).
+(Development to Test, Test to Production).
 
 It writes two things. QC decisions go to a JSON sidecar beside the
 collection's file (`gages.parquet` gets `gages.edits.json`), never into the
 parquet itself, and a promoted collection is copied byte for byte into the
 next environment's first source.
 
-![The stac-x homepage in Testing with Stream Gages selected: its 192 sites drawn as dots across the South Platte basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
+![The stac-x homepage in Test with Stream Gages selected: its 192 sites drawn as dots across the South Platte basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
 
 ## Running it
 
@@ -109,18 +109,21 @@ In WSL:
 cp .env.example .env
 ```
 
-Set `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and `STAC_SOURCES_PROD` to where
-each environment's files live: a STAC `catalog.json`, an S3 prefix, one
+Set `STAC_SOURCES_SANDBOX`, `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and
+`STAC_SOURCES_PROD` to where each environment's files live: a STAC `catalog.json`, an S3 prefix, one
 object, a local folder, or a local file, separated by commas. A prefix or
 folder is read for every parquet file and `catalog.json` in it. A catalog is
 followed through its `child` links to its collections, and each collection's
 items are the JSON files its `item` links point at or, when it has none, the
 rows of the parquet file it links to.
 
-Unset, Development reads `s3://south-platte/stac-metadata/catalog.json`,
-whose items are JSON, Testing reads
-`s3://south-platte/stac-portable/catalog.json`, whose collections each link
-to a parquet file, and Production reads `./data/prod`. Promotion copies
+There are no defaults in the code: an environment left unset reads nothing
+and its pages load empty. The example file points Sandbox at `./data/sandbox`,
+Development at `s3://south-platte/stac-metadata/catalog.json`, whose items are
+JSON, Test at `s3://south-platte/stac-portable/catalog.json`, whose
+collections each link to a parquet file, and Production at `./data/prod`.
+Sandbox sits outside promotion: approving a collection there records the
+decision and copies nothing, and nothing is promoted into it. Promotion copies
 parquet files, so a collection whose items are JSON can't be sent on yet.
 AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
 an instance role. `.env.example` explains each variable.

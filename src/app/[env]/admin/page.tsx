@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { homeCrumb, PageHead } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
-import { ENVS, nextEnv } from "@/lib/env";
+import { ENVS, PATH, nextEnv } from "@/lib/env";
 import { guessKind } from "@/lib/kinds";
 import { pageEnv } from "@/lib/page-env";
 import { baseName } from "@/lib/storage";
@@ -59,7 +59,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     files: c.sources.map(baseName),
     qc: c.qc,
     since: c.history[0]?.at ?? c.qc?.updated_at ?? null,
-    stages: ENVS.map((e) => {
+    stages: PATH.map((e) => {
       const s = statusIn.get(e.key)?.get(c.id);
       return { env: e.key, qc: s?.qc ?? null, at: s?.at ?? null };
     }),

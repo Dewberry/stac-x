@@ -1,11 +1,11 @@
-import { ENVS, type EnvKey } from "@/lib/env";
+import { PATH, type EnvKey } from "@/lib/env";
 import { qcMeta } from "@/lib/stac";
 
 /** One environment's place on the path; qc is null where the collection isn't present. */
 export type PathStage = { env: EnvKey; qc: string | null; at?: string | null };
 
 /**
- * Where a collection stands across the three environments, left to right in
+ * Where a collection stands across the three environments on the path, left to right in
  * the order it moves. It's a stepper, not a control: a filled green dot where
  * it was approved, a ringed one where you are, a hollow one where it hasn't
  * arrived, and the line between two steps turns green once the collection
@@ -22,11 +22,11 @@ export function PromotionPath({
   /** The line under the current step while it's waiting: "You're reviewing here". */
   here?: string;
 }) {
-  const at = ENVS.map((e) => stages.find((s) => s.env === e.key) ?? { env: e.key, qc: null });
+  const at = PATH.map((e) => stages.find((s) => s.env === e.key) ?? { env: e.key, qc: null });
   return (
     <ol className="sx-path" aria-label="Where this collection is">
       {at.map((s, i) => {
-        const e = ENVS[i];
+        const e = PATH[i];
         const present = s.qc != null;
         const isCurrent = e.key === current;
         const done = present && s.qc === "approved" && !isCurrent;

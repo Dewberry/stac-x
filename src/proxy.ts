@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Environments in the URL. Development and Testing live under /dev and
- * /test; Production is unprefixed, and is rewritten here onto the /prod route
+ * Environments in the URL. Sandbox, Development and Test live under
+ * /sandbox, /dev and /test; Production is unprefixed, and is rewritten here onto the /prod route
  * segment so every page reads its environment from the same param. A typed
  * /prod/... URL redirects to the unprefixed one, so each page has one address.
  *
@@ -13,7 +13,7 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * Kept free of imports from src/lib: proxy runs apart from the render code.
  */
-const PREFIXED = new Set(["dev", "test"]);
+const PREFIXED = new Set(["sandbox", "dev", "test"]);
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

@@ -2,9 +2,11 @@
 # .github/workflows/docker.yml publishes it to ghcr.io/dewberry/stac-x.
 #
 # Run it with the same variables as .env.example, for example:
-#   docker run -p 3000:3000 -e AWS_ACCESS_KEY_ID=... -e AWS_SECRET_ACCESS_KEY=... ghcr.io/dewberry/stac-x
-# Local sources (./data/prod by default) live under /app/data; mount a
-# volume there to keep promoted collections and QC edits across restarts.
+#   docker run -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x
+# The STAC_SOURCES_* variables have no defaults, so an environment left unset
+# loads empty. Local sources (./data/sandbox, ./data/prod) live under
+# /app/data; mount a volume there to keep promoted collections and QC edits
+# across restarts.
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -31,7 +33,7 @@ ENV NODE_ENV=production \
     PORT=3000
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 --ingroup nodejs nextjs \
- && mkdir -p data/test data/prod \
+ && mkdir -p data/sandbox data/test data/prod \
  && chown -R nextjs:nodejs /app
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
