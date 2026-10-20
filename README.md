@@ -67,11 +67,21 @@ registry as `ghcr.io/dewberry/stac-x:main` (see
 so the image runs natively on Intel and AMD machines, Apple Silicon Macs and
 ARM servers, and Docker pulls the right one on its own.
 
+The published image is built to be served under `/stac`, since that's where
+Production lives (`https://ffrd.cloud.dewberryanalytics.com/stac`). Next bakes
+the path into the build, so it can't be changed when the container starts:
+pages, `_next` assets and API routes all answer under `/stac/...`, and the
+proxy in front should pass the path through as is, without stripping the
+prefix. To build for a different path, or for the root, set
+`NEXT_PUBLIC_BASE_PATH` as a build arg. Leave it out and the app answers at `/`.
+
 To run the app from a local build instead of the dev server:
 
 ```bash
 docker build -t stac-x .
 docker run --rm -p 3000:3000 --env-file .env stac-x
+# or, to match Production
+docker build --build-arg NEXT_PUBLIC_BASE_PATH=/stac -t stac-x .
 ```
 
 The container reads the same variables as `.env.example`. Local sources
@@ -92,6 +102,8 @@ this needs a classic GitHub token with `read:packages`:
 echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
 docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
 ```
+
+It answers at `http://localhost:3000/stac`.
 
 The image is a production build with no hot reload, so keep using `npm run dev`
 for day-to-day work and reach for the container to check what actually ships.

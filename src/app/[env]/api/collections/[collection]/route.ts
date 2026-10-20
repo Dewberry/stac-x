@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCollection } from "@/lib/catalog";
 import { isEnv } from "@/lib/env";
-import { attachment, collectionJsonHref, withEnvHome } from "@/lib/utils";
+import { attachment, collectionJsonHref, withBase, withEnvHome } from "@/lib/utils";
 import { qcFields, VERSION_SCHEMA } from "@/lib/stac";
 import { versionName } from "@/lib/versions";
 
@@ -58,7 +58,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
     "stac-x:item_count": c.itemCount,
     links: [
       { rel: "self", href: base, type: "application/json" },
-      { rel: "root", href: withEnvHome(env), type: "text/html" },
+      { rel: "root", href: withBase(withEnvHome(env)), type: "text/html" },
       ...versionLinks,
       ...c.items.map((i) => ({ rel: "item", href: `${base}/items/${encodeURIComponent(i.id)}`, type: "application/geo+json" })),
     ],

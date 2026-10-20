@@ -63,5 +63,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Production serves the app at ffrd.cloud.dewberryanalytics.com/stac.
+          build-args: |
+            NEXT_PUBLIC_BASE_PATH=/stac
           cache-from: type=gha
           cache-to: type=gha,mode=max

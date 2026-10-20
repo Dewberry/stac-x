@@ -19,6 +19,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # NEXT_PUBLIC_* values are baked in at build time, so they come in as build
 # args. Unset, the defaults in src/components/map-core.tsx apply.
+# NEXT_PUBLIC_BASE_PATH is the path the app is served under, like /stac.
+# Unset, it answers at the root.
+ARG NEXT_PUBLIC_BASE_PATH
 ARG NEXT_PUBLIC_MAP_STYLE_LIGHT
 ARG NEXT_PUBLIC_MAP_STYLE_DARK
 ARG NEXT_PUBLIC_MAP_TERRAIN

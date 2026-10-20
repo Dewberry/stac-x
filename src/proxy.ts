@@ -40,6 +40,8 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   // Everything but framework files, the environment-free routes (sign-in,
-  // asset and preview proxies) and the static files in public/.
-  matcher: ["/((?!_next/|api/asset|api/preview|signin|data/|vendor/|favicon\\.ico).*)"],
+  // asset and preview proxies) and the static files in public/. The bare "/"
+  // is listed on its own because under a base path the pattern only matches
+  // /stac/..., never /stac itself.
+  matcher: ["/", "/((?!_next/|api/asset|api/preview|signin|data/|vendor/|favicon\\.ico).*)"],
 };

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Grid } from "./meta-table";
 import { Icon, ICONS } from "./icons";
 import { fmtBytes, fmtNum } from "@/lib/format";
+import { withBase } from "@/lib/utils";
 
 /**
  * An image asset inline, with an honest fallback: the assets live in a
@@ -48,7 +49,7 @@ export function AssetPreview({ href }: { href: string }) {
   async function load() {
     setState({ status: "loading" });
     try {
-      const res = await fetch(`/api/preview?href=${encodeURIComponent(href)}&limit=50`);
+      const res = await fetch(withBase(`/api/preview?href=${encodeURIComponent(href)}&limit=50`));
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? res.statusText);
       setState({ status: "done", data: body as Preview });

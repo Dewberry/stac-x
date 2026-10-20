@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ExpressionSpecification, IControl, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import { withBase } from "@/lib/utils";
 
 /**
  * What every map on the app shares: the palette read out of CSS, the basemap
@@ -24,7 +25,7 @@ export const TERRAIN_URL =
 const TERRAIN_CREDIT =
   '<a href="https://github.com/tilezen/joerd/blob/master/docs/attribution.md">Mapzen terrain</a>';
 
-export const WORKER_URL = "/vendor/maplibre-gl/maplibre-gl-worker.mjs";
+export const WORKER_URL = withBase("/vendor/maplibre-gl/maplibre-gl-worker.mjs");
 
 export type Theme = "light" | "dark";
 
