@@ -64,7 +64,9 @@ npm run typecheck
 Every push to `main` builds the image and publishes it to GitHub's container
 registry as `ghcr.io/dewberry/stac-x:main` (see
 `.github/workflows/docker.yml`). Tagging a release `v1.2.3` also publishes
-`1.2.3`, `1.2` and `latest`.
+`1.2.3`, `1.2` and `latest`. Each tag covers both linux/amd64 and linux/arm64,
+so the image runs natively on Intel and AMD machines, Apple Silicon Macs and
+ARM servers, and Docker pulls the right one on its own.
 
 To run the app from a local build instead of the dev server:
 
