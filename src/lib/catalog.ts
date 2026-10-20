@@ -82,6 +82,20 @@ export async function getItem(env: EnvKey, collection: string, id: string): Prom
 }
 
 /**
+ * Whether some environment's catalog has an asset with exactly this href.
+ * The asset and preview routes sign and read with the server's credentials,
+ * so they only take hrefs the catalog hands out, never one a caller made up.
+ */
+export async function isCatalogAsset(href: string): Promise<boolean> {
+  const has = (assets: Record<string, StacAsset>) => Object.values(assets).some((a) => a.href === href);
+  for (const e of ENVS) {
+    const { collections } = await getCatalog(e.key);
+    if (collections.some((c) => has(c.assets) || c.items.some((i) => has(i.assets)))) return true;
+  }
+  return false;
+}
+
+/**
  * Called after a write so the next read sees it without waiting for the ETag
  * check: one source after a QC save, or every source (and the listing) after
  * a collection was promoted into the environment.

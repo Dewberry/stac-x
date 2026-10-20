@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCollection } from "@/lib/catalog";
 import { isEnv } from "@/lib/env";
-import { collectionJsonHref, withEnvHome } from "@/lib/utils";
+import { attachment, collectionJsonHref, withEnvHome } from "@/lib/utils";
 import { qcFields, VERSION_SCHEMA } from "@/lib/stac";
 import { versionName } from "@/lib/versions";
 
@@ -14,7 +14,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
   const base = collectionJsonHref(env, c.id);
   // ?download=1 saves the file instead of showing it in the tab.
   const download = new URL(req.url).searchParams.get("download") === "1";
-  const headers = download ? { "content-disposition": `attachment; filename="${c.id}.collection.json"` } : undefined;
+  const headers = download ? { "content-disposition": attachment(`${c.id}.collection.json`) } : undefined;
 
   // The Version extension, from the series rather than the source links, so
   // the links point at this app and work for versions told apart by id alone.
