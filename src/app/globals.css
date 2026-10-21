@@ -3418,8 +3418,9 @@ button.sx-map-pill svg {
   border-top: 1px solid var(--ffx-rule);
   border-bottom: 1px solid var(--ffx-rule);
 }
+/* Five rows show before the block scrolls; the line under it says how many more. */
 .sx-item-list {
-  max-height: min(40vh, 22rem);
+  max-height: 12rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -3430,7 +3431,7 @@ button.sx-map-pill svg {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 36px;
+  height: 18px;
   background: linear-gradient(transparent, var(--ffx-surface));
   pointer-events: none;
 }
