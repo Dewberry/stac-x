@@ -2047,6 +2047,35 @@ a.sx-activity-title:hover {
   text-underline-offset: 4px;
   text-decoration-color: var(--ffx-header-ink-mut);
 }
+/* The site the app sits under, as the step before the wordmark: quieter
+   than it, the same size so the two read as one path. */
+.sx-portal {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sx-portal-link {
+  color: var(--ffx-header-ink-mut);
+  font-family: var(--ffx-display);
+  font-size: 1.125rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sx-portal-link:hover {
+  color: var(--ffx-header-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--ffx-header-ink-mut);
+}
+.sx-portal-sep {
+  color: var(--ffx-header-rule);
+  font-size: 1.125rem;
+  line-height: 1;
+}
 /* The footer band, the same as ffrd-x's: full bleed on the surface with a
    hairline above, contents on the shell and the edge gutter. */
 .sx-footer {

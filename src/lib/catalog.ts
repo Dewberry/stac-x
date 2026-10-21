@@ -20,6 +20,12 @@ import { groupVersions } from "./versions";
  * ETag changes. ETags are checked at most every STAC_REFRESH_SECONDS, so a
  * page view is normally zero calls to S3.
  *
+ * Once an environment has been read, a page never waits on S3: it gets the
+ * catalog as it stood and the check runs behind it, so the next page gets
+ * whatever changed. Only the first read after the server starts waits, and
+ * the first after this app writes something, so a QC save shows at once.
+ * instrumentation.ts starts that first read when the server boots.
+ *
  * Each environment has its own sources and its own cache. The caches hang
  * off globalThis so they survive dev-server hot reloads, which otherwise
  * re-parse every file on every edit to a component.
@@ -27,7 +33,10 @@ import { groupVersions } from "./versions";
 
 type SourceState = {
   uri: string;
+  /** For a catalog's collection.json, its ETag and its parquet file's, joined. */
   etag: string;
+  /** The parquet file a collection.json's items come from. */
+  parquet: string | null;
   items: StacItem[];
   /** Collection objects embedded in the file's metadata, by id. */
   embedded: Record<string, Record<string, unknown>>;
@@ -46,6 +55,10 @@ type Cache = {
   listing: { at: number; uris: string[]; errors: string[] } | null;
   docs: Map<string, { at: number; doc: CollectionDoc }>;
   building: Promise<Catalog> | null;
+  /** The last catalog built, served while the next one is checked. Null until the first build and after a write. */
+  last?: Catalog | null;
+  /** Bumped by every write, so a build that started before it can't be served after it. */
+  generation?: number;
 };
 
 export type Catalog = {
@@ -66,9 +79,22 @@ export async function getCatalog(env: EnvKey): Promise<Catalog> {
   const cache = caches[env];
   // Coalesce concurrent builds: the three server components of a page all
   // ask, and one build serves them.
-  if (cache.building) return cache.building;
-  cache.building = build(env, cache).finally(() => (cache.building = null));
-  return cache.building;
+  if (!cache.building) {
+    const generation = cache.generation ?? 0;
+    const pending: Promise<Catalog> = build(env, cache)
+      .then((catalog) => {
+        if ((cache.generation ?? 0) === generation) cache.last = catalog;
+        return catalog;
+      })
+      .finally(() => {
+        if (cache.building === pending) cache.building = null;
+      });
+    cache.building = pending;
+  }
+  if (!cache.last) return cache.building;
+  // Served from memory; a failed check is already logged per source.
+  cache.building.catch(() => {});
+  return cache.last;
 }
 
 export async function getCollection(env: EnvKey, id: string): Promise<Collection | null> {
@@ -102,6 +128,11 @@ export async function isCatalogAsset(href: string): Promise<boolean> {
  */
 export function invalidate(env: EnvKey, sourceUri?: string) {
   const cache = caches[env];
+  // The next read waits for a build that sees the write, rather than one
+  // already under way that might not.
+  cache.generation = (cache.generation ?? 0) + 1;
+  cache.last = null;
+  cache.building = null;
   if (sourceUri) {
     const s = cache.sources.get(sourceUri);
     if (s) s.checkedAt = 0;
@@ -181,6 +212,7 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
   const state: SourceState = existing ?? {
     uri,
     etag: "",
+    parquet: null,
     items: [],
     embedded: {},
     editsEtag: null,
@@ -190,19 +222,28 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
     error: null,
   };
   try {
-    const h = await head(uri);
+    const [h, sidecar] = await Promise.all([head(uri), readEdits(uri)]);
     if (!h) throw new Error("object not found");
-    // No `embedded` means the state was cached before this code read it. A
-    // collection's ETag says nothing about its items, so it's re-read on
-    // every check; JSON catalogs are small.
-    const json = isJsonSource(uri);
-    if (json || h.etag !== state.etag || !state.embedded) {
-      const read = json ? await readCollectionJson(uri) : await readItems(uri);
+    // A catalog's collection.json says nothing about its items, which are
+    // the rows of the parquet file it links to, so it's re-read when either
+    // file changes. Unchanged, a check is two HEADs and no parsing. No
+    // `embedded` means the state was cached before this code read it.
+    if (isJsonSource(uri)) {
+      const rows = state.parquet ? await head(state.parquet) : null;
+      if (`${h.etag}|${rows?.etag ?? ""}` !== state.etag || !state.embedded) {
+        const read = await readCollectionJson(uri);
+        state.items = read.items;
+        state.embedded = read.collections;
+        state.parquet = read.parquet.uri;
+        state.etag = `${h.etag}|${read.parquet.etag}`;
+      }
+    } else if (h.etag !== state.etag || !state.embedded) {
+      const read = await readItems(uri);
       state.items = read.items;
       state.embedded = read.collections;
       state.etag = h.etag;
     }
-    const { edits, etag } = await readEdits(uri);
+    const { edits, etag } = sidecar;
     state.qc = edits.collections;
     state.history = edits.history;
     state.editsEtag = etag;
@@ -223,7 +264,8 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
  */
 async function describeCollection(cache: Cache, id: string, items: CatalogItem[], now: number): Promise<Collection> {
   const docHref = items[0]?.links.find((l) => l.rel === "collection")?.href ?? null;
-  const read = await collectionDoc(cache, docHref, now);
+  // A catalog's collection.json is itself a source, already read.
+  const read = (docHref && cache.sources.get(docHref)?.embedded?.[id]) || (await collectionDoc(cache, docHref, now));
   const embeddedIn = read ? undefined : items.find((i) => cache.sources.get(i.source)?.embedded?.[id]);
   const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn.source)!.embedded[id] : null);
   // Relative asset hrefs are relative to the file the metadata came from.

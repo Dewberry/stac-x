@@ -14,18 +14,25 @@ export type Decision = Exclude<QcStatus, "pending">;
 
 export const DECISIONS: Decision[] = ["approved", "needs_revision", "rejected"];
 
-/** The words for a decision in one environment, for one collection or several. */
-export function decisionCopy(env: EnvKey, decision: QcStatus | null, count = 1) {
-  const next = nextEnv(env);
+/**
+ * The words for a decision in one environment, for one collection or several.
+ * `sendable` is false when approving can't copy the collection on yet (one
+ * from a STAC catalog): the approval is recorded and the copy is coming soon.
+ */
+export function decisionCopy(env: EnvKey, decision: QcStatus | null, count = 1, sendable = true) {
+  const onward = nextEnv(env);
+  const next = sendable ? onward : null;
   const here = envMeta(env).label;
-  const toProd = decision === "approved" && next?.key === "prod";
+  const toProd = decision === "approved" && onward?.key === "prod";
   const choices: { value: Decision; label: string; hint: string }[] = [
     {
       value: "approved",
       label: "Approve",
       hint: next
         ? `Sends a copy to ${next.label}, where it starts unreviewed. Today is recorded as the approval date.`
-        : envMeta(env).onPath
+        : onward
+          ? `Records the approval. Sending it to ${onward.label} from here is coming soon, so it stays in ${here} for now.`
+          : envMeta(env).onPath
           ? "Marks it approved. Production is the last step. Today is recorded as the approval date."
           : `Marks it approved. ${here} is outside promotion, so nothing is copied. Today is recorded as the approval date.`,
     },
@@ -57,7 +64,9 @@ export function decisionCopy(env: EnvKey, decision: QcStatus | null, count = 1) 
       ? "Pick a decision above. Nothing is written until you do."
       : decision === "approved" && next
         ? `Writes the QC record beside the source file and copies the ${count > 1 ? "collections" : "collection"} to ${next.label}.`
-        : `Writes the QC record in ${here}. Nothing moves.`;
+        : decision === "approved" && onward
+          ? `Writes the QC record in ${here}. Copying to ${onward.label} is coming soon.`
+          : `Writes the QC record in ${here}. Nothing moves.`;
   const placeholder = toProd
     ? "What was checked, and why it's ready for Production."
     : decision === "approved" || decision === null

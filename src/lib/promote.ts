@@ -25,14 +25,22 @@ import { baseName, isJsonSource, parseRef, read, write } from "./storage";
  * is taken in the next environment by another collection, usually another
  * version of this one.
  */
+/**
+ * Whether approving can copy this collection on. One read through a STAC
+ * catalog can't be yet: it would need its collection.json and parquet file
+ * copied together and a child link added to the next catalog. Until that's
+ * built, approving it records the decision and says the copy is coming soon.
+ */
+export function canPromote(c: Pick<Collection, "sources">): boolean {
+  return c.sources.length > 0 && !c.sources.some(isJsonSource);
+}
+
 export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
   const to = nextEnv(env);
   if (!to) throw new Error(`Nothing is promoted out of ${envMeta(env).label}.`);
   if (c.sources.length === 0) throw new Error("This collection has no source file to promote.");
-  // Promotion copies parquet files. Moving a STAC JSON collection, and the
-  // catalog links that point at it, isn't built yet.
-  if (c.sources.some(isJsonSource)) {
-    throw new Error("This collection is STAC JSON, which can't be sent to the next environment yet.");
+  if (!canPromote(c)) {
+    throw new Error("This collection comes from a STAC catalog, which can't be sent to the next environment yet.");
   }
 
   const catalog = await getCatalog(env);

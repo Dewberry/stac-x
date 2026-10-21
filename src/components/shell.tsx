@@ -27,6 +27,18 @@ const HOME_LABEL = "All collections";
 /** Pages reached from the account menu rather than the bar. */
 const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
 
+/**
+ * The site the app is deployed under, linked at the left of the bar so
+ * there's a way back to it. STAC_PORTAL_URL and STAC_PORTAL_NAME; unset,
+ * the bar has the wordmark alone.
+ */
+const portal = process.env.STAC_PORTAL_URL?.trim()
+  ? {
+      url: process.env.STAC_PORTAL_URL.trim(),
+      name: process.env.STAC_PORTAL_NAME?.trim() || new URL(process.env.STAC_PORTAL_URL.trim()).host,
+    }
+  : null;
+
 export function SiteHeader({ session }: { session: Session | null }) {
   return (
     <header className="sx-header">
@@ -34,7 +46,21 @@ export function SiteHeader({ session }: { session: Session | null }) {
         Skip to content
       </a>
       <div className="ffx-shell sx-header-inner">
-        <BrandLink className="sx-brand" />
+        {portal ? (
+          // The site this app is one part of, ahead of the wordmark like the
+          // first step of a path: FFRD Cloud / STAC.
+          <div className="sx-portal">
+            <a href={portal.url} className="sx-portal-link">
+              {portal.name}
+            </a>
+            <span className="sx-portal-sep" aria-hidden="true">
+              /
+            </span>
+            <BrandLink className="sx-brand" />
+          </div>
+        ) : (
+          <BrandLink className="sx-brand" />
+        )}
         <div className="ml-auto flex items-center gap-2">
           <HeaderControls
             session={session}
