@@ -6,8 +6,9 @@ import { fmtBytes, fmtNum, humanize } from "@/lib/format";
 /**
  * The first rows of the collection's own file (the stac-geoparquet it was
  * read from), on the collection page: a quick look at the columns the
- * pipeline wrote, one row per item. Loaded as soon as the page is, so it's
- * there without a click.
+ * pipeline wrote, one row per item. Five rows, enough to see the shape of
+ * the data without a table taking over the page. Loaded as soon as the
+ * page is, so it's there without a click.
  *
  * The columns that name a row (id, title, dates) come first; the ones that
  * hold a structure (the geometry, the assets, the links) go last and sit
@@ -29,7 +30,7 @@ const NAME = /name|title|label/i;
 /** Columns that are always a structure, however they're serialized. */
 const FOLDED = new Set(["geometry", "bbox", "assets", "links", "stac_extensions"]);
 
-export function DataPanel({ href, limit = 10 }: { href: string; limit?: number }) {
+export function DataPanel({ href, limit = 5 }: { href: string; limit?: number }) {
   const [state, setState] = useState<{ status: "loading" | "done" | "error"; data?: Preview; error?: string }>({ status: "loading" });
 
   useEffect(() => {

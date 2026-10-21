@@ -7,7 +7,6 @@ import { AREA_KIND_LABEL } from "@/lib/kinds";
 import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
-import { Icon, ICONS } from "./icons";
 import { ItemsList } from "./items-list";
 import { QcChip } from "./qc-chip";
 import { stateOf } from "./qc-mark";
@@ -15,8 +14,8 @@ import { stateOf } from "./qc-mark";
 /**
  * What a selected collection shows: enough to decide whether to open it,
  * and its items. Its description, where its QC stands, the last reviewer's
- * note when it was sent back, the way in (JSON, Open collection), then the
- * items by name with a search and a sort. The summary line (kind, dates,
+ * note when it was sent back, the way in (Open collection), then the items
+ * by name with a search and a sort. The summary line (kind, dates,
  * version) sits above it, in the row on a wide screen and in the sheet's
  * header on a phone, so the body doesn't repeat it. On a wide screen this
  * opens inside the collection's row in the rail (OpenRow); on a phone it's
@@ -95,15 +94,10 @@ export function PreviewBody({ area, figures }: { area: HomeArea; figures?: boole
   );
 }
 
+/** The one action: the collection page, where the JSON, the data and the full table are. */
 function WayIn({ area }: { area: HomeArea }) {
   return (
     <div className="sx-pv-btns">
-      <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
-        <Icon d={ICONS.json} size={12} /> JSON
-      </a>
-      <Link href={`${area.href}#data`} className="ffx-link sx-pv-link">
-        Preview data
-      </Link>
       <Link href={area.href} className="ffx-btn ffx-btn-primary">
         Open collection
       </Link>

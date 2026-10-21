@@ -18,7 +18,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
   const c = await getCollection(env, decodeURIComponent(collection));
   const source = c && dataFileOf(c);
   if (!c || !source) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const limit = Math.min(50, Math.max(1, Number(new URL(req.url).searchParams.get("limit") ?? 10) || 10));
+  const limit = Math.min(50, Math.max(1, Number(new URL(req.url).searchParams.get("limit") ?? 5) || 5));
   try {
     const preview = await previewParquet(source, limit);
     return NextResponse.json({ ...preview, source: baseName(source) });
