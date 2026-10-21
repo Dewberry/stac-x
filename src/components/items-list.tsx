@@ -13,8 +13,9 @@ import { Icon, ICONS } from "./icons";
  * collection page the rows carry id and dates and come in pages. In the
  * home rail (`compact`) each row is the item's name alone, on one line
  * with a chevron, in a block that scrolls inside the rail with a note
- * under it saying how many more are below; the collection page is where
- * the full table is. Filtering runs in the browser over a compact summary
+ * under it saying how many more are below, and there's no sort: with
+ * names alone there's nothing to sort by eye, and the rows keep the
+ * catalog's own order. The collection page is where the full table is. Filtering runs in the browser over a compact summary
  * of every item, which is fine into the tens of thousands; past that the
  * page should send a filtered slice and this component keeps its shape.
  */
@@ -148,14 +149,17 @@ export function ItemsList({
             }}
           />
         </label>
-        <label className="ffx-field ffx-field-select">
-          <span className="ffx-field-label">Sort</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-            <option value="id">Id</option>
-            <option value="label">Name</option>
-            <option value="start">Start date</option>
-          </select>
-        </label>
+        {/* The rail's rows show names alone, so there's nothing there to sort by eye; the collection page keeps the sort. */}
+        {!compact && (
+          <label className="ffx-field ffx-field-select">
+            <span className="ffx-field-label">Sort</span>
+            <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              <option value="id">Id</option>
+              <option value="label">Name</option>
+              <option value="start">Start date</option>
+            </select>
+          </label>
+        )}
         {!compact && filtered.length !== rows.length && (
           <span className="ml-auto text-micro text-ink-mut ffx-num">
             {filtered.length} of {rows.length}

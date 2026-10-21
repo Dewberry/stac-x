@@ -3418,8 +3418,8 @@ button.sx-map-pill svg {
   background: var(--ffx-surface);
   font-size: var(--ffx-t-small);
 }
-.sx-items-compact .ffx-toolbar .ffx-field-select {
-  flex: none;
+.sx-items-compact .ffx-toolbar .ffx-field {
+  max-width: none;
 }
 .sx-items-compact .sx-empty {
   padding: 12px 0 4px;
