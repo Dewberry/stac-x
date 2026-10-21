@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
+import { DataPanel } from "@/components/data-panel";
 import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
 import { ItemsList } from "@/components/items-list";
 import { MetaTable, type Entry } from "@/components/meta-table";
@@ -13,6 +14,7 @@ import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
+import { dataFileOf } from "@/lib/data-file";
 import { collectionKindLabel } from "@/lib/item-kinds";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
@@ -35,7 +37,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * the collection (description, license and temporal extent, the map, then
  * metadata) and the right column is its items. QC is recorded for the
  * collection as a whole and reviewed from Admin, so the page only shows its
- * state in the subtitle.
+ * state in the subtitle. Under the items, the first rows of the file they
+ * came from, for a look at the data itself.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -46,6 +49,8 @@ export default async function CollectionPage({ params }: Props) {
 
   const rows = itemRowsOf(c);
   const rowOf = new Map(rows.map((r) => [r.id, r]));
+  // The file the items live in, for the Data panel.
+  const source = dataFileOf(c);
 
   const geo: FeatureCollection = {
     type: "FeatureCollection",
@@ -172,6 +177,12 @@ export default async function CollectionPage({ params }: Props) {
           <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
             <ItemsList env={env} collection={c.id} rows={rows} />
           </Panel>
+          {/* The rows as the pipeline wrote them, under the items they are. */}
+          {source && (
+            <Panel title="Data" note={baseName(source)} id="data">
+              <DataPanel href={`${collectionJsonHref(env, c.id)}/data`} />
+            </Panel>
+          )}
         </div>
       </div>
       </ItemHoverProvider>

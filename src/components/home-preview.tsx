@@ -101,6 +101,9 @@ function WayIn({ area }: { area: HomeArea }) {
       <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
         <Icon d={ICONS.json} size={12} /> JSON
       </a>
+      <Link href={`${area.href}#data`} className="ffx-link sx-pv-link">
+        Preview data
+      </Link>
       <Link href={area.href} className="ffx-btn ffx-btn-primary">
         Open collection
       </Link>

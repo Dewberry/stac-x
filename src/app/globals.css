@@ -975,6 +975,53 @@
   overflow: auto;
 }
 
+/* The Data panel on a collection page (components/data-panel.tsx): a note
+   on what's shown, then the rows. A structure in a cell is folded into what
+   it holds, and opens to its JSON under that. */
+.sx-data-note {
+  margin: 0;
+  padding: 0 var(--ffx-panel-pad) 0.625rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-data-pane {
+  max-height: 26rem;
+}
+.sx-data-pane .ffx-table td {
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sx-fold {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sx-fold:hover,
+.sx-fold[aria-expanded="true"] {
+  color: var(--ffx-active-text);
+}
+.sx-fold-body {
+  max-width: 24rem;
+  max-height: 12rem;
+  margin: 0.375rem 0 0;
+  overflow: auto;
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-tiny);
+  line-height: 1.4;
+  white-space: pre;
+  color: var(--ffx-ink);
+}
+/* A panel linked to by its id lands under the sticky header. */
+.ffx-panel[id] {
+  scroll-margin-top: calc(var(--ffx-header) + 0.75rem);
+}
+
 /* Key beside value. The label column is 160px at every depth, nested tables
    too, and fixed so a value cut with an ellipsis can't widen it. */
 .sx-meta {
@@ -3339,9 +3386,17 @@ button.sx-map-pill svg {
 .sx-pv-btns .ffx-btn {
   height: 32px;
 }
-/* JSON sits on the left, the primary action on the right. */
+/* JSON sits on the left, the primary action on the right, and the way to
+   the data panel on the collection page as a plain link between them. */
 .sx-pv-btns > .ffx-btn-primary {
   margin-left: auto;
+}
+.sx-pv-btns {
+  align-items: center;
+}
+.sx-pv-link {
+  margin-left: 0.25rem;
+  font-size: var(--ffx-t-small);
 }
 
 /* The items inside the open row and the phone's sheet: a white block of
