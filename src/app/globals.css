@@ -4342,6 +4342,104 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   font-size: var(--ffx-t-small);
   color: var(--ffx-ink-sec);
 }
+/* An Admin address that isn't built yet: the trail at the top, then one
+   card in the middle of the space the page has, saying what was asked for
+   and what works today. */
+.sx-soon {
+  grid-template-rows: auto 1fr;
+  min-height: calc(100dvh - 10rem);
+}
+.sx-soon-stage {
+  display: grid;
+  place-items: center;
+  padding-block: 2rem 4rem;
+}
+.sx-soon-card {
+  width: 100%;
+  max-width: 34rem;
+  padding: 2rem;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+.sx-soon-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-river);
+}
+.sx-soon-kicker {
+  margin-top: 1rem;
+  font-size: var(--ffx-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-soon-title {
+  margin-top: 0.25rem;
+  font-family: var(--ffx-display);
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.sx-soon-text {
+  margin-top: 0.6rem;
+  max-width: 28rem;
+  font-size: var(--ffx-t-small);
+  line-height: var(--ffx-t-small-lh);
+  color: var(--ffx-ink-sec);
+}
+.sx-soon-text code {
+  overflow-wrap: anywhere;
+}
+/* What works today, as a row you can click, with the queue's real count. */
+.sx-soon-now {
+  margin-top: 1.5rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  text-align: left;
+  color: var(--ffx-ink);
+  text-decoration: none;
+}
+.sx-soon-now:hover {
+  border-color: var(--ffx-river);
+  background: var(--ffx-surface-sunken);
+}
+.sx-soon-now > span {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.sx-soon-now-title {
+  font-weight: 600;
+}
+.sx-soon-now-sub {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-soon-now > svg {
+  flex: none;
+  color: var(--ffx-ink-mut);
+}
+.sx-soon-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
 .sx-notin-state > * + *::before {
   content: "·";
   margin: 0 0.5rem;
