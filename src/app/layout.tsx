@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     default: catalogTitle,
     template: `%s | ${catalogTitle}`,
   },
-  description: "Browse STAC collections held as STAC JSON and GeoParquet in S3, review them, and move them from Development to Testing to Production.",
+  description: "Browse STAC collections held as STAC JSON and GeoParquet in S3, review them, and move them from Development to Test to Production.",
 };
 
 export const viewport = {

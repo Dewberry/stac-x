@@ -5,7 +5,7 @@ import type { AsyncBuffer, FileMetaData } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
 import type { Geometry } from "geojson";
 import type { StacAsset, StacItem, StacLink } from "./stac";
-import { read, readRange, head } from "./storage";
+import { head, NotFound, read, readRange } from "./storage";
 
 /**
  * stac-geoparquet in, STAC items out.
@@ -160,7 +160,7 @@ export type Preview = {
  */
 export async function previewParquet(uri: string, limit = 50): Promise<Preview> {
   const h = await head(uri);
-  if (!h) throw new Error(`No such object: ${uri}`);
+  if (!h) throw new NotFound(uri);
   const file: AsyncBuffer = {
     byteLength: h.size,
     slice: (start, end) => readRange(uri, start, end ?? h.size),

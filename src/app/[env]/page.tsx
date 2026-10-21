@@ -2,12 +2,11 @@ import { Suspense } from "react";
 import type { FeatureCollection } from "geojson";
 import { HomeConsole, type HomeArea } from "@/components/home";
 import { HomeLoading } from "@/components/home-loading";
-import { basinAt, basinCovered, basinShare } from "@/lib/basin-at";
-import { FOCUS_BASIN } from "@/lib/basins";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { itemRowLabel } from "@/lib/item-kinds";
 import { guessKind } from "@/lib/kinds";
+import { areaCovered, areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { overview, polygonsOf } from "@/lib/overview";
 import { pageEnv } from "@/lib/page-env";
 import { QC_STATUSES, type Collection, type QcStatus } from "@/lib/stac";
@@ -16,28 +15,30 @@ import { collectionHref, collectionJsonHref } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 /**
- * The landing page: where in the South Platte there are collections, on one
- * map.
+ * The landing page: where the catalog's collections are, on one map that
+ * opens on the deployment's area (lib/map-area.ts) or, with none set, on
+ * everything the catalog covers.
  *
  * Every collection in the catalog is an area here: it links to the
  * collection, its counts are real, and its footprint is drawn on the map
  * when it's selected (points for gages, the covered area for a model; see
  * lib/overview.ts), so a new parquet file in the bucket shows up here with
- * no code change. A collection whose extent covers most of the basin (gages,
- * a storm catalog) says "Whole basin" in the rail.
+ * no code change. A collection whose extent covers most of the area (gages,
+ * a storm catalog) says "Whole area" in the rail.
  */
 
 /** The most items a selected collection lists by name in its row. */
 const MEMBERS_MAX = 24;
 
-/** Share of the basin a collection's extent has to cover to count as basin-wide. */
+/** Share of the area a collection's extent has to cover to count as area-wide. */
 const WIDE = 0.7;
 
 /** What the rail says when an environment has nothing in it yet. */
 const EMPTY: Record<EnvKey, string> = {
+  sandbox: "Collections show up here once they land in the Sandbox catalog.",
   dev: "Collections show up here once they land in the Development catalog.",
   test: "Collections show up here once they're approved in Development.",
-  prod: "Collections show up here once they're approved in Testing.",
+  prod: "Collections show up here once they're approved in Test.",
 };
 
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {
@@ -53,6 +54,7 @@ export default async function Home({ params }: { params: Promise<{ env: string }
 
 async function HomeData({ env }: { env: EnvKey }) {
   const catalog = await getCatalog(env);
+  const area = mapArea();
   // A collection with several versions is one area, drawn and counted from
   // its latest version.
   const latest = catalog.collections.filter((c) => c.series.latest === c.id);
@@ -77,16 +79,16 @@ async function HomeData({ env }: { env: EnvKey }) {
           const item = f.properties?.role === "point" ? byId.get(f.properties.id) : undefined;
           if (item) Object.assign(f.properties!, itemRowLabel(c, item));
         }
-        // Shapes that contain the whole basin (a national inventory's extent
+        // Shapes that contain the whole area (a national inventory's extent
         // box) would tint the whole map, so such a collection is drawn as
-        // the basin itself; the map lights the basin up for it.
+        // the area itself; the map lights the area up for it.
         const polys =
           o.shape === "areas"
             ? polygonsOf(c.items)
             : o.shape === "extent"
               ? o.features.flatMap((f) => (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : []))
               : [];
-        if (polys.length && (await basinCovered(FOCUS_BASIN, polys))) return { slug: c.series.id, shape: "basin" as const, features: [] };
+        if (area && areaCovered(area, polys)) return { slug: c.series.id, shape: "area" as const, features: [] };
         return { slug: c.series.id, ...o };
       }),
   );
@@ -109,20 +111,19 @@ async function HomeData({ env }: { env: EnvKey }) {
 
   const areas: HomeArea[] = [];
   for (const c of latest) {
-    const bbox = c.bbox ?? unionBbox(c.items) ?? [-109.06, 36.99, -102.04, 41.0];
-    const huc4 = (await basinAt([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2])) ?? "";
+    const bbox = c.bbox ?? unionBbox(c.items);
     areas.push({
       slug: c.series.id,
       id: c.id,
       name: c.title,
       kind: guessKind(c),
-      huc4,
+      inArea: !!area && !!bbox && inArea(area, [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]),
       bbox,
       blurb: c.description ?? undefined,
       drawn: drawn.get(c.series.id)?.shape ?? null,
       steps: drawn.get(c.series.id)?.steps,
       members: membersOf(c),
-      wide: (await basinShare(FOCUS_BASIN, bbox)) >= WIDE,
+      wide: !!area && !!bbox && areaShare(area, bbox) >= WIDE,
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
@@ -140,6 +141,8 @@ async function HomeData({ env }: { env: EnvKey }) {
     <HomeConsole
       env={env}
       areas={areas}
+      area={area && { name: area.name, geometry: area.geometry }}
+      frame={mapFrame(area, areas.map((a) => a.bbox))}
       items={items}
       byState={byState}
       // Only shown when something is wrong. The details go to the server log.

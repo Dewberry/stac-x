@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getItem } from "@/lib/catalog";
 import { isEnv } from "@/lib/env";
 import { toStacJson } from "@/lib/stac";
+import { attachment } from "@/lib/utils";
 
 /** The item as STAC JSON. */
 export async function GET(req: Request, { params }: { params: Promise<{ env: string; collection: string; item: string }> }) {
@@ -14,7 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
   return NextResponse.json(toStacJson(i), {
     headers: {
       "content-type": "application/geo+json",
-      ...(download ? { "content-disposition": `attachment; filename="${i.id}.json"` } : {}),
+      ...(download ? { "content-disposition": attachment(`${i.id}.json`) } : {}),
     },
   });
 }

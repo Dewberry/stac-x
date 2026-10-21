@@ -56,7 +56,11 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
         )}
         <p className="mt-2 text-small text-ink-mut">
           {found.length
-            ? `It's in ${found.map((k) => envMeta(k).label).join(" and ")}. A collection reaches ${here} when it's approved in the environment before it.`
+            ? `It's in ${new Intl.ListFormat("en-US").format(found.map((k) => envMeta(k).label))}. ${
+                envMeta(env).onPath
+                  ? `A collection reaches ${here} when it's approved in the environment before it.`
+                  : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`
+              }`
             : "No collection by that id is in any environment. It may have been renamed in the bucket, or the file that held it may no longer be listed."}
           {sibling && ` ${siblingName} of it is in ${here}.`}
         </p>

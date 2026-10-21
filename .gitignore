@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -44,10 +45,13 @@ next-env.d.ts
 /public/vendor
 
 # QC edits written beside local parquet sources, and collections promoted
-# into the local Testing and Production folders
+# into the local Testing and Production folders, and whatever goes in the
+# local Sandbox folder
 /data/**/*.edits.json
+/data/sandbox/*
 /data/test/*
 /data/prod/*
+!/data/sandbox/.gitkeep
 !/data/test/.gitkeep
 !/data/prod/.gitkeep
 

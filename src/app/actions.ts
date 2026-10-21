@@ -14,7 +14,7 @@ export type SaveState =
 
 /**
  * Save QC for a collection in one environment, and move it forward when the
- * save is an approval: Development to Testing, Testing to Production.
+ * save is an approval: Development to Test, Test to Production.
  * Approving into Production needs a note, which becomes the record of why it
  * went live.
  *

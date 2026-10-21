@@ -1,17 +1,17 @@
 # stac-x
 
-A STAC viewer for FFRD's Colorado data. It reads static STAC catalogs and
-stac-geoparquet files, from S3 or local folders, draws every collection on a
-map of the South Platte basin, and lets a reviewer record QC on each
-collection. Approving a collection copies its files into the next environment
-(Development to Testing, Testing to Production).
+A STAC viewer for reviewing a catalog before it's published. It reads static
+STAC catalogs and stac-geoparquet files, from S3 or local folders, draws every
+collection on a map, and lets a reviewer record QC on each collection.
+Approving a collection copies its files into the next environment
+(Development to Test, Test to Production).
 
 It writes two things. QC decisions go to a JSON sidecar beside the
 collection's file (`gages.parquet` gets `gages.edits.json`), never into the
 parquet itself, and a promoted collection is copied byte for byte into the
 next environment's first source.
 
-![The stac-x homepage in Testing: the collections rail on the left, the selected collection in the middle with its description, review state and items, and the map on the right with the collection's footprint drawn across the South Platte basin](docs/images/home.png)
+![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with item count, period of record and review state](docs/images/home.png)
 
 ## Running it
 
@@ -30,10 +30,9 @@ Start the dev server:
 npm run dev
 ```
 
-Open http://localhost:3000, which lands in Development. Reading the S3
-catalogs needs AWS credentials with access to the `south-platte` bucket.
-Without them the pages still load, empty, with a note that collections
-couldn't be loaded.
+Open http://localhost:3000, which lands in Development. Reading catalogs on
+S3 needs AWS credentials with access to their bucket. Without them the pages
+still load, empty, with a note that collections couldn't be loaded.
 
 There's no identity provider yet. The sign-in page is a stand-in that opens
 Development whatever you type, and the account shown is a fixed role.
@@ -64,13 +63,25 @@ npm run typecheck
 Every push to `main` builds the image and publishes it to GitHub's container
 registry as `ghcr.io/dewberry/stac-x:main` (see
 `.github/workflows/docker.yml`). Tagging a release `v1.2.3` also publishes
-`1.2.3`, `1.2` and `latest`.
+`1.2.3`, `1.2` and `latest`. Each tag covers both linux/amd64 and linux/arm64,
+so the image runs natively on Intel and AMD machines, Apple Silicon Macs and
+ARM servers, and Docker pulls the right one on its own.
+
+The published image is built to be served under `/stac`, since that's where
+Production lives (`https://ffrd.cloud.dewberryanalytics.com/stac`). Next bakes
+the path into the build, so it can't be changed when the container starts:
+pages, `_next` assets and API routes all answer under `/stac/...`, and the
+proxy in front should pass the path through as is, without stripping the
+prefix. To build for a different path, or for the root, set
+`NEXT_PUBLIC_BASE_PATH` as a build arg. Leave it out and the app answers at `/`.
 
 To run the app from a local build instead of the dev server:
 
 ```bash
 docker build -t stac-x .
 docker run --rm -p 3000:3000 --env-file .env stac-x
+# or, to match Production
+docker build --build-arg NEXT_PUBLIC_BASE_PATH=/stac -t stac-x .
 ```
 
 The container reads the same variables as `.env.example`. Local sources
@@ -92,6 +103,8 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
 docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
 ```
 
+It answers at `http://localhost:3000/stac`.
+
 The image is a production build with no hot reload, so keep using `npm run dev`
 for day-to-day work and reach for the container to check what actually ships.
 
@@ -109,18 +122,51 @@ In WSL:
 cp .env.example .env
 ```
 
-Set `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and `STAC_SOURCES_PROD` to where
-each environment's files live: a STAC `catalog.json`, an S3 prefix, one
+Set `STAC_SOURCES_SANDBOX`, `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and
+`STAC_SOURCES_PROD` to where each environment's files live: a STAC `catalog.json`, an S3 prefix, one
 object, a local folder, or a local file, separated by commas. A prefix or
 folder is read for every parquet file and `catalog.json` in it. A catalog is
 followed through its `child` links to its collections, and each collection's
 items are the JSON files its `item` links point at or, when it has none, the
 rows of the parquet file it links to.
 
-Unset, Development reads `s3://south-platte/stac-metadata/catalog.json`,
-whose items are JSON, Testing reads
-`s3://south-platte/stac-portable/catalog.json`, whose collections each link
-to a parquet file, and Production reads `./data/prod`. Promotion copies
+There are no defaults in the code: an environment left unset reads nothing
+and its pages load empty. The example file points Sandbox at `./data/sandbox`,
+Development and Test at placeholder S3 catalogs to replace with your own, and
+Production at `./data/prod`.
+Sandbox sits outside promotion: approving a collection there records the
+decision and copies nothing, and nothing is promoted into it. Promotion copies
 parquet files, so a collection whose items are JSON can't be sent on yet.
 AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
 an instance role. `.env.example` explains each variable.
+
+### The map's area
+
+The home map can focus on one area, such as a state or a river basin. Set
+`STAC_MAP_AREA` to a GeoJSON file of its polygons and the map opens on it,
+outlines it, and dims everything outside. Collections that cover most of it
+say "Whole area" in the list. `STAC_MAP_AREA_NAME` is what the page calls it,
+in phrases like "Fit to the South Platte basin", so include "the" if it reads
+better. Without a name the file's `name` property is used.
+
+```bash
+STAC_MAP_AREA=./areas/south-platte.geojson
+STAC_MAP_AREA_NAME=the South Platte basin
+```
+
+Without `STAC_MAP_AREA` the map opens on everything the catalog covers and
+draws no outline. A collection whose box is national or world-sized, far
+bigger than the rest, is left out of that view. Both are read when the server starts, so changing them
+needs a restart, not a rebuild.
+
+The polygons are sent to the browser with the page, so simplify them first.
+Around 10 to 50 KB is plenty for a state or a large basin. The Docker image
+includes the `areas` folder; mount your own over `/app/areas` to use a
+different file.
+
+---
+
+<div align="center">
+    <sub>Built with ❤️ by Dewberry</sub><br/>
+    <sub>Full-Stack Software Engineering</sub>
+  </div>

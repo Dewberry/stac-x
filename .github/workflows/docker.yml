@@ -1,6 +1,13 @@
-# Builds the Docker image and publishes it to GitHub's container registry at
-# ghcr.io/dewberry/stac-x. Pull requests only build, to catch a broken
-# Dockerfile; pushes to main and version tags also push the image.
+# Builds the Docker image for linux/amd64 and linux/arm64 and publishes it to
+# GitHub's container registry at ghcr.io/dewberry/stac-x, one tag covering
+# both. Pull requests only build, to catch a broken Dockerfile on either
+# platform; pushes to main and version tags also push the image.
+#
+# Each platform builds on its own native runner (the repo is public, so the
+# arm64 runners are free) and pushes the result by digest. A second job then
+# writes one manifest list that points at both and carries the tags. Building
+# arm64 under QEMU on the amd64 runner instead took six times as long for
+# `next build` alone.
 #
 # Tags: `main` and `sha-<short sha>` for every push to main, `latest` plus
 # `1.2.3`, `1.2` for a tag like v1.2.3.
@@ -18,13 +25,28 @@ permissions:
   contents: read
   packages: write
 
+# A newer push to the same branch supersedes the older build, so cancel it.
+# Those show up as "cancelled" runs, not failures.
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
+# Spelled out rather than taken from github.repository, which is
+# "Dewberry/stac-x": image names must be lowercase and buildx won't fold it.
+env:
+  IMAGE: ghcr.io/dewberry/stac-x
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,25 +60,92 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Only the labels are used here; the tags go on the manifest list below.
+      - name: Work out image labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+
+      # The platform name doubles as a cache scope so the two architectures
+      # don't evict each other's layers from the Actions cache.
+      - name: Platform slug
+        id: slug
+        run: echo "name=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Production serves the app at ffrd.cloud.dewberryanalytics.com/stac.
+          build-args: |
+            NEXT_PUBLIC_BASE_PATH=/stac
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          cache-from: type=gha,scope=${{ steps.slug.outputs.name }}
+          cache-to: type=gha,mode=max,scope=${{ steps.slug.outputs.name }}
+
+      - name: Save digest
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ steps.slug.outputs.name }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Combines the per-platform images into one manifest list and tags it.
+  merge:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Work out image tags
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create and push the manifest list
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "$IMAGE@sha256:%s " *)
+
+      - name: Inspect
+        run: docker buildx imagetools inspect "$IMAGE:${{ steps.meta.outputs.version }}"

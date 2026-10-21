@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Environments in the URL. Development and Testing live under /dev and
- * /test; Production is unprefixed, and is rewritten here onto the /prod route
+ * Environments in the URL. Sandbox, Development and Test live under
+ * /sandbox, /dev and /test; Production is unprefixed, and is rewritten here onto the /prod route
  * segment so every page reads its environment from the same param. A typed
  * /prod/... URL redirects to the unprefixed one, so each page has one address.
  *
@@ -13,7 +13,7 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * Kept free of imports from src/lib: proxy runs apart from the render code.
  */
-const PREFIXED = new Set(["dev", "test"]);
+const PREFIXED = new Set(["sandbox", "dev", "test"]);
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -40,6 +40,8 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   // Everything but framework files, the environment-free routes (sign-in,
-  // asset and preview proxies) and the static files in public/.
-  matcher: ["/((?!_next/|api/asset|api/preview|signin|data/|vendor/|favicon\\.ico).*)"],
+  // asset and preview proxies) and the static files in public/. The bare "/"
+  // is listed on its own because under a base path the pattern only matches
+  // /stac/..., never /stac itself.
+  matcher: ["/", "/((?!_next/|api/asset|api/preview|signin|data/|vendor/|favicon\\.ico|apple-icon\\.png).*)"],
 };

@@ -1,8 +1,8 @@
 /**
- * The three environments, the same in stac-x and ffrd-x.
+ * The four environments, the same in stac-x and ffrd-x.
  *
- * One running app reads all three. Which one a page shows is in its URL:
- * Production is unprefixed, the other two carry a prefix, so a shared link
+ * One running app reads all four. Which one a page shows is in its URL:
+ * Production is unprefixed, the other three carry a prefix, so a shared link
  * opens in the environment it was copied from and two tabs can't quietly
  * disagree. proxy.ts maps the unprefixed URLs onto the /prod route segment.
  *
@@ -11,23 +11,36 @@
  * Production URL with a prefix. Both go away once Production has content.
  *
  * A collection moves forward one environment at a time. Approving it in
- * Development copies it to Testing; approving it in Testing copies it to
+ * Development copies it to Test; approving it in Test copies it to
  * Production. Production is the end of the line.
+ *
+ * Sandbox sits outside that path. It's a scratch catalog: you can review
+ * there, but approving doesn't copy anything, and nothing is promoted into it.
  */
 
 export const ENVS = [
+  {
+    key: "sandbox",
+    label: "Sandbox",
+    short: "Sandbox",
+    prefix: "/sandbox",
+    onPath: false,
+    blurb: "A scratch catalog outside promotion. Approving here doesn't send anything on.",
+  },
   {
     key: "dev",
     label: "Development",
     short: "Dev",
     prefix: "/dev",
-    blurb: "Where new collections land. Approving one here sends it to Testing.",
+    onPath: true,
+    blurb: "Where new collections land. Approving one here sends it to Test.",
   },
   {
     key: "test",
-    label: "Testing",
+    label: "Test",
     short: "Test",
     prefix: "/test",
+    onPath: true,
     blurb: "Collections under review. Approving one here sends it to Production.",
   },
   {
@@ -35,7 +48,8 @@ export const ENVS = [
     label: "Production",
     short: "Prod",
     prefix: "",
-    blurb: "What everyone sees. Collections arrive here from Testing.",
+    onPath: true,
+    blurb: "What everyone sees. Collections arrive here from Test.",
   },
 ] as const;
 
@@ -50,10 +64,13 @@ export function envMeta(key: EnvKey): Env {
   return ENVS.find((e) => e.key === key)!;
 }
 
-/** The environment a collection moves to when it's approved here, or null at the end. */
+/** The environments a collection is promoted through, in order. */
+export const PATH: Env[] = ENVS.filter((e) => e.onPath);
+
+/** The environment a collection moves to when it's approved here, or null at the end and off the path. */
 export function nextEnv(key: EnvKey): Env | null {
-  const i = ENVS.findIndex((e) => e.key === key);
-  return ENVS[i + 1] ?? null;
+  const i = PATH.findIndex((e) => e.key === key);
+  return i < 0 ? null : (PATH[i + 1] ?? null);
 }
 
 /** Production's home page. The bare root goes to Development while Production is empty. */

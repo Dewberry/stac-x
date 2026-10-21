@@ -1,27 +1,29 @@
 "use client";
 
+import Link from "next/link";
 import { AREA_KIND_LABEL } from "@/lib/kinds";
 import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import { QcChip } from "./qc-chip";
 import { stateOf } from "./qc-mark";
-import type { HomeArea } from "./home";
+import type { HomeArea, Member } from "./home";
 
 /**
- * What a selected collection shows above its items: its description, how
- * many things it is, where its QC stands, and the last reviewer's note when
- * it was sent back. The summary line (kind, dates, version) sits above it,
- * in the row in the rail and at the top of the collection card, so the body
- * doesn't repeat it. The way in (JSON, Open collection) is in the
- * collection header.
+ * What a selected collection shows: enough to decide whether to open it.
+ * Its description, what its items are, where its QC stands, the last
+ * reviewer's note when it was sent back, and the way in. The summary line
+ * (kind, dates, version) sits above it, in the row on a wide screen and in
+ * the sheet's header on a phone, so the body doesn't repeat it. On a wide
+ * screen this opens inside the collection's row in the rail; on a phone
+ * it's a sheet at the bottom of the map (HomePreview).
  */
 
-/** The line under a collection's name: kind, dates, whole-basin note, and its version chip. */
+/** The line under a collection's name: kind, dates, whole-area note, and its version chip. */
 export function AreaSub({ area, showKind }: { area: HomeArea; showKind: boolean }) {
   const meta = [
     showKind ? AREA_KIND_LABEL[area.kind] : null,
     fmtYears(area.temporal) ?? "No dates",
-    area.wide ? "Whole basin" : null,
+    area.wide ? "Whole area" : null,
   ].filter(Boolean);
   return (
     <span className="sx-row-sub">
@@ -45,7 +47,52 @@ export function countOf(area: HomeArea): { n: string; noun: string } {
   return { n: fmtNum(m.length), noun: `items on ${fmtNum(shapes)} ${noun}${shapes === 1 ? "" : "s"}` };
 }
 
-export function PreviewBody({ area }: { area: HomeArea }) {
+type HoverProps = {
+  /** The shapes under the cursor, on the map or here; their rows light up. */
+  hoverKeys: string[];
+  onHoverKeys: (keys: string[]) => void;
+};
+
+/**
+ * The items behind the footprint, when there are only a few: a calibration
+ * collection's HMS and RAS models of one basin draw as one shape, and this
+ * is where it lists both. The count tile above is its heading. Pointing at
+ * a row lights its shape up on the map, and pointing at the map lights up
+ * its row.
+ */
+function Members({ area, hoverKeys, onHoverKeys }: { area: HomeArea } & HoverProps) {
+  const members = area.members;
+  if (!members?.length) return null;
+  const shared = new Map<string, number>();
+  for (const m of members) shared.set(m.key, (shared.get(m.key) ?? 0) + 1);
+  return (
+    <div className="sx-pv-members">
+      <ul>
+        {members.map((m: Member) => (
+          <li
+            key={m.id}
+            className="sx-pv-member"
+            data-active={hoverKeys.includes(m.key) || undefined}
+            onMouseEnter={() => onHoverKeys([m.key])}
+            onMouseLeave={() => onHoverKeys([])}
+          >
+            {m.tint && <i className="sx-swatch" data-step={m.tint} aria-hidden="true" />}
+            {m.kind && (
+              <span className="sx-tag" data-tone="muted">
+                {m.kind}
+              </span>
+            )}
+            <span className="sx-pv-member-name">{m.label}</span>
+            {!m.hideId && <span className="ffx-id">{m.id}</span>}
+            {(shared.get(m.key) ?? 0) > 1 && <span className="sx-pv-member-note">same footprint</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function PreviewBody({ area, areaName, hoverKeys, onHoverKeys }: { area: HomeArea; areaName: string | null } & HoverProps) {
   const state = stateOf(area);
   const note = (state === "needs_revision" || state === "rejected") && area.qc?.note ? area.qc.note : null;
   const count = countOf(area);
@@ -58,7 +105,8 @@ export function PreviewBody({ area }: { area: HomeArea }) {
           <span>{count.noun}</span>
         </div>
       </div>
-      {area.drawn === "basin" && <p className="sx-pv-cover">Covers the whole South Platte.</p>}
+      {area.drawn === "area" && areaName && <p className="sx-pv-cover">Covers all of {areaName}.</p>}
+      <Members area={area} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
       <dl className="sx-pv-facts">
         <div>
           <dt>Quality control</dt>
@@ -82,6 +130,40 @@ export function PreviewBody({ area }: { area: HomeArea }) {
           <blockquote>{note}</blockquote>
         </figure>
       )}
+      <div className="sx-pv-btns">
+        <a href={area.jsonHref} className="ffx-btn" target="_blank" rel="noreferrer">
+          JSON
+        </a>
+        <Link href={area.href} className="ffx-btn ffx-btn-primary">
+          Open collection
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/** The phone's sheet over the map. Hidden on a wide screen, where the row opens instead. */
+export function HomePreview({
+  area,
+  areaName,
+  hoverKeys,
+  onHoverKeys,
+  onClose,
+}: { area: HomeArea; areaName: string | null; onClose: () => void } & HoverProps) {
+  return (
+    <div className="sx-preview" role="dialog" aria-label={area.name}>
+      <div className="sx-preview-top">
+        <div className="sx-preview-head">
+          <div className="sx-preview-title">{area.name}</div>
+          <AreaSub area={area} showKind />
+        </div>
+        <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" />
+          </svg>
+        </button>
+      </div>
+      <PreviewBody area={area} areaName={areaName} hoverKeys={hoverKeys} onHoverKeys={onHoverKeys} />
     </div>
   );
 }

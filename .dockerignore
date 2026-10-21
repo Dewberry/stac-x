@@ -6,6 +6,7 @@ out
 .env*
 !.env.example
 data/**/*.edits.json
+data/sandbox/*
 data/test/*
 data/prod/*
 public/vendor

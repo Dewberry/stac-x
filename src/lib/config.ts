@@ -5,7 +5,7 @@ import type { EnvKey } from "./env";
 /**
  * Runtime configuration, all from the environment.
  *
- * Each of the three environments reads its own sources:
+ * Each of the four environments reads its own sources: STAC_SOURCES_SANDBOX,
  * STAC_SOURCES_DEV, STAC_SOURCES_TEST and STAC_SOURCES_PROD. Entries are
  * separated by commas or newlines and each one is:
  *
@@ -19,27 +19,20 @@ import type { EnvKey } from "./env";
  * catalog.json, because that's where a collection promoted into it is
  * copied (a catalog's own folder, for a catalog).
  *
- * With nothing set, Development and Testing read the South Platte STAC
- * catalogs in S3, which needs AWS access to the bucket, and Production reads
- * ./data/prod. Without access to the bucket the pages load empty and say
- * the catalog couldn't be read. STAC_SOURCES, from before there were
- * environments, is still read as Development's.
+ * An environment whose variable isn't set reads nothing, so its pages load
+ * empty. STAC_SOURCES, from before there were environments, is still read as
+ * Development's.
  */
 const SOURCE_VARS: Record<EnvKey, string> = {
+  sandbox: "STAC_SOURCES_SANDBOX",
   dev: "STAC_SOURCES_DEV",
   test: "STAC_SOURCES_TEST",
   prod: "STAC_SOURCES_PROD",
 };
 
-const DEFAULT_SOURCES: Record<EnvKey, string> = {
-  dev: "s3://south-platte/stac-metadata/catalog.json",
-  test: "s3://south-platte/stac-portable/catalog.json",
-  prod: "./data/prod",
-};
-
 export function sources(env: EnvKey): string[] {
   const raw = (process.env[SOURCE_VARS[env]] ?? (env === "dev" ? process.env.STAC_SOURCES : undefined))?.trim();
-  if (!raw) return [DEFAULT_SOURCES[env]];
+  if (!raw) return [];
   return raw
     .split(/[\n,]/)
     .map((s) => s.trim())
@@ -49,6 +42,7 @@ export function sources(env: EnvKey): string[] {
 /** Where a collection promoted into this environment is copied to. */
 export function landingFolder(env: EnvKey): string {
   const first = sources(env)[0];
+  if (!first) throw new Error(`${SOURCE_VARS[env]} isn't set, so there's no folder to receive promoted collections`);
   if (/\.(geo)?parquet$|\.pq$/i.test(first)) {
     throw new Error(`${SOURCE_VARS[env]} must start with a folder or prefix to receive promoted collections, not a single file`);
   }
@@ -59,7 +53,7 @@ export function landingFolder(env: EnvKey): string {
 export const catalogTitle = process.env.STAC_TITLE || "STAC";
 export const catalogDescription =
   process.env.STAC_DESCRIPTION ||
-  "Gages, models and storm catalogs for the South Platte. Open a collection to browse its items and record QC.";
+  "Collections from the STAC catalog. Open a collection to browse its items and record QC.";
 
 /** How long a parsed file is trusted before its ETag is checked again. */
 export const refreshMs = Number(process.env.STAC_REFRESH_SECONDS || 30) * 1000;

@@ -83,7 +83,7 @@ export function HeaderControls({
 }
 
 /**
- * The band under the header in Development and Testing. Production has none:
+ * The band under the header outside Production. Production has none:
  * it looks the way the app always does.
  */
 export function EnvBand() {

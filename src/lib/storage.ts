@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import {
   GetObjectCommand,
   HeadObjectCommand,
@@ -53,6 +53,12 @@ export function parseRef(uri: string): ObjectRef {
   if (m) return { kind: "s3", bucket: m[1], key: m[2], uri };
   const path = uri.startsWith("file://") ? uri.slice(7) : uri;
   return { kind: "file", path: resolve(path), uri: `file://${resolve(path)}` };
+}
+
+/** Whether a resolved local path is the working directory or inside it. */
+export function isUnderCwd(path: string) {
+  const cwd = process.cwd();
+  return path === cwd || path.startsWith(cwd + sep);
 }
 
 export function isS3(uri: string) {

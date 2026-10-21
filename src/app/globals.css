@@ -55,10 +55,11 @@
   --ffx-red-deep: #a3352c;
   --ffx-red-pale: #f7dbd8;
 
-  /* Environments. Two hues outside the QC colors (green, amber, red) and the
-     data blue, so an environment is never read as a review state. White text
-     on either passes 4.5:1. Production has no color of its own: it looks the
+  /* Environments. Three hues outside the QC colors (green, amber, red) and
+     the data blue, so an environment is never read as a review state. White
+     text on each passes 4.5:1. Production has no color of its own: it looks the
      way the app always does. The same values in ffrd-x. */
+  --ffx-env-sandbox: #56657a;
   --ffx-env-dev: #6d4fc2;
   --ffx-env-test: #a3367f;
 
@@ -255,6 +256,7 @@
     --ffx-qc-none: #b3bcc6;
     --ffx-focus: #6b9cf0;
     --ffx-focus-halo: var(--ffx-n-900);
+    --ffx-env-sandbox: #5d6d83;
     --ffx-env-dev: #7053cd;
     --ffx-env-test: #ac4089;
   }
@@ -317,6 +319,7 @@
   --ffx-qc-none: #b3bcc6;
   --ffx-focus: #6b9cf0;
   --ffx-focus-halo: var(--ffx-n-900);
+  --ffx-env-sandbox: #5d6d83;
   --ffx-env-dev: #7053cd;
   --ffx-env-test: #ac4089;
 }
@@ -2098,6 +2101,10 @@ a.sx-activity-title:hover {
   background: color-mix(in srgb, var(--ffx-header-ink) 10%, transparent);
   border-color: var(--ffx-header-ink-mut);
 }
+.ffx-env-trigger[data-env="sandbox"] {
+  background: var(--ffx-env-sandbox);
+  border-color: var(--ffx-env-sandbox);
+}
 .ffx-env-trigger[data-env="dev"] {
   background: var(--ffx-env-dev);
   border-color: var(--ffx-env-dev);
@@ -2114,6 +2121,9 @@ a.sx-activity-title:hover {
   border-radius: 50%;
   background: var(--ffx-ink-dim);
   box-shadow: 0 0 0 1.5px var(--ffx-surface);
+}
+.ffx-env-dot[data-env="sandbox"] {
+  background: var(--ffx-env-sandbox);
 }
 .ffx-env-dot[data-env="dev"] {
   background: var(--ffx-env-dev);
@@ -2201,6 +2211,9 @@ a.sx-activity-title:hover {
   color: #fff;
   font-size: var(--ffx-t-micro);
   line-height: 1.4;
+}
+.ffx-envband[data-env="sandbox"] {
+  background: var(--ffx-env-sandbox);
 }
 .ffx-envband[data-env="dev"] {
   background: var(--ffx-env-dev);
@@ -3268,7 +3281,7 @@ main:focus {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
 }
-/* The line under the figures when the collection covers the whole basin. */
+/* The line under the figures when the collection covers the whole area. */
 .sx-pv-cover {
   margin: 0;
   font-size: var(--ffx-t-micro);
@@ -3321,18 +3334,18 @@ main:focus {
 
 
 /* The landing page while the catalog loads (components/home-loading.tsx):
-   the basin traced where the map goes, placeholder rows in the rail. */
+   the area traced where the map goes, placeholder rows in the rail. */
 .sx-loading-map {
   display: grid;
   place-items: center;
 }
-.sx-loading-basin {
+.sx-loading-area {
   position: absolute;
   inset: 24px;
   width: calc(100% - 48px);
   height: calc(100% - 48px);
 }
-.sx-loading-basin-under {
+.sx-loading-area-under {
   fill: var(--ffx-trace);
   fill-opacity: 0.1;
   stroke: var(--ffx-ink);
@@ -3341,7 +3354,7 @@ main:focus {
   vector-effect: non-scaling-stroke;
   stroke-linejoin: round;
 }
-.sx-loading-basin-trace {
+.sx-loading-area-trace {
   fill: none;
   stroke: var(--ffx-trace-strong);
   stroke-width: 2.5;
