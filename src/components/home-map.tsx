@@ -717,7 +717,7 @@ function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
   return (
     <MapCard
       head={area.name}
-      action={{ href: area.href, label: "Open collection" }}
+      action={{ href: area.href, label: "View collection" }}
       note={
         <>
           <span className="ffx-num">{fmtNum(area.itemCount)}</span> {area.itemCount === 1 ? "item" : "items"}

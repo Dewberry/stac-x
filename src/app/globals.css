@@ -3386,9 +3386,13 @@ button.sx-map-pill svg {
 .sx-pv-btns .ffx-btn {
   height: 32px;
 }
-/* The one action sits on the right, where the eye ends the row. */
-.sx-pv-btns > .ffx-btn-primary {
-  margin-left: auto;
+/* The one action takes the whole row, so it's the loudest thing in it. */
+.sx-pv-go {
+  flex: 1;
+  height: 2.25rem;
+  font-size: var(--ffx-t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* The items inside the open row and the phone's sheet: a white block of
