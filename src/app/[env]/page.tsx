@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import type { FeatureCollection } from "geojson";
 import { HomeConsole, type HomeArea } from "@/components/home";
+import type { ItemRow } from "@/components/items-list";
 import { HomeLoading } from "@/components/home-loading";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
-import { itemRowLabel } from "@/lib/item-kinds";
+import { itemRowsOf } from "@/lib/item-rows";
 import { guessKind } from "@/lib/kinds";
 import { areaCovered, areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { overview, polygonsOf } from "@/lib/overview";
@@ -58,6 +59,14 @@ async function HomeData({ env }: { env: EnvKey }) {
   // A collection with several versions is one area, drawn and counted from
   // its latest version.
   const latest = catalog.collections.filter((c) => c.series.latest === c.id);
+  // The compact rows the rail lists, built once per collection: the dots
+  // and the members take their names and dates from them.
+  const rowsCache = new Map<string, Map<string, ItemRow>>();
+  const rowsOf = (c: Collection) => {
+    let m = rowsCache.get(c.id);
+    if (!m) rowsCache.set(c.id, (m = new Map(itemRowsOf(c).map((r) => [r.id, r]))));
+    return m;
+  };
   const versionOf = (c: Collection) => ({
     version: c.series.versions.length > 1 || c.version ? (c.series.versions.at(-1)?.label ?? c.version) : null,
     earlier: c.series.versions.findIndex((v) => v.id === c.id),
@@ -72,12 +81,12 @@ async function HomeData({ env }: { env: EnvKey }) {
       .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
       .map(async (c) => {
         const o = overview(c.items, c.series.id, c.bbox);
-        // Each dot is named the way the collection page names its item, for
-        // the card a click on it opens.
-        const byId = new Map(c.items.map((i) => [i.id, i]));
+        // Each dot is named and dated the way the collection page names its
+        // item, for the tooltip and the card a click on it opens.
+        const rowOf = rowsOf(c);
         for (const f of o.features) {
-          const item = f.properties?.role === "point" ? byId.get(f.properties.id) : undefined;
-          if (item) Object.assign(f.properties!, itemRowLabel(c, item));
+          const row = f.properties?.role === "point" ? rowOf.get(f.properties.id) : undefined;
+          if (row) Object.assign(f.properties!, { label: row.label, hideId: row.hideId, kind: row.kind, start: row.start, end: row.end });
         }
         // Shapes that contain the whole area (a national inventory's extent
         // box) would tint the whole map, so such a collection is drawn as
@@ -103,10 +112,21 @@ async function HomeData({ env }: { env: EnvKey }) {
     // model); a list that long belongs on the collection page.
     if (!shapes || c.items.length > MEMBERS_MAX) return undefined;
     const shapeOf = new Map(shapes.flatMap((m) => m.ids.map((id) => [id, m] as const)));
+    const rowOf = rowsOf(c);
     return c.items.flatMap((i) => {
       const shape = shapeOf.get(i.id);
-      return shape ? [{ id: i.id, key: shape.key, tint: shape.tint, ...itemRowLabel(c, i) }] : [];
+      const row = rowOf.get(i.id);
+      return shape && row
+        ? [{ id: i.id, key: shape.key, tint: shape.tint, label: row.label ?? i.id, hideId: !!row.hideId, kind: row.kind ?? null, start: row.start, end: row.end }]
+        : [];
     });
+  };
+
+  // The one place a collection's footprint is, when it has one: the name
+  // its shapes share ("Big Thompson"), for the rail's row.
+  const placeOf = (c: Collection): string | null => {
+    const names = new Set(membersOf(c)?.map((m) => m.label) ?? []);
+    return names.size === 1 ? (names.values().next().value ?? null) : null;
   };
 
   const areas: HomeArea[] = [];
@@ -123,6 +143,7 @@ async function HomeData({ env }: { env: EnvKey }) {
       drawn: drawn.get(c.series.id)?.shape ?? null,
       steps: drawn.get(c.series.id)?.steps,
       members: membersOf(c),
+      place: placeOf(c),
       wide: !!area && !!bbox && areaShare(area, bbox) >= WIDE,
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),

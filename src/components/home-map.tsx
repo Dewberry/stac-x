@@ -23,9 +23,8 @@ import {
   type Palette,
 } from "./map-core";
 import type { FocusArea, HomeArea, Member } from "./home";
-import { countOf } from "./home-preview";
-import { QcMark, stateOf } from "./qc-mark";
-import { fmtNum } from "@/lib/format";
+import { fmtNum, fmtRange } from "@/lib/format";
+import { Icon, ICONS } from "./icons";
 import { MapCard } from "./map-card";
 
 /**
@@ -47,35 +46,35 @@ import { MapCard } from "./map-card";
  *
  * Until something is selected or pointed at, the map holds only the area, so
  * it stays readable however many collections there are. Selecting a
- * collection, or resting the pointer on one while nothing is selected, draws
- * its footprint without moving the map: small dots for
- * point items like gages, a faint fill and an outline for the area a model
- * covers, three steps of blue for how many shapes cover each spot when they
- * overlap heavily, or a dashed box when the shapes were too heavy to send
- * (lib/overview.ts decides which).
- * When the footprint is a few shapes (a calibration collection's HMS and RAS
- * models of one basin, stacked), pointing at it names every shape under the
- * cursor and lights up their rows in the rail, and pointing at a row lights
- * up its shape here, since stacked fills look like one. Pointing at a dot
- * names its item too.
+ * collection draws its footprint: small dots for point items like gages, a
+ * faint fill and an outline for the area a model covers, three steps of
+ * blue for how many shapes cover each spot when they overlap heavily, or a
+ * dashed box when the shapes were too heavy to send (lib/overview.ts
+ * decides which). The map then frames the footprint, unless the viewer has
+ * moved the map by hand since the last pick; a pill in the corner says what
+ * it's framed to and takes it back to the whole area. Resting the pointer
+ * on another row in the rail draws that one's footprint over the selected
+ * one until the pointer leaves.
  *
- * Clicking the selected collection's footprint opens a card there: the
- * collection as its heading, with the way to it, and under that every item
- * under the click, each row the way to its page. Where the map
- * can't tell the items apart (a dense footprint, an extent box, the lit
- * area, or one shape shared by many items) the card is the collection
- * alone. Clicking anywhere else closes it; the map never moves on a click.
+ * The map and the rail are one view. Pointing at an item here rings it and
+ * names it, with its id and dates and a note that a click opens it, and
+ * lights its row in the rail; pointing at a row in the rail rings its dot
+ * or outlines its shape here. When the footprint is a few shapes (a
+ * calibration collection's HMS and RAS models of one basin, stacked),
+ * pointing at it names every shape under the cursor, since stacked fills
+ * look like one. A search in the rail rings the items that match and dims
+ * the rest.
  *
- * A collection whose shapes contain the whole area has no footprint
- * of its own: the area lights up instead, since the shape would tint the
- * whole map, and the label says so, since a lit area on its own can read as
- * the area's usual styling.
+ * Clicking an item opens its page. Where several items are under the click
+ * (stacked shapes) a card opens there instead: the collection as its
+ * heading, with the way to it, and every item under the click, each row the
+ * way to its page. Where the map can't tell the items apart (a dense
+ * footprint, an extent box, the lit area, or one shape shared by many
+ * items) the card is the collection alone. Clicking anywhere else closes
+ * it; the map never moves on a click.
  *
- * A bar in the top-left corner names the selected collection, with its
- * review mark and what it holds, so the map says what it's showing without
- * a look back at the rail, and has the way to clear it. A preview has no
- * bar: the cursor is on the row that names it. On a phone the sheet over
- * the map names the selection instead.
+ * A collection whose shapes contain the whole area has no footprint of its
+ * own: the area lights up instead, since the shape would tint the whole map.
  */
 
 const SRC_ITEMS = "sx-items";
@@ -91,6 +90,7 @@ const L = {
   itemHi: "sx-live-hi",
   density: "sx-live-density",
   densityLine: "sx-live-density-line",
+  itemRing: "sx-live-ring",
   items: "sx-live-items",
 };
 
@@ -98,6 +98,8 @@ const L = {
 function fitPadding() {
   return { padding: { top: 28, right: 28, bottom: 56, left: 28 } };
 }
+/** How close the map goes when it frames one collection: a watershed, not a street. */
+const FIT_MAX_ZOOM = 11;
 
 /**
  * Everything but the area: the world as an outer ring with the area cut out
@@ -123,8 +125,10 @@ function addLayers(
   p: Palette,
   items: FeatureCollection,
   area: FocusArea | null,
-  drawn: string | null,
+  drawn: string[],
+  shown: string | null,
   hoverKeys: string[],
+  ringIds: string[],
   areaHighlight: boolean,
   areaCovered: boolean,
 ) {
@@ -186,9 +190,20 @@ function addLayers(
   });
   // The shapes pointed at, outlined in ink over their neighbors.
   map.addLayer({
-    id: L.itemHi, type: "line", source: SRC_ITEMS, filter: hiFilter(drawn, hoverKeys),
+    id: L.itemHi, type: "line", source: SRC_ITEMS, filter: hiFilter(shown, hoverKeys),
     layout: { "line-join": "round", "line-cap": "round" },
     paint: { "line-color": p.ink, "line-width": 2.25, "line-opacity": 0.95 },
+  });
+  // A ring around the dots pointed at or found by a search, under the dots.
+  map.addLayer({
+    id: L.itemRing, type: "circle", source: SRC_ITEMS, filter: ringFilter(shown, ringIds),
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 8, 9, 11],
+      "circle-opacity": 0,
+      "circle-stroke-color": p.trace,
+      "circle-stroke-width": 2.5,
+      "circle-stroke-opacity": 0.9,
+    },
   });
   map.addLayer({
     id: L.items, type: "circle", source: SRC_ITEMS, filter: footprintFilter("point", drawn),
@@ -212,14 +227,19 @@ const FOOTPRINT_ROLES = [
   [L.items, "point"],
 ] as const;
 
-/** One part of the drawn collection's footprint; nothing when none is drawn. */
-function footprintFilter(role: string, slug: string | null): ExpressionSpecification {
-  return ["all", ["==", ["get", "role"], role], ["==", ["get", "slug"], slug ?? ""]];
+/** One part of the drawn collections' footprints; nothing when none is drawn. */
+function footprintFilter(role: string, slugs: string[]): ExpressionSpecification {
+  return ["all", ["==", ["get", "role"], role], ["in", ["get", "slug"], ["literal", slugs]]];
 }
 
 /** The selected collection's shapes with these keys. */
 function hiFilter(shown: string | null, keys: string[]): ExpressionSpecification {
-  return ["all", footprintFilter("fill", shown), ["in", ["get", "key"], ["literal", keys]]];
+  return ["all", footprintFilter("fill", shown ? [shown] : []), ["in", ["get", "key"], ["literal", keys]]];
+}
+
+/** The selected collection's dots with these ids. */
+function ringFilter(shown: string | null, ids: string[]): ExpressionSpecification {
+  return ["all", footprintFilter("point", shown ? [shown] : []), ["in", ["get", "id"], ["literal", ids]]];
 }
 
 /** How far around the cursor, in pixels, counts as pointing at a shape. */
@@ -254,12 +274,13 @@ function pickAt(m: MapLibreMap, point: Point, lngLat: LngLat, area: HomeArea | u
   const keys = new Set<string>();
   const seen = new Set<string>();
   const hits: Hit[] = [];
+  const str = (v: unknown) => (typeof v === "string" ? v : null);
   for (const f of found) {
     const p = f.properties ?? {};
     if (typeof p.key === "string") keys.add(p.key);
     if (f.layer.id === L.items && typeof p.id === "string" && !seen.has(p.id)) {
       seen.add(p.id);
-      hits.push({ id: p.id, label: typeof p.label === "string" ? p.label : p.id, hideId: p.hideId === true, kind: typeof p.kind === "string" ? p.kind : null });
+      hits.push({ id: p.id, label: str(p.label) ?? p.id, hideId: p.hideId === true, kind: str(p.kind), start: str(p.start), end: str(p.end) });
     }
   }
   for (const mm of area.members ?? []) {
@@ -287,7 +308,11 @@ export function HomeMap({
   areaCovered,
   hoverKeys,
   onHoverKeys,
-  onClear,
+  ringIds,
+  onHoverItem,
+  dimTo,
+  matchNote,
+  onOpenItem,
 }: {
   areas: HomeArea[];
   /** Every collection's footprint, from lib/overview.ts. */
@@ -298,17 +323,25 @@ export function HomeMap({
   frame: [number, number, number, number];
   /** The selected collection. */
   shown: string | null;
-  /** The collection pointed at while nothing is selected; its footprint is drawn as a preview. */
+  /** The collection pointed at in the rail; its footprint is drawn over the selected one's as a preview. */
   preview: string | null;
   /** The selected or pointed-at collection is in the area, so its outline is heavier. */
   areaHighlight: boolean;
-  /** The drawn collection contains the whole area, so the area is lit up as its footprint. */
+  /** A drawn collection contains the whole area, so the area is lit up as its footprint. */
   areaCovered: boolean;
   /** The shapes of the shown collection to outline: pointed at here or in the rail. */
   hoverKeys: string[];
   onHoverKeys: (keys: string[]) => void;
-  /** Clears the selection, from the label's close button. */
-  onClear: () => void;
+  /** The shown collection's dots to ring: the one pointed at, here or in the rail, and a search's matches. */
+  ringIds: string[];
+  /** The one item under the cursor here, for the rail to light up. */
+  onHoverItem: (id: string | null) => void;
+  /** While a search is on: the shown collection's items that match; the rest are dimmed. */
+  dimTo: string[] | null;
+  /** What to say about the dimming, beside the map's credits. */
+  matchNote: string | null;
+  /** Opens the item's page, from a click on it. */
+  onOpenItem: (id: string) => void;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -317,11 +350,11 @@ export function HomeMap({
   // Where the card renders: a div the popup owns, portaled into from React.
   const [cardHost, setCardHost] = useState<HTMLDivElement | null>(null);
   const [credits, setCredits] = useState<Credit[]>([]);
-  // The collection whose footprint is on the map: the selected one, or else
-  // the one pointed at.
-  const drawn = shown ?? preview;
-  const current = areas.find((a) => a.slug === drawn) ?? null;
-  const dense = current?.drawn === "density" ? current : null;
+  // The collections whose footprints are on the map: the selected one, and
+  // the one pointed at over it.
+  const drawn = [shown, preview].filter((s): s is string => !!s);
+  const current = areas.find((a) => a.slug === shown) ?? null;
+  const dense = areas.find((a) => drawn.includes(a.slug) && a.drawn === "density") ?? null;
   const [basemapDown, setBasemapDown] = useState(false);
   // The members under the cursor, named beside it. Kept with the slug they
   // belong to, so a new selection drops a stale one.
@@ -331,6 +364,9 @@ export function HomeMap({
   const card = cardState?.slug === shown ? cardState : null;
   // The tooltip steps aside while the card already lists the same stack.
   const tip = tipState?.slug === shown && !(card && sameIds(card.hits, tipState.rows)) ? tipState : null;
+  // The collection the map is framed to, when that's narrower than the area.
+  const [framed, setFramed] = useState<string | null>(null);
+  const framedArea = framed && framed === shown ? (areas.find((a) => a.slug === framed) ?? null) : null;
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
   const areasRef = useRef(areas);
@@ -342,7 +378,15 @@ export function HomeMap({
   const areaHighlightRef = useRef(areaHighlight);
   const areaCoveredRef = useRef(areaCovered);
   const hoverKeysRef = useRef(hoverKeys);
+  const ringIdsRef = useRef(ringIds);
   const onHoverKeysRef = useRef(onHoverKeys);
+  const onHoverItemRef = useRef(onHoverItem);
+  const onOpenItemRef = useRef(onOpenItem);
+  // Whether the viewer has moved the map by hand since the last pick.
+  const movedByHand = useRef(false);
+  // What the map is being framed to by a fit, read when the move ends.
+  const framingRef = useRef<string | null>(null);
+  const fitFrameRef = useRef<(duration?: number) => void>(() => {});
   useEffect(() => {
     areasRef.current = areas;
     itemsRef.current = items;
@@ -353,7 +397,10 @@ export function HomeMap({
     areaHighlightRef.current = areaHighlight;
     areaCoveredRef.current = areaCovered;
     hoverKeysRef.current = hoverKeys;
+    ringIdsRef.current = ringIds;
     onHoverKeysRef.current = onHoverKeys;
+    onHoverItemRef.current = onHoverItem;
+    onOpenItemRef.current = onOpenItem;
   });
 
   useEffect(() => {
@@ -397,21 +444,36 @@ export function HomeMap({
       }).setDOMContent(cardDiv);
       setCardHost(cardDiv);
 
-      const fit = () => m.fitBounds(bounds(), { ...fitPadding(), duration: 300 });
+      // A move with a pointer or wheel behind it is the viewer's own; the
+      // map then stays where they put it until their next pick, and the
+      // "framed to" pill goes, since it no longer is. A move without one is
+      // a fit, which the pill then names.
+      m.on("moveend", (e) => {
+        if ((e as { originalEvent?: Event }).originalEvent) {
+          movedByHand.current = true;
+          setFramed(null);
+        } else setFramed(framingRef.current);
+      });
+      const fitFrame = (duration = 300) => {
+        movedByHand.current = false;
+        framingRef.current = null;
+        m.fitBounds(bounds(), { ...fitPadding(), duration });
+      };
+      fitFrameRef.current = fitFrame;
       const fitLabel = areaRef.current ? `Fit to ${areaRef.current.name}` : "Fit to the catalog";
       // The map already fills the window, so there's no full screen button.
-      m.addControl(new Controls(m, frame, fit, fitLabel, { fullscreen: false }), "top-right");
+      m.addControl(new Controls(m, frame, () => fitFrame(), fitLabel, { fullscreen: false }), "top-right");
       // The map takes the window, so a resize changes what fits. With nothing
       // selected, keep the area framed.
       m.on("resize", () => {
-        if (!shownRef.current) m.fitBounds(bounds(), { ...fitPadding(), duration: 0 });
+        if (!shownRef.current && !movedByHand.current) m.fitBounds(bounds(), { ...fitPadding(), duration: 0 });
       });
 
       const draw = () => {
         if (m.getSource(SRC_ITEMS)) return;
         addLayers(
-          m, palette(frame), itemsRef.current, areaRef.current, drawnRef.current, hoverKeysRef.current,
-          areaHighlightRef.current, areaCoveredRef.current,
+          m, palette(frame), itemsRef.current, areaRef.current, drawnRef.current, shownRef.current, hoverKeysRef.current,
+          ringIdsRef.current, areaHighlightRef.current, areaCoveredRef.current,
         );
         setCredits(creditsOf(m));
       };
@@ -431,11 +493,16 @@ export function HomeMap({
       const hoverKeysTo = (keys: string[]) => {
         if (keys.join("|") !== hoverKeysRef.current.join("|")) onHoverKeysRef.current(keys);
       };
+      let hoverItem: string | null = null;
+      const hoverItemTo = (id: string | null) => {
+        if (id !== hoverItem) onHoverItemRef.current((hoverItem = id));
+      };
       m.on("mousemove", (e) => {
         const area = shownArea();
         const got = pickAt(m, e.point, e.lngLat, area);
         m.getCanvas().style.cursor = got ? "pointer" : "";
         hoverKeysTo(got?.keys ?? []);
+        hoverItemTo(got?.hits.length === 1 ? got.hits[0].id : null);
         if (!area || !got?.hits.length) return setTip(null);
         const { x, y } = e.point;
         setTip({ slug: area.slug, x, y, flip: x > m.getCanvas().clientWidth - 300, rows: got.hits });
@@ -443,10 +510,14 @@ export function HomeMap({
       m.on("mouseout", () => {
         setTip(null);
         hoverKeysTo([]);
+        hoverItemTo(null);
       });
+      // One item under the click opens its page, the same as its row in the
+      // rail; a stack, or a footprint the map can't tell apart, opens the card.
       m.on("click", (e) => {
         const area = shownArea();
         const got = pickAt(m, e.point, e.lngLat, area);
+        if (area && got?.hits.length === 1) return onOpenItemRef.current(got.hits[0].id);
         setCard(area && got ? { slug: area.slug, at: e.lngLat.toArray() as [number, number], hits: got.hits } : null);
       });
 
@@ -490,11 +561,32 @@ export function HomeMap({
     return () => document.removeEventListener("keydown", onKey, true);
   }, [open]);
 
+  // A pick frames the collection: its own extent when it has one of its
+  // own, the whole area when it covers most of it, and the area again when
+  // the pick is cleared. Not when the viewer has moved the map by hand
+  // since the last pick; that one pick leaves the map where it is.
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m) return;
+    if (movedByHand.current) {
+      movedByHand.current = false;
+      return;
+    }
+    const a = shown ? areasRef.current.find((x) => x.slug === shown) : null;
+    if (!a || !a.bbox || a.wide || a.drawn === "area" || !a.drawn) return fitFrameRef.current();
+    const [w, s, e, n] = a.bbox;
+    framingRef.current = a.slug;
+    m.fitBounds([[w, s], [e, n]], { ...fitPadding(), maxZoom: FIT_MAX_ZOOM, duration: 400 });
+  }, [shown]);
+
+  // The list is built each render; only a change in what's drawn matters.
+  const drawnKey = drawn.join("|");
   useEffect(() => {
     const m = mapRef.current;
     if (!m?.getLayer(L.itemFill)) return;
-    for (const [id, role] of FOOTPRINT_ROLES) m.setFilter(id, footprintFilter(role, drawn));
-  }, [drawn]);
+    const slugs = drawnKey ? drawnKey.split("|") : [];
+    for (const [id, role] of FOOTPRINT_ROLES) m.setFilter(id, footprintFilter(role, slugs));
+  }, [drawnKey]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -506,6 +598,25 @@ export function HomeMap({
     const m = mapRef.current;
     if (m?.getLayer(L.itemHi)) m.setFilter(L.itemHi, hiFilter(shown, hoverKeys));
   }, [shown, hoverKeys]);
+
+  useEffect(() => {
+    const m = mapRef.current;
+    if (m?.getLayer(L.itemRing)) m.setFilter(L.itemRing, ringFilter(shown, ringIds));
+  }, [shown, ringIds]);
+
+  // A search dims what it didn't match: the dots, and the shapes whose
+  // items it missed.
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m?.getLayer(L.items)) return;
+    const keys = dimTo && current?.members ? Array.from(new Set(current.members.filter((x) => dimTo.includes(x.id)).map((x) => x.key))) : null;
+    m.setPaintProperty(L.items, "circle-opacity", dimTo ? ["case", ["in", ["get", "id"], ["literal", dimTo]], 0.95, 0.3] : 0.85);
+    m.setPaintProperty(
+      L.itemFill,
+      "fill-opacity",
+      keys ? ["case", ["in", ["get", "key"], ["literal", keys]], tintOpacity(0.16), 0.05] : tintOpacity(0.16),
+    );
+  }, [dimTo, current]);
 
   useEffect(() => {
     const src = mapRef.current?.getSource(SRC_ITEMS) as GeoJSONSource | undefined;
@@ -522,40 +633,78 @@ export function HomeMap({
     <figure ref={frameRef} className="ffx-map sx-home-map" aria-label={area ? `Collections in ${area.name}` : "Collections on the map"}>
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {tip && (
-        <div className="ffx-map-tip" data-stack={tip.rows.length > 1 || undefined} data-flip={tip.flip || undefined} style={{ left: tip.x, top: tip.y }} aria-hidden="true">
-          {tip.rows.slice(0, TIP_ROWS).map((r) => (
-            <span key={r.id} className="ffx-map-tip-row">
-              {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
-              {r.kind && <span className="ffx-map-tip-kind">{r.kind}</span>}
-              <span className="ffx-map-tip-label">{r.label}</span>
-              {!r.hideId && <span className="ffx-id">{r.id}</span>}
-            </span>
-          ))}
-          {tip.rows.length > TIP_ROWS && <span className="ffx-map-tip-more">and {tip.rows.length - TIP_ROWS} more</span>}
+        <div className="ffx-map-tip sx-map-tip" data-stack={tip.rows.length > 1 || undefined} data-flip={tip.flip || undefined} style={{ left: tip.x, top: tip.y }} aria-hidden="true">
+          {tip.rows.length === 1 ? (
+            <ItemTip row={tip.rows[0]} />
+          ) : (
+            <>
+              {tip.rows.slice(0, TIP_ROWS).map((r) => (
+                <span key={r.id} className="ffx-map-tip-row">
+                  {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
+                  {r.kind && <span className="ffx-map-tip-kind">{r.kind}</span>}
+                  <span className="ffx-map-tip-label">{r.label}</span>
+                  {!r.hideId && <span className="ffx-id">{r.id}</span>}
+                </span>
+              ))}
+              {tip.rows.length > TIP_ROWS && <span className="ffx-map-tip-more">and {tip.rows.length - TIP_ROWS} more</span>}
+              <span className="sx-map-tip-hint">Click for the items here</span>
+            </>
+          )}
         </div>
       )}
       {cardHost && card && current && createPortal(<HomeCard area={current} hits={card.hits} />, cardHost)}
-      {current && drawn === shown && <MapLabel area={current} coveredName={areaCovered ? (area?.name ?? null) : null} onClear={onClear} />}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
-        <MapCredits credits={credits} />
+        <span className="sx-map-pills">
+          <MapCredits credits={credits} />
+          {framedArea && (
+            <button type="button" className="sx-map-pill" onClick={() => fitFrameRef.current()}>
+              <Icon d={ICONS.fit} size={12} />
+              Framed to {framedArea.name} · <b>Show {area ? area.name : "everything"}</b>
+            </button>
+          )}
+          {matchNote && (
+            <span className="sx-map-pill" role="status">
+              {matchNote}
+            </span>
+          )}
+        </span>
         {dense?.steps && (
           <span className="sx-map-key">
-            {dense?.steps && (
-              <span className="sx-density-box">
-                <span>{dense.kind === "storms" ? "Storms" : "Items"} covering each spot</span>
-                {dense.steps.map(([lo, hi], i) => (
-                  <span key={i} className="sx-legend">
-                    <i className="sx-legend-step" data-step={i + 1} aria-hidden="true" />
-                    <span className="ffx-num">{i === 2 ? `${lo}+` : lo === hi ? lo : `${lo}–${hi}`}</span>
-                  </span>
-                ))}
-              </span>
-            )}
+            <span className="sx-density-box">
+              <span>{dense.kind === "storms" ? "Storms" : "Items"} covering each spot</span>
+              {dense.steps.map(([lo, hi], i) => (
+                <span key={i} className="sx-legend">
+                  <i className="sx-legend-step" data-step={i + 1} aria-hidden="true" />
+                  <span className="ffx-num">{i === 2 ? `${lo}+` : lo === hi ? lo : `${lo}–${hi}`}</span>
+                </span>
+              ))}
+            </span>
           </span>
         )}
       </figcaption>
     </figure>
+  );
+}
+
+/** One item under the cursor: its name, its id and dates, and what a click does. */
+function ItemTip({ row }: { row: Hit }) {
+  const when = fmtRange(row.start, row.end);
+  return (
+    <>
+      <span className="sx-map-tip-name">
+        {row.tint && <i className="sx-swatch" data-step={row.tint} aria-hidden="true" />}
+        {row.label}
+        {row.kind && <span className="ffx-map-tip-kind">{row.kind}</span>}
+      </span>
+      {(!row.hideId || when) && (
+        <span className="sx-map-tip-meta">
+          {!row.hideId && <span className="ffx-id">{row.id}</span>}
+          {when && <span className="ffx-num">{when}</span>}
+        </span>
+      )}
+      <span className="sx-map-tip-hint">Click to open the item</span>
+    </>
   );
 }
 
@@ -576,25 +725,5 @@ function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
       }
       rows={hits.map((h) => ({ ...h, href: `${area.href}/items/${encodeURIComponent(h.id)}` }))}
     />
-  );
-}
-
-/** The selected collection, named in the map's corner on one line. */
-function MapLabel({ area, coveredName, onClear }: { area: HomeArea; coveredName: string | null; onClear: () => void }) {
-  const { n, noun } = countOf(area);
-  return (
-    <div className="sx-map-label" role="status">
-      <QcMark state={stateOf(area)} />
-      <span className="sx-map-label-name">{area.name}</span>
-      <span className="sx-map-label-sub">
-        <span className="ffx-num">{n}</span> {noun}
-        {coveredName && `, all of ${coveredName}`}
-      </span>
-      <button type="button" className="sx-map-label-x" onClick={onClear} aria-label={`Clear ${area.name}`}>
-        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-          <path d="M4 4l8 8M12 4l-8 8" />
-        </svg>
-      </button>
-    </div>
   );
 }
