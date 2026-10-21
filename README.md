@@ -125,10 +125,12 @@ cp .env.example .env
 Set `STAC_SOURCES_SANDBOX`, `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and
 `STAC_SOURCES_PROD` to where each environment's files live: a STAC `catalog.json`, an S3 prefix, one
 object, a local folder, or a local file, separated by commas. A prefix or
-folder is read for every parquet file and `catalog.json` in it. A catalog is
-followed through its `child` links to its collections, and each collection's
-items are the JSON files its `item` links point at or, when it has none, the
-rows of the parquet file it links to.
+folder is read for every parquet file and `catalog.json` in it. A catalog
+(`catalog.json`, or a versioned name like `catalog-v1.json`) is followed
+through its `child` links to its collections, and each collection's items are
+the rows of the stac-geoparquet file it links to. Every environment reads
+GeoParquet. A collection that only links to one JSON file per item isn't read
+and shows up as an error in the server log.
 
 There are no defaults in the code: an environment left unset reads nothing
 and its pages load empty. The example file points Sandbox at `./data/sandbox`,
@@ -136,7 +138,9 @@ Development and Test at placeholder S3 catalogs to replace with your own, and
 Production at `./data/prod`.
 Sandbox sits outside promotion: approving a collection there records the
 decision and copies nothing, and nothing is promoted into it. Promotion copies
-parquet files, so a collection whose items are JSON can't be sent on yet.
+parquet files that sit directly in a source folder. A collection read through
+a catalog can't be sent on yet: approving it records the decision, and the
+review sheet says the copy is coming soon.
 AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
 an instance role. `.env.example` explains each variable.
 

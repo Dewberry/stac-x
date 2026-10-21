@@ -12,6 +12,7 @@ import type { EnvKey } from "./env";
  *   s3://bucket/prefix/           every *.parquet, *.pq and catalog.json under the prefix
  *   s3://bucket/path/file.parquet one file
  *   s3://bucket/path/catalog.json a STAC catalog, followed to its collections
+ *                                 (catalog-v1.json and other versioned names too)
  *   ./data/dev                    every *.parquet, *.pq and catalog.json in a local folder
  *   ./data/dev/gages.parquet      one local file
  *
@@ -46,7 +47,7 @@ export function landingFolder(env: EnvKey): string {
   if (/\.(geo)?parquet$|\.pq$/i.test(first)) {
     throw new Error(`${SOURCE_VARS[env]} must start with a folder or prefix to receive promoted collections, not a single file`);
   }
-  if (/(^|\/)catalog\.json$/i.test(first)) return first.slice(0, first.lastIndexOf("/") + 1) || "./";
+  if (/(^|\/)catalog[^/]*\.json$/i.test(first)) return first.slice(0, first.lastIndexOf("/") + 1) || "./";
   return first.endsWith("/") ? first : `${first}/`;
 }
 
@@ -61,16 +62,21 @@ export const refreshMs = Number(process.env.STAC_REFRESH_SECONDS || 30) * 1000;
 export const awsRegion = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
 
 /**
- * A link to an S3 object in Cloud View, Dewberry's internal browser for the
- * bucket, where people can find the file and download it. CLOUD_VIEW_URL is
- * a template: {bucket} and {key} are filled in from the s3:// href, so it
- * fits whatever shape Cloud View's links take. Null for anything outside S3,
- * or while the template isn't set.
+ * A link to an S3 object in Cloud View's Bucket View, Dewberry's internal
+ * browser for the bucket, where people can find the file and download it.
+ * CLOUD_VIEW_URL is a template filled in from the s3:// href, so it fits
+ * whatever shape the links take: {bucket}, {key} as a path, and {prefix},
+ * the folder the object is in, as a query value (Bucket View opens folders,
+ * not files). Null for anything outside S3, or while the template isn't set.
  */
 export function cloudViewHref(href: string): string | null {
   const template = process.env.CLOUD_VIEW_URL?.trim();
   const m = /^s3:\/\/([^/]+)\/(.*)$/.exec(href);
   if (!template || !m) return null;
   const key = m[2].split("/").map(encodeURIComponent).join("/");
-  return template.replaceAll("{bucket}", encodeURIComponent(m[1])).replaceAll("{key}", key);
+  const prefix = m[2].slice(0, m[2].lastIndexOf("/") + 1);
+  return template
+    .replaceAll("{bucket}", encodeURIComponent(m[1]))
+    .replaceAll("{key}", key)
+    .replaceAll("{prefix}", encodeURIComponent(prefix));
 }

@@ -86,9 +86,12 @@ function s3() {
 }
 
 const PARQUET = /\.(geo)?parquet$|\.pq$/i;
-/** The root of a static STAC catalog. Its children are found by stac-json.ts. */
-export const CATALOG_JSON = /(^|\/)catalog\.json$/i;
-/** A source read as STAC JSON (a collection) rather than parquet. */
+/**
+ * The root of a static STAC catalog, catalog.json or a versioned name like
+ * catalog-v1.json. Its children are found by stac-json.ts.
+ */
+export const CATALOG_JSON = /(^|\/)catalog[^/]*\.json$/i;
+/** A source that's a catalog's collection.json, whose items are in the parquet file it links to. */
 export const isJsonSource = (uri: string) => /\.json$/i.test(uri);
 
 /* ------------------------------------------------------------------ list */

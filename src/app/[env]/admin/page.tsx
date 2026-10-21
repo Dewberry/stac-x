@@ -6,6 +6,7 @@ import { getCatalog } from "@/lib/catalog";
 import { ENVS, PATH, nextEnv } from "@/lib/env";
 import { guessKind } from "@/lib/kinds";
 import { pageEnv } from "@/lib/page-env";
+import { canPromote } from "@/lib/promote";
 import { baseName } from "@/lib/storage";
 import { collectionHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
@@ -57,6 +58,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     older: c.series.latest !== c.id,
     itemCount: c.itemCount,
     files: c.sources.map(baseName),
+    sendable: canPromote(c),
     qc: c.qc,
     since: c.history[0]?.at ?? c.qc?.updated_at ?? null,
     stages: PATH.map((e) => {
@@ -75,7 +77,9 @@ export default async function AdminPage({ params, searchParams }: Props) {
         subtitle={
           <span>
             Review queue for {ENVS.find((e) => e.key === env)!.label}.
-            {next && <span className="sx-wide-only"> Approving sends a collection to {next.label}.</span>}
+            {next && rows.some((r) => r.sendable) && (
+              <span className="sx-wide-only"> Approving sends a collection to {next.label}.</span>
+            )}
           </span>
         }
       />

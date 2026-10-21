@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCollection, invalidate } from "@/lib/catalog";
 import { saveEdit, validateEdit } from "@/lib/edits";
 import { isEnv, nextEnv, type EnvKey } from "@/lib/env";
-import { promote } from "@/lib/promote";
+import { canPromote, promote } from "@/lib/promote";
 import type { QcEdit } from "@/lib/stac";
 
 export type SaveState =
@@ -44,7 +44,9 @@ export async function saveQcAction(_prev: SaveState, form: FormData): Promise<Sa
     const edit = await saveEdit(source, collection, input);
     invalidate(env, source);
     let promotedTo: EnvKey | null = null;
-    if (to) {
+    // A collection that can't be copied on yet keeps its approval and stays
+    // put; the review sheet already said so.
+    if (to && canPromote(c)) {
       try {
         promotedTo = await promote(env, { ...c, qc: edit });
       } catch (e) {

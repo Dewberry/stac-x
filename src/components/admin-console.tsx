@@ -9,11 +9,11 @@ import { QcChip } from "./qc-chip";
 import { QcMark } from "./qc-mark";
 import { Caret, DecisionCards, HistoryRow, decisionCopy, type Decision } from "./review";
 import { saveQcAction } from "@/app/actions";
-import { envMeta, PATH, type EnvKey } from "@/lib/env";
+import { envMeta, nextEnv, PATH, type EnvKey } from "@/lib/env";
 import { fmtAge, fmtAgo, fmtDate, fmtNum } from "@/lib/format";
 import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { qcMeta, type QcEdit, type QcEvent, type QcStatus } from "@/lib/stac";
-import { collectionHref } from "@/lib/utils";
+import { collectionHref, withBase } from "@/lib/utils";
 
 /**
  * The Admin page's working parts: the counts, the review queue, the review
@@ -47,6 +47,8 @@ export type QueueRow = {
   older: boolean;
   itemCount: number;
   files: string[];
+  /** Whether approving copies it to the next environment yet (see lib/promote.ts). */
+  sendable: boolean;
   qc: QcEdit | null;
   /** When the collection last changed here: arrived, saved or sent on. */
   since: string | null;
@@ -117,7 +119,10 @@ export function AdminConsole({
     if (q) p.set("q", q);
     if (sort !== "oldest") p.set("sort", sort);
     const s = p.toString();
-    window.history.replaceState(null, "", s ? `${pathname}?${s}` : pathname);
+    // usePathname leaves out the base path; without it a reload or a copied
+    // link lands outside the app.
+    const path = withBase(pathname);
+    window.history.replaceState(null, "", s ? `${path}?${s}` : path);
   }, [filter, q, sort, pathname]);
 
   const counts = useMemo(() => {
@@ -757,6 +762,7 @@ function DecisionFields({
   name,
   env,
   count,
+  sendable,
   decision,
   setDecision,
   note,
@@ -766,13 +772,14 @@ function DecisionFields({
   name: string;
   env: EnvKey;
   count: number;
+  sendable: boolean;
   decision: Decision | null;
   setDecision: (d: Decision) => void;
   note: string;
   setNote: (n: string) => void;
   disabled: boolean;
 }) {
-  const copy = decisionCopy(env, decision, count);
+  const copy = decisionCopy(env, decision, count, sendable);
   return (
     <>
       <DecisionCards name={name} choices={copy.choices} decision={decision} onPick={setDecision} disabled={disabled} />
@@ -827,7 +834,7 @@ function OneReview({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
-  const copy = decisionCopy(env, decision, 1);
+  const copy = decisionCopy(env, decision, 1, row.sendable);
   const ready = decision !== null && (!noteRequired(env, decision) || note.trim().length > 0);
   const radios = useId();
   const status = statusOf(row);
@@ -851,7 +858,9 @@ function OneReview({
               text: `${row.title} was approved and sent to ${to.label}.`,
               link: { href: collectionHref(to.key, row.id), label: `Open it in ${to.label}` },
             }
-          : { text: `${row.title} is now ${qcMeta(decision).label.toLowerCase()}.` },
+          : decision === "approved" && !row.sendable && nextEnv(env)
+            ? { text: `${row.title} is approved. Sending it to ${nextEnv(env)!.label} is coming soon.` }
+            : { text: `${row.title} is now ${qcMeta(decision).label.toLowerCase()}.` },
       );
       // On to the next one, as a review queue does; close at the end.
       if (nextId) onMove(nextId);
@@ -937,6 +946,7 @@ function OneReview({
           name={radios}
           env={env}
           count={1}
+          sendable={row.sendable}
           decision={decision}
           setDecision={setDecision}
           note={note}
@@ -1006,7 +1016,7 @@ function BulkReview({
   const [note, setNote] = useState("");
   const [results, setResults] = useState<Record<string, Outcome> | null>(null);
   const [, start] = useTransition();
-  const copy = decisionCopy(env, decision, rows.length);
+  const copy = decisionCopy(env, decision, rows.length, rows.every((r) => r.sendable));
   const ready = decision !== null && (!noteRequired(env, decision) || note.trim().length > 0);
   const radios = useId();
   // The list is fixed when the sheet opens, so saved rows don't drop out of it.
@@ -1031,7 +1041,9 @@ function BulkReview({
         tone: failed ? "bad" : "ok",
         text: failed
           ? `${done} of ${list.length} saved. ${failed} couldn't be; the review sheet says why.`
-          : `${list.length} collections are now ${qcMeta(decision).label.toLowerCase()}.`,
+          : decision === "approved" && !list.every((r) => r.sendable) && nextEnv(env)
+            ? `${list.length} collections are approved. Sending them to ${nextEnv(env)!.label} is coming soon.`
+            : `${list.length} collections are now ${qcMeta(decision).label.toLowerCase()}.`,
       });
       onDone();
       if (!failed) onClose();
@@ -1068,6 +1080,7 @@ function BulkReview({
             name={radios}
             env={env}
             count={list.length}
+            sendable={list.every((r) => r.sendable)}
             decision={decision}
             setDecision={setDecision}
             note={note}

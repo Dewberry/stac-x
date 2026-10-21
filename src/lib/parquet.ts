@@ -33,10 +33,11 @@ export type ParquetStac = {
   items: StacItem[];
   /** Collection objects the file carries in its own metadata, by id. */
   collections: Record<string, Record<string, unknown>>;
+  etag: string;
 };
 
 export async function readItems(uri: string): Promise<ParquetStac> {
-  const { bytes } = await read(uri);
+  const { bytes, etag } = await read(uri);
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const file: AsyncBuffer = { byteLength: ab.byteLength, slice: (a, b) => ab.slice(a, b) };
   const metadata = await parquetMetadataAsync(file);
@@ -45,6 +46,7 @@ export async function readItems(uri: string): Promise<ParquetStac> {
   return {
     items: rows.map((row) => rowToItem(row as Record<string, unknown>, fallbackCollection)),
     collections: embeddedCollections(metadata),
+    etag,
   };
 }
 

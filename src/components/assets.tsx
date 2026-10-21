@@ -214,13 +214,13 @@ function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
         </a>
         <CopyButton text={a.href} label={s3 ? "Copy S3 URI" : "Copy URL"} />
         {cloudView ? (
-          <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
-            <Icon d={ICONS.external} size={12} /> Cloud View
+          <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" title="Open this file's folder in Cloud View">
+            <Icon d={ICONS.external} size={12} /> Bucket View
           </a>
         ) : (
           s3 && (
-            <button type="button" className="ffx-btn ffx-btn-sm" disabled title="Cloud View link isn't set up yet">
-              <Icon d={ICONS.external} size={12} /> Cloud View
+            <button type="button" className="ffx-btn ffx-btn-sm" disabled title="Bucket View link isn't set up yet">
+              <Icon d={ICONS.external} size={12} /> Bucket View
             </button>
           )
         )}
