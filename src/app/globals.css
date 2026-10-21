@@ -3223,7 +3223,11 @@ main:focus {
 .sx-row-more {
   display: grid;
   gap: 12px;
-  padding: 2px 16px 12px;
+  padding: 2px 16px 0;
+}
+/* A note instead of the items (they couldn't be loaded) ends the row with a little room. */
+.sx-row-more > .sx-pv-cover {
+  padding-bottom: 12px;
 }
 @media (max-width: 63.99rem) {
   .sx-row-more {
@@ -3489,7 +3493,7 @@ button.sx-map-pill svg {
 }
 .sx-item-foot {
   margin: 0;
-  padding-top: 6px;
+  padding: 6px 0 10px;
   font-size: var(--ffx-t-micro);
   line-height: 1.4;
   color: var(--ffx-ink-mut);
@@ -3510,7 +3514,7 @@ button.sx-map-pill svg {
 }
 /* The rows' stand-in while they load, under the open row's head. */
 .sx-loading-items {
-  margin: 0 -16px;
+  margin: 10px -16px 0;
   padding: 6px 16px;
   background: var(--ffx-surface);
   border-top: 1px solid var(--ffx-rule);
