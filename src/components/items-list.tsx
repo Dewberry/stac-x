@@ -13,9 +13,11 @@ import { Icon, ICONS } from "./icons";
  * collection page the rows carry id and dates and come in pages. In the
  * home rail (`compact`) each row is the item's name alone, on one line
  * with a chevron, in a block that scrolls inside the rail with a note
- * under it saying how many more are below, and there's no sort: with
- * names alone there's nothing to sort by eye, and the rows keep the
- * catalog's own order. The collection page is where the full table is. Filtering runs in the browser over a compact summary
+ * under it saying how many more are below. There's no sort, since with
+ * names alone there's nothing to sort by eye, and no search box either
+ * unless the collection has more rows than the block shows, since a list
+ * that's all in view has nothing to search. The collection page is where
+ * the full table is. Filtering runs in the browser over a compact summary
  * of every item, which is fine into the tens of thousands; past that the
  * page should send a filtered slice and this component keeps its shape.
  */
@@ -36,6 +38,8 @@ export type ItemRow = {
 // A dozen rows keeps a page short. The search box is how you find one gage
 // in 192, not scrolling.
 const PAGE = 12;
+/** How many rows the rail's block shows before it scrolls; a search box is only worth having past that. */
+const WINDOW = 5;
 
 type Sort = "id" | "label" | "start";
 
@@ -88,6 +92,8 @@ export function ItemsList({
   }, [rows, q, sort]);
 
   const all = total ?? rows.length;
+  // Where every row is already in view, there's nothing to search for.
+  const searchable = !compact || all > WINDOW || !!outerQuery;
   const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / PAGE));
   const current = Math.min(page, pages - 1);
   const slice = compact ? filtered : filtered.slice(current * PAGE, current * PAGE + PAGE);
@@ -132,6 +138,7 @@ export function ItemsList({
 
   return (
     <div className={compact ? "sx-items-compact" : undefined} data-fill={fill || undefined}>
+      {searchable && (
       <div className="ffx-toolbar">
         <label className="ffx-field min-w-0 flex-1 sm:max-w-xs">
           <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -166,6 +173,7 @@ export function ItemsList({
           </span>
         )}
       </div>
+      )}
       {slice.length === 0 ? (
         <p className="sx-empty">No items match.</p>
       ) : compact ? (

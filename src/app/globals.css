@@ -3440,6 +3440,10 @@ button.sx-map-pill svg {
   border-top: 1px solid var(--ffx-rule);
   border-bottom: 1px solid var(--ffx-rule);
 }
+/* With no search box above it, the block follows the button at the row's own gap. */
+.sx-items-compact > .sx-item-block:first-child {
+  margin-top: 0;
+}
 /* Five rows show before the block scrolls; the line under it says how many more. */
 .sx-item-list {
   max-height: 12rem;

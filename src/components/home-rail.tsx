@@ -18,12 +18,16 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * its review state, the way in and its items. Pointing at a row previews
  * its footprint on the map; Enter on a row opens the collection.
  *
- * The search box matches items as well as collections. While it does, a
- * collection with matching items is open on them, and the groups with
- * nothing in them fold into one line.
+ * The search box appears only past SEARCH_MIN collections: a list that's
+ * all in view has nothing to search. While there is one, it matches items
+ * as well as collections, a collection with matching items is open on
+ * them, and the groups with nothing in them fold into one line.
  */
 
 export type Group = { key: string; label: string; rows: HomeArea[] };
+
+/** Past this many collections the rail gets a search box. */
+export const SEARCH_MIN = 10;
 
 /** What the search found, while there is one. */
 export type Search = {
@@ -95,6 +99,7 @@ export function HomeRail({
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
+  const searchable = areas.length > SEARCH_MIN;
 
   // Scroll the list so the open row's head is in view, below its sticky
   // group heading. Done by hand rather than scrollIntoView, which would
@@ -129,14 +134,16 @@ export function HomeRail({
             ))}
           </div>
         </div>
-        <label className="ffx-field">
-          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-            <circle cx="7" cy="7" r="4.5" />
-            <path d="m10.5 10.5 3 3" strokeLinecap="round" />
-          </svg>
-          <span className="sr-only">Search collections and items</span>
-          <input type="search" placeholder="Search collections and items" value={query} onChange={(e) => onQuery(e.target.value)} />
-        </label>
+        {searchable && (
+          <label className="ffx-field">
+            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" />
+              <path d="m10.5 10.5 3 3" strokeLinecap="round" />
+            </svg>
+            <span className="sr-only">Search collections and items</span>
+            <input type="search" placeholder="Search collections and items" value={query} onChange={(e) => onQuery(e.target.value)} />
+          </label>
+        )}
         {search && (
           <p className="sx-search-line" role="status">
             <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "collection" : "collections"} ·{" "}

@@ -10,7 +10,7 @@ import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
-import { HomeRail, type Group } from "./home-rail";
+import { HomeRail, SEARCH_MIN, type Group } from "./home-rail";
 import { ItemHoverContext } from "./item-hover";
 import type { ItemRow } from "./items-list";
 import { QC_LABEL, stateOf } from "./qc-mark";
@@ -21,9 +21,10 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * under the environment band. Nothing here says what stac-x is; the header
  * does that.
  *
- * The rail is the way in. Its search box matches collections and their
- * items; the review states in its head are the legend for the marks and the
- * review filter in one; the rows group by kind or by review state.
+ * The rail is the way in. Its search box, there once the catalog has more
+ * collections than the rail shows at a glance, matches collections and
+ * their items; the review states in its head are the legend for the marks
+ * and the review filter in one; the rows group by kind or by review state.
  * Selecting a collection opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
@@ -185,9 +186,11 @@ export function HomeConsole({
   // Whether the last selected collection is in the area, which outlines
   // the area more heavily.
   const [pickedInArea, setPickedInArea] = useState<boolean | null>(null);
+  // The search box only exists past SEARCH_MIN collections (home-rail.tsx),
+  // so with fewer the query stays empty and everything below it is inert.
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
-  const searching = q.length > 0;
+  const searching = q.length > 0 && areas.length > SEARCH_MIN;
 
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
   const current = selected ? (bySlug.get(selected) ?? null) : null;
