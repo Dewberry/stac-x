@@ -3129,6 +3129,7 @@ main:focus {
   color: var(--ffx-ink-mut);
 }
 .sx-rail-item .sx-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
@@ -3181,9 +3182,14 @@ main:focus {
   font-weight: 600;
   color: var(--ffx-ink);
 }
-/* "previewing", before the count of the row the map is drawing over the selection. */
+/* "previewing", at the right end of the second line of the row the map is
+   drawing over the selection. Absolute, so it takes no room from the name. */
 .sx-row-previewing {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
   font-size: var(--ffx-t-micro);
+  line-height: 1.45;
   font-weight: 400;
   color: var(--ffx-active-text);
 }

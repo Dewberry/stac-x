@@ -280,7 +280,6 @@ function AreaRow({
           <AreaSub area={area} showKind={showKind} version={open} />
         </span>
         <span className="sx-row-aside">
-          {previewing && <span className="sx-row-previewing">previewing</span>}
           <span className="ffx-num">{fmtNum(area.itemCount)}</span>
           {open && (
             <svg className="sx-row-caret" viewBox="0 0 16 16" width="10" height="10" fill="currentColor" aria-hidden="true">
@@ -288,6 +287,9 @@ function AreaRow({
             </svg>
           )}
         </span>
+        {/* Out of the row's flow, at the end of its second line, so the
+            word never moves the name or changes the row's height. */}
+        {previewing && <span className="sx-row-previewing">previewing</span>}
       </button>
       {open && <OpenRow env={env} area={area} rows={found ?? rows} total={area.itemCount} query={query} activeIds={activeIds} />}
     </li>
