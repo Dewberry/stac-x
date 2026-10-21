@@ -14,7 +14,7 @@ import { stateOf } from "./qc-mark";
 /**
  * What a selected collection shows: enough to decide whether to open it,
  * and its items. Its description, where its QC stands, the last reviewer's
- * note when it was sent back, the way in (View collection), then the items
+ * note when it was sent back, the way in (Browse collection), then the items
  * by name with a search and a sort. The summary line (kind, dates,
  * version) sits above it, in the row on a wide screen and in the sheet's
  * header on a phone, so the body doesn't repeat it. On a wide screen this
@@ -99,7 +99,7 @@ function WayIn({ area }: { area: HomeArea }) {
   return (
     <div className="sx-pv-btns">
       <Link href={area.href} className="ffx-btn ffx-btn-primary sx-pv-go">
-        View collection
+        Browse collection
       </Link>
     </div>
   );

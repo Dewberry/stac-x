@@ -219,7 +219,7 @@ export function ItemsList({
               {openHref && (
                 <>
                   {" "}
-                  · <Link href={openHref}>View collection</Link> for the full table
+                  · <Link href={openHref}>Browse collection</Link> for the full table
                 </>
               )}
             </>
