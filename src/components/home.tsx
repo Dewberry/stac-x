@@ -117,7 +117,6 @@ export type GroupBy = "none" | "review";
 /** The order of the rail's review groups: what needs someone first. */
 const REVIEW_GROUPS: QcStatus[] = ["needs_revision", "rejected", "pending", "approved"];
 const GROUP_KEY = "sx-home-group";
-const WIDE_SCREEN = "(min-width: 64rem)";
 /** How long, in ms, the pointer rests on a collection before the map previews it. */
 const PREVIEW_DELAY = 120;
 
@@ -244,21 +243,16 @@ export function HomeConsole({
   const preview = pointed && pointed !== selected ? pointed : null;
   const previewArea = preview ? (bySlug.get(preview) ?? null) : null;
 
-  const mapBoxRef = useRef<HTMLDivElement>(null);
+  // On a phone the sheet opens over the list where it was tapped, and the
+  // page stays put, so closing it leaves the reader in the same place.
   const select = useCallback(
-    (slug: string | null, fromList = false) => {
+    (slug: string | null) => {
       const next = slug && slug === selected ? null : slug;
       setSelected(next);
       setHoverKeys([]);
       setHoveredItem(null);
       const a = next ? bySlug.get(next) : null;
       if (!a) return;
-      // On a phone the list is under the map, and the sheet opens over the
-      // page, so a pick brings the map back into view above it.
-      if (fromList && !matchMedia(WIDE_SCREEN).matches) {
-        const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
-        mapBoxRef.current?.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "auto" });
-      }
       setPickedInArea(a.inArea);
     },
     [bySlug, selected],
@@ -317,7 +311,7 @@ export function HomeConsole({
         {/* The page has no visible title (the header names the app), but a screen reader's outline needs one. */}
         <h1 className="sr-only">Collections in {envMeta(env).label}</h1>
         <div className="sx-console">
-          <div ref={mapBoxRef} className="sx-console-map">
+          <div className="sx-console-map">
             <HomeMap
               areas={areas}
               items={items}
@@ -363,7 +357,7 @@ export function HomeConsole({
             rowsBySlug={rowsBySlug}
             activeIds={activeIds}
             onHover={setHovered}
-            onSelect={(slug) => select(slug, true)}
+            onSelect={select}
           />
         </div>
       </div>

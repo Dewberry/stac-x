@@ -180,7 +180,6 @@
 }
 .sx-console-map {
   position: relative;
-  scroll-margin-top: var(--ffx-header);
   height: 360px;
   overflow: hidden;
   background: var(--ffx-surface-inset);
