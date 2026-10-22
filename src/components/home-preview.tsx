@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
@@ -320,6 +320,12 @@ export function HomePreview({
       else onClose();
     } else setFull((v) => !v);
   };
+  // The sheet covers the rail, so focus goes to its heading when it opens
+  // or changes collection. It's only shown on a narrow screen.
+  const headRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!matchMedia("(min-width: 64rem)").matches) headRef.current?.focus({ preventScroll: true });
+  }, [area.slug]);
   return (
     <section className="sx-preview" role="dialog" aria-label={area.name} data-full={full || undefined}>
       <button
@@ -329,12 +335,18 @@ export function HomePreview({
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerCancel={() => (drag.current = null)}
+        // Enter and Space on the handle (detail 0) grow or shrink the sheet; a pointer is handled above.
+        onClick={(e) => {
+          if (e.detail === 0) setFull((v) => !v);
+        }}
       >
         <i aria-hidden="true" />
       </button>
       <div className="sx-preview-top">
         <div className="sx-preview-head">
-          <div className="sx-preview-title">{area.name}</div>
+          <h2 ref={headRef} tabIndex={-1} className="sx-preview-title">
+            {area.name}
+          </h2>
           <SheetSub area={area} />
           <div className="sx-pv-figs">
             <b className="ffx-num">{count.n}</b>

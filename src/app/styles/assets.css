@@ -1,0 +1,48 @@
+/* ============================== assets ==============================
+   The open body of an asset row (components/assets.tsx); the rows and
+   groups themselves are under "Assets, grouped" further down. */
+.sx-asset-body {
+  padding: 0 0.75rem 0.75rem;
+  display: grid;
+  gap: 0.625rem;
+}
+.sx-asset-href {
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  overflow-wrap: anywhere;
+}
+.sx-asset-table {
+  border: 1px solid var(--ffx-rule);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sx-asset-table-label {
+  padding: 0.4rem 0.625rem;
+  font-size: var(--ffx-t-small);
+  font-weight: 600;
+  border-bottom: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-sunken);
+}
+.sx-asset-table .ffx-table thead th {
+  background: var(--ffx-surface);
+}
+.sx-thumb {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: var(--ffx-surface-inset);
+}
+.sx-thumb-missing {
+  display: grid;
+  place-items: center;
+  min-height: 6rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--ffx-rule-strong);
+  border-radius: 8px;
+  background: var(--ffx-surface-sunken);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  text-align: center;
+}

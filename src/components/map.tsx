@@ -381,6 +381,18 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
     else popup.remove();
   }, [pin]);
 
+  // Escape takes the tooltip away, wherever focus is, so it can be dismissed
+  // without moving the pointer.
+  const hovering = !!hover;
+  useEffect(() => {
+    if (!hovering) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setHover(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hovering]);
+
   const short = (f: MapFeatureProps) => [f.label, f.tag].filter(Boolean).join(" · ") || f.id;
   const name = (f: MapFeatureProps | null) => (f ? (f.label ? `${short(f)} (${f.id})` : f.id) : null);
   // A stack is named without ids, which the tooltip beside the cursor carries.

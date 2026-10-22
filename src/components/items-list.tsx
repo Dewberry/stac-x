@@ -165,10 +165,13 @@ export function ItemsList({
           </label>
         )}
         {!compact && filtered.length !== rows.length && (
-          <span className="ml-auto text-micro text-ink-mut ffx-num">
+          <span className="ml-auto text-micro text-ink-mut ffx-num" aria-hidden="true">
             {filtered.length} of {rows.length}
           </span>
         )}
+        <span className="sr-only" role="status">
+          {filtered.length !== rows.length ? `${filtered.length} of ${rows.length} items` : ""}
+        </span>
       </div>
       )}
       {slice.length === 0 ? (
@@ -222,7 +225,14 @@ export function ItemsList({
           {q ? (
             <>
               <span className="ffx-num">{filtered.length}</span> of <span className="ffx-num">{all.toLocaleString()}</span> items ·{" "}
-              <button type="button" onClick={() => setQuery("")}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  // This line goes once the search is cleared, so focus goes back to the search box.
+                  e.currentTarget.closest(".sx-items-compact")?.querySelector<HTMLElement>("input[type=search]")?.focus();
+                  setQuery("");
+                }}
+              >
                 Show all
               </button>
             </>
@@ -245,14 +255,21 @@ export function ItemsList({
             Page {current + 1} of {pages}
           </span>
           <span className="flex gap-1.5">
-            <button type="button" className="ffx-btn ffx-btn-sm" disabled={current === 0} onClick={() => setPage(current - 1)}>
+            {/* aria-disabled, not disabled, at either end: the button pressed
+                to get there keeps focus instead of dropping it. */}
+            <button
+              type="button"
+              className="ffx-btn ffx-btn-sm"
+              aria-disabled={current === 0 || undefined}
+              onClick={() => current > 0 && setPage(current - 1)}
+            >
               Previous
             </button>
             <button
               type="button"
               className="ffx-btn ffx-btn-sm"
-              disabled={current >= pages - 1}
-              onClick={() => setPage(current + 1)}
+              aria-disabled={current >= pages - 1 || undefined}
+              onClick={() => current < pages - 1 && setPage(current + 1)}
             >
               Next
             </button>

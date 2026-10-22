@@ -1,0 +1,381 @@
+/* ===========================================================================
+   stac-x design system, "Atlas"
+
+   The map is the app. Pages are a pale canvas with white cards floating on
+   it, corners rounded, edges carried by a soft shadow rather than a border.
+   One accent, river blue, is for data on the map and for links. Green means
+   published or approved, amber means needs revision, red means rejected, and
+   nothing else on the screen borrows those hues.
+
+   Three token layers:
+
+     1. Primitives  (--ffx-n-*, --ffx-river, ...) hold raw color.
+     2. Semantic    (--ffx-surface, --ffx-ink, --ffx-verified, ...) name a
+        role and point at a primitive. Dark mode redefines only this layer.
+     3. @theme inline maps the semantic layer onto Tailwind's namespaces so
+        bg-surface, text-ink-mut and text-head resolve to tokens.
+
+   The custom property names are inherited from ffrd-x so components read the
+   same tokens in both apps; the values are this app's own. Raw hex lives in
+   this file and nowhere else.
+   =========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---------- 1. primitives ---------- */
+  --ffx-n-0: #ffffff;
+  --ffx-n-50: #f6f8fa;
+  --ffx-n-100: #eef1f4;
+  --ffx-n-150: #e3e8ed;
+  --ffx-n-200: #dfe5eb;
+  --ffx-n-250: #d6dde4;
+  --ffx-n-300: #c9d1d9;
+  --ffx-n-400: #a7b1bc;
+  --ffx-n-500: #6b7785;
+  --ffx-n-600: #5b6571;
+  --ffx-n-700: #4a5563;
+  --ffx-n-800: #2c3541;
+  --ffx-n-900: #1a2027;
+  --ffx-n-950: #131a22;
+  --ffx-n-990: #0f1418;
+
+  --ffx-river: #2f6bd6;
+  --ffx-river-deep: #2456b0;
+  --ffx-river-pale: #9fbdf0;
+  --ffx-moss: #2f8f6a;
+  --ffx-moss-deep: #1f5f45;
+  --ffx-moss-pale: #d5eee2;
+  --ffx-amber: #c0661d;
+  --ffx-amber-deep: #8a4a12;
+  --ffx-amber-pale: #f5e7cc;
+  --ffx-red: #c2453a;
+  --ffx-red-deep: #a3352c;
+  --ffx-red-pale: #f7dbd8;
+
+  /* Environments. Three hues outside the QC colors (green, amber, red) and
+     the data blue, so an environment is never read as a review state. White
+     text on each passes 4.5:1. Production has no color of its own: it looks the
+     way the app always does. The same values in ffrd-x. */
+  --ffx-env-sandbox: #56657a;
+  --ffx-env-dev: #6d4fc2;
+  --ffx-env-test: #a3367f;
+
+  /* ---------- 2. semantic: surfaces ---------- */
+  --ffx-void: #dfe5eb;
+  --ffx-bg: var(--ffx-n-150);
+  --ffx-surface: var(--ffx-n-0);
+  --ffx-surface-raised: var(--ffx-n-0);
+  --ffx-surface-sunken: var(--ffx-n-100);
+  --ffx-surface-inset: #e2e8ee;
+  --ffx-glass: rgba(255, 255, 255, 0.9);
+
+  /* The maps. Land is brighter than the page and the wash outside the basin
+     is darker than it, so the basin comes off the card. The ground is warm
+     (paper, sand, a brown-gray shade for the relief) so it doesn't run into
+     the cool page, and blue is left to mean water and data. The surround
+     carries its own alpha: it's drawn over the land at full opacity. */
+  --ffx-map-land: #fdfcf9;
+  --ffx-map-surround: rgb(205 198 184 / 0.6);
+  --ffx-map-water: #a9c4ee;
+  --ffx-map-shade: #6a6053;
+  --ffx-map-light: #ffffff;
+
+  /* ---------- 2. semantic: structure ---------- */
+  --ffx-rule: var(--ffx-n-250);
+  --ffx-rule-strong: var(--ffx-n-300);
+  --ffx-panel-edge: transparent;
+  --ffx-control-edge: var(--ffx-n-300);
+  --ffx-grid: var(--ffx-n-100);
+  /* The 1px ring gives a card an edge where the soft shadow alone would fade
+     into whatever is under it, a map or a canvas-colored basemap. */
+  --ffx-shadow-card: 0 0 0 1px rgb(19 26 34 / 0.07), 0 1px 2px rgb(19 26 34 / 0.06), 0 6px 18px rgb(19 26 34 / 0.07);
+  --ffx-shadow-float: 0 1px 2px rgb(19 26 34 / 0.08), 0 10px 32px rgb(19 26 34 / 0.14);
+  --ffx-shadow-overlay: var(--ffx-shadow-float);
+  --ffx-shell-max: 96rem;
+  /* The header is the one dark surface in light mode: it anchors the page
+     and lets the white cards read as cards against the canvas. */
+  --ffx-header-bg: #15233b;
+  --ffx-header-ink: #ffffff;
+  --ffx-header-ink-mut: rgba(255, 255, 255, 0.68);
+  --ffx-header-rule: rgba(255, 255, 255, 0.28);
+
+  /* ---------- 2. semantic: ink ---------- */
+  --ffx-ink: var(--ffx-n-950);
+  --ffx-ink-sec: var(--ffx-n-700);
+  --ffx-ink-mut: var(--ffx-n-600);
+  --ffx-ink-dim: var(--ffx-n-500);
+
+  /* ---------- 2. semantic: state ---------- */
+  --ffx-verified: var(--ffx-moss);
+  --ffx-verified-text: var(--ffx-moss-deep);
+  --ffx-verified-pale: var(--ffx-moss-pale);
+  --ffx-bad: var(--ffx-red);
+  --ffx-bad-text: var(--ffx-red-deep);
+  --ffx-bad-pale: var(--ffx-red-pale);
+  --ffx-active: var(--ffx-river);
+  --ffx-active-text: var(--ffx-river-deep);
+  --ffx-attn: var(--ffx-amber);
+  --ffx-attn-text: var(--ffx-amber-deep);
+  --ffx-attn-pale: var(--ffx-amber-pale);
+  --ffx-neutral: var(--ffx-n-400);
+  --ffx-neutral-text: var(--ffx-n-600);
+  --ffx-idle: var(--ffx-n-200);
+  --ffx-idle-text: var(--ffx-n-600);
+  --ffx-planned: var(--ffx-n-600);
+
+  /* Data on the map: river blue at three steps. */
+  --ffx-trace: var(--ffx-river-pale);
+  --ffx-trace-strong: var(--ffx-river);
+  --ffx-trace-median: var(--ffx-river-deep);
+  --ffx-trace-deep: #1b3b7a;
+  /* The ring of the not-reviewed mark on the landing page. */
+  --ffx-qc-none: var(--ffx-n-800);
+
+  --ffx-focus: var(--ffx-river);
+  --ffx-focus-halo: var(--ffx-n-0);
+
+  /* ---------- 2. semantic: type ---------- */
+  --ffx-display: var(--sx-display-loaded), "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --ffx-sans: var(--ffx-sans-loaded), "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ffx-mono: var(--ffx-mono-loaded), "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* The floor: tags, stat labels, the map scale. Nothing is set smaller. */
+  --ffx-t-tiny: 0.6875rem;
+  --ffx-t-micro: 0.75rem;
+  --ffx-t-micro-lh: 1.125rem;
+  --ffx-t-small: 0.8125rem;
+  --ffx-t-small-lh: 1.1875rem;
+  --ffx-t-base: 0.875rem;
+  --ffx-t-base-lh: 1.3rem;
+  --ffx-t-body: clamp(0.9375rem, 0.912rem + 0.11vw, 1rem);
+  --ffx-t-body-lh: calc(var(--ffx-t-body) * 1.55);
+  --ffx-t-lead: clamp(1.03125rem, 0.9795rem + 0.221vw, 1.15625rem);
+  --ffx-t-lead-lh: calc(var(--ffx-t-lead) * 1.42);
+  --ffx-t-head: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --ffx-t-head-lh: calc(var(--ffx-t-head) * 1.25);
+  --ffx-t-title: clamp(1.5rem, 1.25rem + 1vw, 2.25rem);
+  --ffx-t-title-lh: calc(var(--ffx-t-title) * 1.08);
+  --ffx-t-display: clamp(1.625rem, 1.3rem + 1.3vw, 2.25rem);
+  --ffx-t-display-lh: calc(var(--ffx-t-display) * 1.05);
+  --ffx-t-figure: clamp(2rem, 1.6rem + 1.6vw, 2.75rem);
+  --ffx-t-figure-lh: 1;
+  --ffx-t-hero: clamp(2.5rem, 1.9rem + 2.4vw, 4rem);
+  --ffx-t-hero-lh: 0.95;
+
+  /* ---------- 2. semantic: metrics ---------- */
+  --ffx-space-unit: 0.25rem;
+  --ffx-gutter: 1rem;
+  --ffx-edge: 0.875rem;
+  --ffx-panel-pad: 1rem;
+  --ffx-inset-text: 0;
+  --ffx-deck-gap: 0.875rem;
+  --ffx-header: 3.5rem;
+  --ffx-radius-xs: 6px;
+  --ffx-radius-sm: 8px;
+  --ffx-radius-md: 12px;
+}
+
+/* Phones. The small steps go up a notch, since 12px held at arm's length is
+   harder to read than 12px on a monitor, and running text is a full 16px.
+   Headings already scale with the viewport through their clamps. */
+@media (max-width: 39.99rem) {
+  :root {
+    --ffx-t-tiny: 0.75rem;
+    --ffx-t-micro: 0.8125rem;
+    --ffx-t-micro-lh: 1.25rem;
+    --ffx-t-small: 0.875rem;
+    --ffx-t-small-lh: 1.3125rem;
+    --ffx-t-base: 0.9375rem;
+    --ffx-t-base-lh: 1.4rem;
+    --ffx-t-body: 1rem;
+  }
+  /* A stat's label wraps instead of being cut off. */
+  .sx-stat dt {
+    white-space: normal;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ffx-void: #090c10;
+    --ffx-header-bg: #0c1424;
+    --ffx-header-ink: #e8edf2;
+    --ffx-header-ink-mut: #8d98a4;
+    --ffx-header-rule: #2a333d;
+    --ffx-bg: var(--ffx-n-990);
+    --ffx-surface: var(--ffx-n-900);
+    --ffx-surface-raised: #212932;
+    --ffx-surface-sunken: #141a20;
+    --ffx-surface-inset: #10161c;
+    --ffx-glass: rgba(26, 32, 39, 0.92);
+    /* The basemap's dark style draws roads, parks and boundaries a shade
+       lighter than its ground, so the land has to sit under them: cool and
+       near black, in the page's own slate. A lighter land turned every
+       road into a black scratch. The relief stays quiet for the same
+       reason, and the surround only dims the outside a little. */
+    --ffx-map-land: #111417;
+    --ffx-map-surround: rgb(0 0 0 / 0.5);
+    --ffx-map-water: #2b4674;
+    --ffx-map-shade: #080a0d;
+    --ffx-map-light: #2c333b;
+    --ffx-rule: #2a333d;
+    --ffx-rule-strong: #3a4550;
+    --ffx-control-edge: #4a5661;
+    --ffx-grid: #222a33;
+    --ffx-shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
+    --ffx-shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 32px rgb(0 0 0 / 0.5);
+    --ffx-shadow-overlay: var(--ffx-shadow-float);
+    --ffx-ink: #e8edf2;
+    --ffx-ink-sec: #b3bcc6;
+    --ffx-ink-mut: #8d98a4;
+    --ffx-ink-dim: #86919d;
+    --ffx-verified: #47b08a;
+    --ffx-verified-text: #8fdcbd;
+    --ffx-verified-pale: #173b2d;
+    --ffx-bad: #e0665b;
+    --ffx-bad-text: #f39a91;
+    --ffx-bad-pale: #40201d;
+    --ffx-active: #6b9cf0;
+    --ffx-active-text: #9dbcf5;
+    --ffx-attn: #e07a2e;
+    --ffx-attn-text: #f0bd6a;
+    --ffx-attn-pale: #3a2c12;
+    --ffx-neutral: #6f7b88;
+    --ffx-neutral-text: #a3adb8;
+    --ffx-idle: #2f3944;
+    --ffx-idle-text: #a3adb8;
+    --ffx-planned: #7f8a96;
+    --ffx-trace: #3d5f9a;
+    --ffx-trace-strong: #6b9cf0;
+    --ffx-trace-median: #c4d7f8;
+    --ffx-trace-deep: #c4d7f8;
+    --ffx-qc-none: #b3bcc6;
+    --ffx-focus: #6b9cf0;
+    --ffx-focus-halo: var(--ffx-n-900);
+    --ffx-env-sandbox: #5d6d83;
+    --ffx-env-dev: #7053cd;
+    --ffx-env-test: #ac4089;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ffx-void: #090c10;
+  --ffx-header-bg: #0c1424;
+  --ffx-header-ink: #e8edf2;
+  --ffx-header-ink-mut: #8d98a4;
+  --ffx-header-rule: #2a333d;
+  --ffx-bg: var(--ffx-n-990);
+  --ffx-surface: var(--ffx-n-900);
+  --ffx-surface-raised: #212932;
+  --ffx-surface-sunken: #141a20;
+  --ffx-surface-inset: #10161c;
+  --ffx-glass: rgba(26, 32, 39, 0.92);
+  /* The basemap's dark style draws roads, parks and boundaries a shade
+     lighter than its ground, so the land has to sit under them: cool and
+     near black, in the page's own slate. A lighter land turned every
+     road into a black scratch. The relief stays quiet for the same
+     reason, and the surround only dims the outside a little. */
+  --ffx-map-land: #111417;
+  --ffx-map-surround: rgb(0 0 0 / 0.5);
+  --ffx-map-water: #2b4674;
+  --ffx-map-shade: #080a0d;
+  --ffx-map-light: #2c333b;
+  --ffx-rule: #2a333d;
+  --ffx-rule-strong: #3a4550;
+  --ffx-control-edge: #4a5661;
+  --ffx-grid: #222a33;
+  --ffx-shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
+  --ffx-shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 32px rgb(0 0 0 / 0.5);
+  --ffx-shadow-overlay: var(--ffx-shadow-float);
+  --ffx-ink: #e8edf2;
+  --ffx-ink-sec: #b3bcc6;
+  --ffx-ink-mut: #8d98a4;
+  --ffx-ink-dim: #86919d;
+  --ffx-verified: #47b08a;
+  --ffx-verified-text: #8fdcbd;
+  --ffx-verified-pale: #173b2d;
+  --ffx-bad: #e0665b;
+  --ffx-bad-text: #f39a91;
+  --ffx-bad-pale: #40201d;
+  --ffx-active: #6b9cf0;
+  --ffx-active-text: #9dbcf5;
+  --ffx-attn: #e07a2e;
+  --ffx-attn-text: #f0bd6a;
+  --ffx-attn-pale: #3a2c12;
+  --ffx-neutral: #6f7b88;
+  --ffx-neutral-text: #a3adb8;
+  --ffx-idle: #2f3944;
+  --ffx-idle-text: #a3adb8;
+  --ffx-planned: #7f8a96;
+  --ffx-trace: #3d5f9a;
+  --ffx-trace-strong: #6b9cf0;
+  --ffx-trace-median: #c4d7f8;
+  --ffx-trace-deep: #c4d7f8;
+  --ffx-qc-none: #b3bcc6;
+  --ffx-focus: #6b9cf0;
+  --ffx-focus-halo: var(--ffx-n-900);
+  --ffx-env-sandbox: #5d6d83;
+  --ffx-env-dev: #7053cd;
+  --ffx-env-test: #ac4089;
+}
+
+/* ---------- 3. Tailwind mapping ---------- */
+@theme inline {
+  --color-void: var(--ffx-void);
+  --color-bg: var(--ffx-bg);
+  --color-surface: var(--ffx-surface);
+  --color-raised: var(--ffx-surface-raised);
+  --color-sunken: var(--ffx-surface-sunken);
+  --color-inset: var(--ffx-surface-inset);
+  --color-rule: var(--ffx-rule);
+  --color-rule-strong: var(--ffx-rule-strong);
+  --color-panel-edge: var(--ffx-panel-edge);
+  --color-control: var(--ffx-control-edge);
+  --color-grid: var(--ffx-grid);
+  --color-ink: var(--ffx-ink);
+  --color-ink-sec: var(--ffx-ink-sec);
+  --color-ink-mut: var(--ffx-ink-mut);
+  --color-ink-dim: var(--ffx-ink-dim);
+  --color-verified: var(--ffx-verified);
+  --color-verified-text: var(--ffx-verified-text);
+  --color-bad: var(--ffx-bad);
+  --color-bad-text: var(--ffx-bad-text);
+  --color-active: var(--ffx-active);
+  --color-active-text: var(--ffx-active-text);
+  --color-attn: var(--ffx-attn);
+  --color-attn-text: var(--ffx-attn-text);
+  --color-neutral: var(--ffx-neutral);
+  --color-neutral-text: var(--ffx-neutral-text);
+  --color-idle: var(--ffx-idle);
+  --color-idle-text: var(--ffx-idle-text);
+  --color-trace: var(--ffx-trace);
+  --color-trace-strong: var(--ffx-trace-strong);
+  --font-sans: var(--ffx-sans);
+  --font-mono: var(--ffx-mono);
+  --font-display: var(--ffx-display);
+  --text-micro: var(--ffx-t-micro);
+  --text-micro--line-height: var(--ffx-t-micro-lh);
+  --text-small: var(--ffx-t-small);
+  --text-small--line-height: var(--ffx-t-small-lh);
+  --text-base: var(--ffx-t-base);
+  --text-base--line-height: var(--ffx-t-base-lh);
+  --text-body: var(--ffx-t-body);
+  --text-body--line-height: var(--ffx-t-body-lh);
+  --text-lead: var(--ffx-t-lead);
+  --text-lead--line-height: var(--ffx-t-lead-lh);
+  --text-head: var(--ffx-t-head);
+  --text-head--line-height: var(--ffx-t-head-lh);
+  --text-title: var(--ffx-t-title);
+  --text-title--line-height: var(--ffx-t-title-lh);
+  --text-display: var(--ffx-t-display);
+  --text-display--line-height: var(--ffx-t-display-lh);
+  --spacing: var(--ffx-space-unit);
+  --spacing-gutter: var(--ffx-gutter);
+  --spacing-header: var(--ffx-header);
+  --radius-xs: var(--ffx-radius-xs);
+  --radius-sm: var(--ffx-radius-sm);
+  --radius-md: var(--ffx-radius-md);
+}

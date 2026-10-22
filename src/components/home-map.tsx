@@ -542,6 +542,20 @@ export function HomeMap({
     else popup.remove();
   }, [card]);
 
+  // Escape takes the tooltip away first, wherever focus is, so it can be
+  // dismissed without moving the pointer.
+  const tipOn = !!tip;
+  useEffect(() => {
+    if (!tipOn) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setTip(null);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [tipOn]);
+
   // Escape closes the card before it closes the selected row.
   const open = !!card;
   useEffect(() => {

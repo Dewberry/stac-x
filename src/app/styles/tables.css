@@ -1,0 +1,618 @@
+/* ============================== tables ============================== */
+
+/* Positioned, so the visually hidden labels inside a wide table are clipped
+   with it instead of widening the page. */
+.ffx-table-wrap {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ffx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ffx-t-small);
+}
+.ffx-table thead th {
+  text-align: left;
+  font-weight: 500;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  padding: 0.4rem 0.625rem;
+  border-bottom: 1px solid var(--ffx-rule);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ffx-surface);
+}
+.ffx-table td {
+  padding: 0.35rem 0.625rem;
+  border-bottom: 1px solid var(--ffx-grid);
+  white-space: nowrap;
+  color: var(--ffx-ink-sec);
+  vertical-align: top;
+}
+.ffx-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ffx-table tbody tr:hover td {
+  background: var(--ffx-surface-sunken);
+}
+.ffx-table .ffx-r {
+  text-align: right;
+}
+.ffx-data-pane {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+/* The Data panel on a collection page (components/data-panel.tsx): a note
+   on what's shown, then the rows. A structure in a cell is folded into what
+   it holds, and opens to its JSON under that. */
+.sx-data-note {
+  margin: 0;
+  padding: 0 var(--ffx-panel-pad) 0.625rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-data-pane {
+  max-height: 26rem;
+}
+.sx-data-pane .ffx-table td {
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A structure folded in a table cell: the chevron and what it holds. */
+.sx-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sx-fold:hover {
+  color: var(--ffx-ink);
+}
+.sx-fold[aria-expanded="true"] {
+  color: var(--ffx-active-text);
+  font-weight: 500;
+}
+.sx-fold[aria-expanded="true"] > .sx-chev {
+  color: inherit;
+}
+/* The rows table (components/data-table.tsx), in the Data panel and the
+   dialog. The header stays put as it scrolls down; the row gutter and the
+   first column (the id) stay put as it scrolls across, so a wide file can
+   be read against its ids. An open fold's drawer row sits under its row
+   and stays in view as the table scrolls across. */
+.sx-dt {
+  width: max-content;
+  min-width: 100%;
+}
+.sx-dt thead th {
+  height: 36px;
+  vertical-align: middle;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ffx-ink-sec);
+}
+.sx-dt td {
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  font-size: 12.5px;
+  line-height: 16px;
+}
+.sx-dt .sx-dt-n {
+  font-size: 11px;
+  font-weight: 400;
+}
+.sx-dt .sx-dt-empty {
+  color: var(--ffx-ink-dim);
+}
+.sx-dt-drawer td {
+  height: auto;
+  max-width: none;
+  padding: 0;
+  overflow: visible;
+  background: var(--ffx-surface-sunken);
+  border-bottom: 1px solid var(--ffx-rule);
+  white-space: normal;
+}
+/* The drawer's content pins to the left as the table scrolls across and
+   lines up under the id column (the gutter, then the cell's padding). */
+.sx-dt-drawer-in {
+  position: sticky;
+  left: 0;
+  width: fit-content;
+  max-width: calc(100vw - 4rem);
+  padding: 8px 20px 10px calc(2.5rem + 0.625rem);
+}
+.sx-dt-drawer-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+  margin-bottom: 4px;
+}
+.sx-dt-drawer pre {
+  margin: 0;
+  font-family: var(--ffx-mono);
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--ffx-ink);
+  max-height: 16rem;
+  overflow: auto;
+}
+.sx-dt .sx-dt-n,
+.sx-dt .sx-dt-n + th,
+.sx-dt .sx-dt-n + td {
+  position: sticky;
+  background: var(--ffx-surface);
+}
+.sx-dt .sx-dt-n {
+  left: 0;
+  z-index: 1;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  padding-right: 0.375rem;
+  text-align: right;
+  color: var(--ffx-ink-dim);
+}
+.sx-dt .sx-dt-n + th,
+.sx-dt .sx-dt-n + td {
+  left: 2.5rem;
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--ffx-grid);
+}
+.sx-dt thead .sx-dt-n,
+.sx-dt thead .sx-dt-n + th {
+  z-index: 2;
+}
+
+/* The data dialog (components/data-modal.tsx): a wide window over the page
+   for a file's first rows. The head and foot stay put while the table in
+   the middle scrolls both ways. On a phone it's the whole screen. */
+.sx-dm {
+  width: min(92rem, 100vw - 2rem);
+  max-width: none;
+  max-height: min(85dvh, 60rem);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ffx-radius-md);
+  background: var(--ffx-surface);
+  color: var(--ffx-ink);
+  box-shadow: var(--ffx-shadow-overlay);
+  overflow: hidden;
+  opacity: 0;
+  translate: 0 0.5rem;
+  transition:
+    opacity 160ms ease,
+    translate 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    display 160ms allow-discrete,
+    overlay 160ms allow-discrete;
+}
+.sx-dm[open] {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  translate: 0 0;
+}
+/* A document reads as a tree, which is narrow; a table is as wide as it can get. */
+.sx-dm[data-kind="json"] {
+  width: min(56rem, 100vw - 2rem);
+}
+@starting-style {
+  .sx-dm[open] {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+.sx-dm::backdrop {
+  background: rgb(19 26 34 / 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-dm {
+    transition: none;
+  }
+}
+.sx-dm-head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--ffx-rule);
+}
+/* The title is the asset's or the document's; without one, the file name, in mono. */
+.sx-dm-title {
+  font-family: var(--ffx-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+.sx-dm-title[data-mono] {
+  font-family: var(--ffx-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+/* The sub line: the format tag, the file name, then the stats, dotted apart. */
+.sx-dm-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0.2rem 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-sub .sx-tag {
+  align-self: center;
+}
+.sx-dm-file {
+  font-family: var(--ffx-mono);
+  font-size: 11.5px;
+  color: var(--ffx-ink-sec);
+  overflow-wrap: anywhere;
+}
+.sx-dm-acts {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+/* Close stands as tall as the small buttons beside it. */
+.sx-dm-acts .sx-sheet-btn {
+  width: 1.875rem;
+  height: 1.875rem;
+}
+.sx-dm-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.sx-dm-note {
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1.25rem calc(0.625rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-dm-foot .sx-dm-note {
+  padding: 0;
+}
+/* Expand all · Collapse all, at the foot's right. */
+.sx-dm-foot-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-dim);
+}
+.sx-dm-foot-acts .sx-linkbtn {
+  font-size: var(--ffx-t-micro);
+}
+/* Tree | Text: two pressed-state buttons in one bordered pill. */
+.sx-seg {
+  display: inline-flex;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--ffx-rule);
+  border-radius: 999px;
+  background: var(--ffx-surface);
+}
+.sx-seg button {
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+}
+.sx-seg button:hover {
+  color: var(--ffx-ink);
+}
+.sx-seg button[aria-pressed="true"] {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
+}
+.sx-seg button:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: -2px;
+}
+@media (max-width: 39.99rem) {
+  .sx-dm,
+  .sx-dm[data-kind="json"] {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .sx-dm-scroll {
+    flex: 1 1 auto;
+  }
+}
+/* A JSON document as a tree (components/json-tree.tsx): keys and values in
+   mono, counts and controls in the body face, nested levels on a guide. */
+.sx-json {
+  padding: 0.75rem 1.25rem 1rem;
+  font-size: var(--ffx-t-small);
+  line-height: 22px;
+  color: var(--ffx-ink);
+}
+.sx-json-row,
+.sx-json-node > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  min-width: 0;
+}
+/* A leaf sits under a node's key: the chevron's 16px box and the 6px after it. */
+.sx-json-row {
+  padding-left: 22px;
+}
+.sx-json-node > summary {
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+.sx-json-node > summary::-webkit-details-marker {
+  display: none;
+}
+.sx-json-node > summary:hover {
+  background: var(--ffx-surface-sunken);
+}
+/* Children sit on a guide line under the middle of the parent's chevron. */
+.sx-json-kids {
+  margin-left: 7px;
+  padding-left: 16px;
+  border-left: 1px solid var(--ffx-rule);
+}
+.sx-json-key,
+.sx-json-idx,
+.sx-json-str,
+.sx-json-num,
+.sx-json-lit,
+.sx-json-inline {
+  font-family: var(--ffx-mono);
+}
+.sx-json-key {
+  color: var(--ffx-ink-sec);
+}
+.sx-json-idx {
+  color: var(--ffx-ink-dim);
+}
+.sx-json-key::after,
+.sx-json-idx::after {
+  content: ":";
+  color: var(--ffx-ink-dim);
+}
+.sx-json-str,
+.sx-json-inline {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+a.sx-json-str {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+}
+.sx-json-inline {
+  color: var(--ffx-ink-sec);
+}
+.sx-json-lit {
+  color: var(--ffx-ink-mut);
+  font-style: italic;
+}
+.sx-json-badge {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-json-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-dim);
+}
+.sx-json-more {
+  margin: 0.125rem 0 0.25rem 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-active-text);
+  cursor: pointer;
+}
+/* The same document as text (JsonText): keys secondary, strings ink,
+   literals muted, URLs as links. */
+.sx-json-text {
+  margin: 0;
+  padding: 0.75rem 1.25rem 1rem;
+  font-family: var(--ffx-mono);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--ffx-ink);
+  white-space: pre;
+  tab-size: 2;
+}
+.sx-json-tkey {
+  color: var(--ffx-ink-sec);
+}
+.sx-json-text .sx-json-str a {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+}
+
+/* The spinner (components/spinner.tsx): a ring with one blue arc. Loading
+   is the ring with a line beside it, centered in what's still empty. */
+.sx-spinner {
+  display: inline-block;
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--ffx-rule);
+  border-top-color: var(--ffx-river);
+  border-radius: 50%;
+  animation: sx-spin 0.8s linear infinite;
+}
+.sx-spinner-lg {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-width: 2.5px;
+}
+@keyframes sx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-spinner {
+    animation-duration: 2.4s;
+  }
+}
+.sx-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1.5rem 1rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-scroll .sx-loading {
+  padding: 3.5rem 1rem;
+}
+
+/* A panel head with a note and a button side by side. */
+.sx-panel-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.sx-panel-acts > .ffx-btn {
+  height: 1.625rem;
+  padding: 0 0.5rem;
+}
+
+/* A panel linked to by its id lands under the sticky header. */
+.ffx-panel[id] {
+  scroll-margin-top: calc(var(--ffx-header) + 0.75rem);
+}
+
+/* Key beside value. The label column is 160px at every depth, nested tables
+   too, and fixed so a value cut with an ellipsis can't widen it. */
+.sx-meta {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--ffx-t-base);
+}
+.sx-meta th {
+  width: calc(160px + var(--ffx-panel-pad));
+  padding: 0.5rem var(--ffx-panel-pad) 0.5rem var(--ffx-panel-pad);
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  color: var(--ffx-ink-mut);
+  border-bottom: 1px solid var(--ffx-grid);
+}
+.sx-meta td {
+  padding: 0.5rem var(--ffx-panel-pad) 0.5rem 0;
+  vertical-align: top;
+  color: var(--ffx-ink);
+  border-bottom: 1px solid var(--ffx-grid);
+  overflow-wrap: anywhere;
+}
+.sx-meta tr:last-child th,
+.sx-meta tr:last-child td {
+  border-bottom: 0;
+}
+.sx-meta .sx-meta {
+  font-size: var(--ffx-t-small);
+  margin: -0.25rem 0;
+}
+.sx-meta .sx-meta th {
+  width: 160px;
+  padding-left: 0;
+}
+.sx-meta .sx-meta th,
+.sx-meta .sx-meta td {
+  padding-block: 0.25rem;
+}
+.sx-meta .sx-meta tr:last-child th,
+.sx-meta .sx-meta tr:last-child td {
+  border-bottom: 0;
+}
+.sx-meta-group {
+  padding: 0.875rem var(--ffx-panel-pad) 0.25rem;
+  font-size: var(--ffx-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+@media (max-width: 39.99rem) {
+  .sx-meta,
+  .sx-meta tbody,
+  .sx-meta tr,
+  .sx-meta th,
+  .sx-meta td {
+    display: block;
+    width: auto;
+  }
+  .sx-meta th {
+    padding-bottom: 0;
+    border-bottom: 0;
+    font-size: var(--ffx-t-micro);
+  }
+  .sx-meta td {
+    padding-left: var(--ffx-panel-pad);
+    padding-top: 0.125rem;
+  }
+  .sx-meta .sx-meta th,
+  .sx-meta .sx-meta td {
+    padding-left: 0;
+  }
+}

@@ -58,6 +58,18 @@ npm run lint
 npm run typecheck
 ```
 
+Check accessibility (WCAG 2.2 AA) against the running dev server. It runs
+axe on each kind of page in light and dark and checks the layout at 320px
+wide. Install its browser once first:
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm run a11y
+```
+
 ## Docker image
 
 Every push to `main` builds the image and publishes it to GitHub's container

@@ -99,6 +99,10 @@ function DataDialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLHeadingElement>(null);
+  const restRef = useRef<HTMLSpanElement>(null);
+  // Set by "Show 100 rows", which goes once they're in: focus moves on to the line that replaces it.
+  const focusRest = useRef(false);
   const [limit, setLimit] = useState(FIRST);
   const [state, setState] = useState<State>({ status: "loading" });
   // The dialog only ever mounts after a click, so the session store is there to read.
@@ -111,8 +115,11 @@ function DataDialog({
     } catch {}
   }
 
+  // Focus starts on the title, so a screen reader says what opened, rather
+  // than on the first button in the head.
   useEffect(() => {
     ref.current?.showModal();
+    headRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -149,6 +156,12 @@ function DataDialog({
   // The width follows what's shown; before that's known, what was asked for.
   const kind = d?.kind ?? (mode === "json" ? "json" : "table");
 
+  useEffect(() => {
+    if (fetching || !focusRest.current) return;
+    focusRest.current = false;
+    restRef.current?.focus();
+  }, [fetching]);
+
   // The sub line after the file name: the stats, each part dotted apart.
   const stats: ReactNode[] = table
     ? [
@@ -172,6 +185,9 @@ function DataDialog({
       : [state.status === "error" ? "Couldn't read the file." : "Reading…"];
 
   return (
+    // The click handler only closes on a backdrop click; Escape and the Close
+    // button do the same from the keyboard.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={ref}
       className="sx-dm"
@@ -185,7 +201,7 @@ function DataDialog({
     >
       <div className="sx-dm-head">
         <div className="min-w-0">
-          <h2 id="dm-h" className="sx-dm-title" data-mono={title ? undefined : ""}>
+          <h2 id="dm-h" ref={headRef} tabIndex={-1} className="sx-dm-title" data-mono={title ? undefined : ""}>
             {title ?? file}
           </h2>
           <p className="sx-dm-sub">
@@ -253,7 +269,16 @@ function DataDialog({
         <div className="sx-dm-foot">
           {more && limit < MORE ? (
             <>
-              <button type="button" className="ffx-btn ffx-btn-sm" onClick={() => setLimit(MORE)} disabled={fetching}>
+              <button
+                type="button"
+                className="ffx-btn ffx-btn-sm"
+                aria-disabled={fetching || undefined}
+                onClick={() => {
+                  if (fetching) return;
+                  focusRest.current = true;
+                  setLimit(MORE);
+                }}
+              >
                 {fetching ? (
                   <>
                     <Spinner /> Reading…
@@ -275,7 +300,9 @@ function DataDialog({
               </span>
             </>
           ) : (
-            <span className="sx-dm-note">{more ? "The rest is in the file. Download it to see every row." : "That's every row."}</span>
+            <span ref={restRef} tabIndex={-1} className="sx-dm-note">
+              {more ? "The rest is in the file. Download it to see every row." : "That's every row."}
+            </span>
           )}
         </div>
       )}

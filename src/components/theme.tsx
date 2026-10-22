@@ -7,7 +7,7 @@ import { useLayoutEffect, useSyncExternalStore } from "react";
  * Theme handling, as in ffrd-x. The script runs before paint and sets
  * data-theme on <html> from localStorage so there is no flash of the wrong
  * palette. With no stored preference the attribute stays absent and the OS
- * decides through the media query in globals.css.
+ * decides through the media query in styles/tokens.css.
  */
 const SCRIPT = `(function(){try{var t=localStorage.getItem("sx-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t)}}catch(e){}})()`;
 

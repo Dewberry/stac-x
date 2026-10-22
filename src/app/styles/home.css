@@ -1,0 +1,1319 @@
+/* ============================== home page ===============================
+
+   A console for people who already know FFRD: the collections rail on the
+   left, the map on the right, edge to edge under the environment band. The
+   selected collection opens in its row, items and all, and the map frames
+   it. From lg the page doesn't scroll; only the rail's list does, and the
+   item block inside the open row. The body becomes
+   exactly the window's height and main takes what the header and the band
+   leave, so a band that wraps is accounted for. The footer, and its theme
+   control, are on every other page. On a phone it's a plain column: the
+   map, then the rail. */
+.sx-home {
+  display: block;
+}
+@media (min-width: 64rem) {
+  body:has(.sx-home) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  body:has(.sx-home) > main {
+    display: flex;
+    min-height: 0;
+    max-width: none;
+  }
+  body:has(.sx-home) > .sx-footer {
+    display: none;
+  }
+  /* The header and the band run the full width too, with their edges on
+     the rail's 16px so the wordmark sits over "Collections". */
+  body:has(.sx-home) :is(.sx-header-inner, .ffx-envband-inner) {
+    max-width: none;
+    padding-inline: 16px;
+  }
+  .sx-home {
+    flex: 1;
+    display: flex;
+    min-width: 0;
+  }
+}
+
+/* A review state's filter button, in the rail head on a phone: mark, bold
+   count, label. */
+.sx-rail-states {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 0 -6px;
+}
+.sx-state-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 90ms linear;
+}
+.sx-state-btn b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-state-btn:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-state-btn[aria-pressed="true"] {
+  background: var(--ffx-n-150);
+  color: var(--ffx-ink);
+}
+:root[data-theme="dark"] .sx-state-btn[aria-pressed="true"] {
+  background: var(--ffx-surface-raised);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sx-state-btn[aria-pressed="true"] {
+    background: var(--ffx-surface-raised);
+  }
+}
+
+/* On a wide screen the states are a compact legend; on a phone they stay
+   touch-sized. */
+@media (min-width: 64rem) {
+  .sx-rail-states {
+    gap: 4px 12px;
+  }
+  .sx-state-btn {
+    min-height: 20px;
+    gap: 7px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+
+/* The review state as a mark: filled in the state's color, or a hollow ring
+   for not reviewed. One rule for the pins, rows, buttons and legend. */
+.sx-qc-mark {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ffx-ink);
+}
+.sx-qc-mark[data-qc="approved"] {
+  background: var(--ffx-verified);
+}
+.sx-qc-mark[data-qc="needs_revision"] {
+  background: var(--ffx-attn);
+}
+.sx-qc-mark[data-qc="rejected"] {
+  background: var(--ffx-bad);
+}
+.sx-qc-mark[data-qc="pending"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ffx-qc-none);
+}
+
+.sx-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin: 0;
+}
+.sx-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--ffx-radius-md);
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-card);
+}
+.sx-stat dd {
+  margin: 0;
+  font-family: var(--ffx-display);
+  font-size: clamp(1.25rem, 1.05rem + 0.6vw, 1.5rem);
+  line-height: 1.1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+  color: var(--ffx-ink);
+  white-space: nowrap;
+}
+.sx-stat dt {
+  font-size: var(--ffx-t-tiny);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sx-stat[data-tone="verified"] dd {
+  color: var(--ffx-verified-text);
+}
+@media (min-width: 64rem) {
+  .sx-stats {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  .sx-stat {
+    min-width: 8rem;
+  }
+}
+
+/* The console. On a phone the map is a band across the top and the rail a
+   plain block under it. From lg the rail is a fixed column and the map
+   takes the rest, both full height. */
+.sx-console {
+  display: flex;
+  flex-direction: column;
+}
+.sx-console-map {
+  position: relative;
+  scroll-margin-top: var(--ffx-header);
+  height: 360px;
+  overflow: hidden;
+  background: var(--ffx-surface-inset);
+}
+.sx-console-map .sx-home-map,
+.sx-console-map .ffx-map {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sx-console-map .ffx-map-canvas,
+.sx-console-map .sx-home-canvas {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.sx-console-map .ffx-map-readout {
+  background: transparent;
+  border-top: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  padding: 12px;
+}
+.sx-console-map .ffx-map-readout > * {
+  pointer-events: auto;
+}
+.sx-console-map .ffx-map-credit {
+  background: var(--ffx-glass);
+  border-radius: 6px;
+  padding: 0.1rem 0.45rem;
+}
+/* Zoom and fit: one white column of buttons. */
+.sx-console-map .maplibregl-ctrl-top-right {
+  top: 14px;
+  right: 14px;
+}
+.sx-console-map .maplibregl-ctrl-top-right .maplibregl-ctrl {
+  margin: 0;
+}
+.sx-console-map .ffx-map-ctl {
+  width: 34px;
+  border: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-float);
+}
+.sx-console-map .ffx-map-ctl button {
+  width: 34px;
+  height: 34px;
+  color: var(--ffx-ink-sec);
+}
+.sx-console-map .ffx-map-ctl button + button {
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-console-map .ffx-map-ctl svg {
+  width: 18px;
+  height: 18px;
+}
+.sx-rail {
+  display: flex;
+  flex-direction: column;
+  background: var(--ffx-surface);
+}
+.sx-rail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-rail-note {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ffx-rule);
+  font-size: var(--ffx-t-small);
+  line-height: 1.45;
+  color: var(--ffx-bad-text);
+  background: var(--ffx-bad-pale);
+}
+.sx-rail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sx-rail-title h2 {
+  font-family: var(--ffx-display);
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.sx-rail-count {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink-mut);
+}
+.sx-rail-head .ffx-field {
+  height: 36px;
+  padding-inline: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+@media (min-width: 64rem) {
+  .sx-rail-head .ffx-field {
+    height: 32px;
+  }
+}
+/* "Group by review": a small switch and its label, at the end of the title row. */
+.sx-group-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+}
+.sx-group-switch:hover {
+  color: var(--ffx-ink-sec);
+}
+.sx-group-switch:disabled {
+  cursor: default;
+}
+.sx-switch {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--ffx-control-edge);
+  transition: background-color 120ms linear;
+}
+.sx-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ffx-surface);
+  box-shadow: 0 1px 2px rgb(19 26 34 / 0.2);
+  transition: transform 120ms ease-out;
+}
+.sx-group-switch[aria-pressed="true"] .sx-switch {
+  background: var(--ffx-ink);
+}
+.sx-group-switch[aria-pressed="true"] .sx-switch::after {
+  transform: translateX(10px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-switch,
+  .sx-switch::after {
+    transition: none;
+  }
+}
+/* Under the search box: how many collections the search found. */
+.sx-search-line {
+  margin: -2px 0 0;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-search-line b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+/* The groups a search left empty, folded into one line at the end of the list. */
+.sx-rail-fold {
+  padding: 16px;
+  font-size: var(--ffx-t-small);
+  line-height: 1.45;
+  color: var(--ffx-ink-mut);
+}
+.sx-rail-fold button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.sx-rail-fold button:hover {
+  text-decoration-thickness: 2px;
+}
+.sx-filter-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-filter-line b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-filter-line button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ffx-active-text);
+  cursor: pointer;
+}
+.sx-filter-line button:hover {
+  text-decoration: underline;
+}
+.sx-rail-list,
+.sx-rail-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sx-rail-list {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+/* Group headings stay at the top of the list while their rows scroll. */
+.sx-group-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 16px 4px;
+  background: var(--ffx-surface);
+}
+/* A section label, not a heading: small caps in muted ink, so the rows
+   under it carry the weight. */
+.sx-group-head h3 {
+  font: 600 var(--ffx-t-tiny) / 1.3 var(--ffx-sans);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-group-head span {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+/* A row: the name over one line of facts, the count and its unit at the
+   right, and a rule under it so each row has an edge. */
+.sx-rail-item .sx-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  padding: 10px 16px;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--ffx-rule);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.sx-rail-item .sx-row:focus-visible {
+  outline-offset: -2px;
+}
+.sx-rail-item .sx-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sx-rail-item .sx-row-title {
+  font-size: var(--ffx-t-base);
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+/* One run of text, not the flex row .sx-row-sub is elsewhere, so the
+   spaces around each middle dot stay. */
+.sx-rail-item .sx-row-sub {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ffx-ink-mut);
+}
+.sx-rail-item .sx-row-sub .sx-tag {
+  height: 1rem;
+  margin-left: 6px;
+  vertical-align: top;
+}
+/* A decided review state leads the line, in its own color. Not reviewed
+   shows nothing. */
+.sx-row-qc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.sx-row-qc[data-qc="approved"] {
+  color: var(--ffx-verified-text);
+}
+.sx-row-qc[data-qc="needs_revision"] {
+  color: var(--ffx-attn-text);
+}
+.sx-row-qc[data-qc="rejected"] {
+  color: var(--ffx-bad-text);
+}
+/* The count, with the preview eye's slot to its left, over the unit. */
+.sx-rail-item .sx-row-aside {
+  display: grid;
+  grid-template-columns: 14px auto;
+  align-items: center;
+  justify-items: end;
+  gap: 2px 6px;
+  min-width: 48px;
+}
+.sx-row-eye {
+  display: flex;
+  visibility: hidden;
+  color: var(--ffx-active-text);
+}
+.sx-row-eye[data-on] {
+  visibility: visible;
+}
+.sx-rail-item .sx-row-unit {
+  grid-column: 1 / -1;
+}
+.sx-row-fig {
+  font-family: var(--ffx-display);
+  font-size: 15px;
+  line-height: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ffx-ink);
+}
+.sx-row-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--ffx-ink-mut);
+}
+.sx-row-unit svg {
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+/* On a phone the rows are roomier and the name and figure a step up. */
+@media (max-width: 39.99rem) {
+  .sx-rail-item .sx-row {
+    padding: 12px 16px;
+  }
+  .sx-rail-item .sx-row-title {
+    line-height: 20px;
+  }
+  .sx-row-fig {
+    font-size: 16px;
+    line-height: 20px;
+  }
+}
+.sx-rail-item .sx-row:hover,
+.sx-rail-item[data-active="true"] .sx-row {
+  background: var(--ffx-surface-sunken);
+}
+/* The row the map is previewing: a pale edge, so the rail shows the
+   candidate beside the selection without the two reading alike. */
+.sx-rail-item[data-preview] .sx-row {
+  background: var(--ffx-surface-sunken);
+  box-shadow: inset 4px 0 0 var(--ffx-river-pale);
+}
+/* The selected row is tinted river blue, the color its footprint is drawn
+   in, so it reads as the one on the map and not as a hover. */
+.sx-rail-item[data-open="true"] {
+  background: color-mix(in srgb, var(--ffx-active) 9%, var(--ffx-surface));
+  box-shadow: inset 4px 0 0 var(--ffx-river);
+}
+/* An open row's item carries the background and the edge for both parts,
+   and the rule moves from under its head to under the whole item. */
+.sx-rail-item[data-open="true"] {
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-rail-item[data-open="true"] .sx-row {
+  border-bottom: 0;
+  background: none;
+  box-shadow: none;
+}
+/* What opens under the row's head: the description, the facts, the QC
+   line, the way in, then the items. Everything starts at the head's left
+   edge. */
+.sx-row-more {
+  display: grid;
+  gap: 12px;
+  padding: 2px 16px 0;
+}
+/* A note instead of the items (they couldn't be loaded) ends the row with a little room. */
+.sx-row-more > .sx-pv-cover {
+  padding-bottom: 12px;
+}
+@media (max-width: 63.99rem) {
+  .sx-row-more {
+    display: none;
+  }
+}
+
+/* What a selected collection shows, in its row or in the phone's sheet. */
+.sx-pv {
+  display: grid;
+  gap: 12px;
+}
+.sx-pv-desc {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink-sec);
+}
+/* The collection's facts, two to a line; providers and keywords take the
+   whole line. Labels are small caps so the values carry the weight. */
+.sx-pv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 0;
+}
+.sx-pv-grid > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sx-pv-grid > div[data-wide] {
+  grid-column: 1 / -1;
+}
+.sx-pv-grid dt {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-pv-grid dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+.sx-pv-grid .ffx-id {
+  font-size: 11px;
+}
+/* The count as a figure with its unit, in the phone's sheet header. */
+.sx-pv-figs {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+}
+.sx-pv-figs b {
+  font: 600 24px / 28px var(--ffx-display);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  color: var(--ffx-ink);
+}
+.sx-pv-figs span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ffx-ink-mut);
+}
+.sx-pv-figs svg {
+  flex: none;
+}
+/* The line under the figures when the collection covers the whole area. */
+.sx-pv-cover {
+  margin: 0;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+/* The QC line, under a rule so it reads apart from the facts. */
+.sx-pv-facts {
+  padding-top: 12px;
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-pv-facts dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink-mut);
+}
+.sx-pv-facts dl > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.sx-pv-facts dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-weight: 500;
+  color: var(--ffx-ink);
+}
+.sx-pv-note {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--ffx-surface);
+  box-shadow: 0 0 0 1px var(--ffx-n-150);
+}
+.sx-pv-note figcaption {
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
+.sx-pv-note blockquote {
+  margin: 2px 0 0;
+  font-size: var(--ffx-t-small);
+  line-height: 1.45;
+  color: var(--ffx-ink);
+}
+:root[data-theme="dark"] .sx-pv-note {
+  box-shadow: 0 0 0 1px var(--ffx-rule);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sx-pv-note {
+    box-shadow: 0 0 0 1px var(--ffx-rule);
+  }
+}
+/* The map's corner pills, above the credits: what the map is framed to,
+   with the way back to the whole area, and what a search dimmed. */
+.sx-map-pills {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.sx-map-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-float);
+  font: inherit;
+  font-size: var(--ffx-t-micro);
+  line-height: 1.2;
+  color: var(--ffx-ink-sec);
+  white-space: nowrap;
+}
+.sx-map-pill b {
+  font-weight: 600;
+}
+button.sx-map-pill {
+  color: var(--ffx-active-text);
+  cursor: pointer;
+}
+button.sx-map-pill:hover {
+  background: var(--ffx-n-50);
+}
+button.sx-map-pill svg {
+  flex: none;
+}
+/* One item under the cursor on the home map: its name, its id and dates,
+   and what a click does, on a white card. */
+.ffx-map-tip.sx-map-tip {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-width: 14rem;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--ffx-surface);
+  white-space: normal;
+}
+.sx-map-tip-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--ffx-t-base);
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-map-tip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--ffx-ink-mut);
+}
+.sx-map-tip-meta .ffx-id {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink-sec);
+}
+.sx-map-tip-hint {
+  margin-top: 5px;
+  color: var(--ffx-active-text);
+}
+.sx-pv-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+.sx-pv-btns .ffx-btn {
+  height: 32px;
+}
+/* The one action takes the whole row, outlined in river blue as a way in
+   rather than a commit. */
+.sx-pv-go {
+  flex: 1;
+  height: 36px;
+  border-color: var(--ffx-river);
+  border-radius: 8px;
+  background: var(--ffx-surface);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--ffx-active-text);
+}
+.sx-pv-go:hover {
+  border-color: var(--ffx-river);
+  background: color-mix(in srgb, var(--ffx-active) 8%, var(--ffx-surface));
+}
+
+/* The items inside the open row and the phone's sheet: a white block of
+   name-only rows, flush with the row's edges, scrolling inside the rail
+   under a fade, with a line under it saying how many more are below. */
+.sx-items-compact .ffx-toolbar {
+  padding: 0;
+  gap: 8px;
+}
+.sx-items-compact .ffx-toolbar .ffx-field {
+  height: 32px;
+  padding-inline: 10px;
+  background: var(--ffx-surface);
+  font-size: var(--ffx-t-small);
+}
+.sx-items-compact .ffx-toolbar .ffx-field {
+  max-width: none;
+}
+.sx-items-compact .sx-empty {
+  padding: 12px 0 4px;
+  text-align: left;
+}
+.sx-item-block {
+  position: relative;
+  margin: 10px -16px 0;
+  background: var(--ffx-surface);
+  border-top: 1px solid var(--ffx-rule);
+  border-bottom: 1px solid var(--ffx-rule);
+}
+/* With no search box above it, the block follows the button at the row's own gap. */
+.sx-items-compact > .sx-item-block:first-child {
+  margin-top: 0;
+}
+/* Five 40px rows show before the block scrolls; the line under it says how many more. */
+.sx-item-list {
+  max-height: 204px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.sx-item-block[data-more]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18px;
+  background: linear-gradient(transparent, var(--ffx-surface));
+  pointer-events: none;
+}
+.sx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px 10px 16px;
+  border-top: 1px solid var(--ffx-n-150);
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink);
+  text-decoration: none;
+}
+.sx-item:first-child {
+  border-top: 0;
+}
+.sx-item:hover {
+  background: var(--ffx-n-50);
+}
+.sx-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* An item named by its id, where the collection's items share one name. */
+.sx-item-name.ffx-id {
+  font-size: 11px;
+}
+.sx-item > svg {
+  flex: none;
+  color: var(--ffx-n-400);
+}
+.sx-item .sx-tag {
+  flex: none;
+}
+/* The row the map is pointing at, or a search found. */
+.sx-item[data-active] {
+  background: var(--ffx-surface-sunken);
+  box-shadow: inset 3px 0 0 var(--ffx-river);
+}
+.sx-item[data-active] .sx-item-name {
+  color: var(--ffx-active-text);
+}
+.sx-item mark {
+  border-radius: 2px;
+  background: var(--ffx-amber-pale);
+  color: inherit;
+}
+.sx-item-foot {
+  margin: 0;
+  padding: 6px 0 10px;
+  font-size: var(--ffx-t-micro);
+  line-height: 1.4;
+  color: var(--ffx-ink-mut);
+}
+/* Underlined, not just blue: in a sentence, color alone doesn't mark a
+   link out from the text around it (WCAG 1.4.1). */
+.sx-item-foot a,
+.sx-item-foot button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.sx-item-foot a:hover,
+.sx-item-foot button:hover {
+  text-decoration-thickness: 2px;
+}
+/* The rows' stand-in while they load, under the open row's head. */
+.sx-loading-items {
+  margin: 10px -16px 0;
+  padding: 6px 16px;
+  background: var(--ffx-surface);
+  border-top: 1px solid var(--ffx-rule);
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-loading-items li {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto;
+  padding: 10px 0;
+}
+:root[data-theme="dark"] .sx-item {
+  border-top-color: var(--ffx-rule);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sx-item {
+    border-top-color: var(--ffx-rule);
+  }
+}
+
+/* The phone's sheet over the page: two thirds of the window, dragged to
+   the top by its handle, with the items filling what the head leaves. On a
+   wide screen the selected row opens in the rail instead. */
+.sx-preview {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  height: 65dvh;
+  overflow: hidden;
+  background: var(--ffx-surface);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -10px 32px rgb(19 26 34 / 0.14), 0 -1px 2px rgb(19 26 34 / 0.08);
+  color: var(--ffx-ink);
+  transition: height 160ms ease-out;
+}
+.sx-preview[data-full] {
+  height: calc(100dvh - var(--ffx-header));
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-preview {
+    transition: none;
+  }
+}
+.sx-preview-handle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: grab;
+  touch-action: none;
+}
+.sx-preview-handle i {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ffx-n-300);
+}
+.sx-preview-top {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0 20px;
+}
+.sx-preview-body {
+  flex: none;
+  display: grid;
+  gap: 12px;
+  padding: 12px 20px 0;
+}
+.sx-preview .sx-items-compact {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 14px 20px 0;
+}
+.sx-preview .sx-item-block {
+  flex: 1;
+  min-height: 0;
+  margin: 10px -20px 0;
+  border-bottom: 0;
+}
+.sx-preview .sx-item-list {
+  max-height: none;
+  height: 100%;
+}
+.sx-preview .sx-item {
+  padding: 15px 20px 14px;
+}
+.sx-preview .sx-pv-go {
+  height: 44px;
+}
+.sx-preview .sx-item-foot {
+  display: none;
+}
+.sx-preview-x {
+  flex: none;
+  width: 1.625rem;
+  height: 1.625rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+}
+.sx-preview-x:hover {
+  color: var(--ffx-ink);
+}
+.sx-preview-head {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+/* One run of text, not the flex row .sx-row-sub is elsewhere, so the
+   spaces around each middle dot stay. */
+.sx-preview-head .sx-row-sub {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink-mut);
+}
+.sx-preview-title {
+  font-family: var(--ffx-display);
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 64rem) {
+  .sx-preview {
+    display: none;
+  }
+}
+@media (min-width: 64rem) {
+  .sx-console {
+    flex: 1;
+    flex-direction: row-reverse;
+    min-width: 0;
+    min-height: 0;
+  }
+  .sx-console-map {
+    flex: 1;
+    min-width: 0;
+    height: auto;
+  }
+  .sx-rail {
+    width: 372px;
+    flex: none;
+    min-height: 0;
+    border-right: 1px solid var(--ffx-rule);
+  }
+  .sx-rail-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+/* The landing page while the catalog loads (components/home-loading.tsx):
+   the area traced where the map goes, placeholder rows in the rail. */
+.sx-loading-map {
+  display: grid;
+  place-items: center;
+}
+.sx-loading-area {
+  position: absolute;
+  inset: 24px;
+  width: calc(100% - 48px);
+  height: calc(100% - 48px);
+}
+.sx-loading-area-under {
+  fill: var(--ffx-trace);
+  fill-opacity: 0.1;
+  stroke: var(--ffx-ink);
+  stroke-opacity: 0.28;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.sx-loading-area-trace {
+  fill: none;
+  stroke: var(--ffx-trace-strong);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 0.16 0.84;
+  animation: sx-trace 2.8s linear infinite;
+}
+@keyframes sx-trace {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+.sx-loading-status {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-loading-rows {
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+}
+.sx-loading-rows li {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 5px 10px;
+  padding: 10px 16px;
+}
+.sx-loading-rows i,
+.sx-loading-rows b,
+.sx-loading-rows s {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--ffx-rule) 0 38%, var(--ffx-surface-inset) 50%, var(--ffx-rule) 62% 100%);
+  background-size: 240% 100%;
+  animation: sx-shimmer 1.8s ease-in-out infinite;
+}
+.sx-loading-rows i {
+  grid-row: 1 / 3;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+}
+.sx-loading-rows b {
+  height: 12px;
+  width: var(--w, 50%);
+}
+.sx-loading-rows s {
+  height: 9px;
+  width: calc(var(--w, 50%) * 0.6);
+}
+.sx-loading-states {
+  height: 44px;
+}
+@keyframes sx-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+/* The map's bottom edge: credits on the left, the review menu on the right. */
+.sx-console-map .ffx-map-readout {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.sx-credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.sx-credit-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ffx-glass);
+  box-shadow: var(--ffx-shadow-float);
+  font: italic 600 var(--ffx-t-micro) / 1 Georgia, serif;
+  color: var(--ffx-ink-sec);
+  cursor: pointer;
+}
+.sx-credit .ffx-map-credit {
+  margin-left: 0;
+  justify-content: flex-start;
+}
+/* Under a page map the readout's hint sits left and the credit button right.
+   The home map's readout puts its own key on the right instead. */
+.ffx-map:not(.sx-home-map) .ffx-map-readout .sx-credit {
+  margin-left: auto;
+}
+.sx-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+.sx-map-key {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.sx-density-box {
+  display: flex;
+  border-radius: 10px;
+  background: var(--ffx-glass);
+  box-shadow: var(--ffx-shadow-float);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 8px 12px;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-sec);
+}
+.sx-legend-step {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+}
+.sx-legend-step[data-step="1"] {
+  background: color-mix(in srgb, var(--ffx-trace) 50%, transparent);
+}
+.sx-legend-step[data-step="2"] {
+  background: color-mix(in srgb, var(--ffx-trace-strong) 42%, transparent);
+}
+.sx-legend-step[data-step="3"] {
+  background: color-mix(in srgb, var(--ffx-trace-deep) 62%, transparent);
+}
+/* Beside a shape's name in a list, tooltip or card: which of the three
+   blues it's drawn in (tintColor in map-core.ts). Stronger than the fills,
+   which are translucent over the ground, so the three stay apart at 10px
+   in both themes. */
+.sx-swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+.sx-swatch[data-step="1"] {
+  background: color-mix(in srgb, var(--ffx-trace) 90%, transparent);
+}
+.sx-swatch[data-step="2"] {
+  background: color-mix(in srgb, var(--ffx-trace-strong) 75%, transparent);
+}
+.sx-swatch[data-step="3"] {
+  background: color-mix(in srgb, var(--ffx-trace-deep) 85%, transparent);
+}
+/* On a phone the menu's buttons are in the rail head instead. */
+@media (max-width: 63.99rem) {
+  .sx-map-key {
+    display: none;
+  }
+}
+
+/* iOS zooms the whole page when a focused control's text is under 16px, and
+   doesn't zoom back. Last in the file so it wins over the controls' own sizes. */
+@media (pointer: coarse) {
+  :root :is(input:not([type="checkbox"], [type="radio"]), select, textarea) {
+    font-size: 1rem;
+  }
+}

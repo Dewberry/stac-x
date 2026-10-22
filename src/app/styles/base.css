@@ -1,0 +1,261 @@
+/* ============================== base ============================== */
+
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--ffx-rule);
+  }
+  html {
+    font-family: var(--ffx-sans);
+    background-color: var(--ffx-bg);
+    /* The header is sticky, so whatever focus or a #link scrolls to stops
+       below it rather than under it. */
+    scroll-padding-top: calc(var(--ffx-header) + 0.75rem);
+  }
+  body {
+    background-color: var(--ffx-bg);
+    color: var(--ffx-ink);
+    font-size: var(--ffx-t-base);
+    line-height: var(--ffx-t-base-lh);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--ffx-river);
+    color: #fff;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ffx-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+/* ============================ typography ============================ */
+
+/* Identifiers: site numbers, S3 keys, HUCs. Never prose. */
+.ffx-id {
+  font-family: var(--ffx-mono);
+  font-size: 0.94em;
+  letter-spacing: -0.01em;
+}
+/* Measured quantities: tabular figures in the sans. */
+.ffx-num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.ffx-prose {
+  font-size: var(--ffx-t-body);
+  line-height: 1.62;
+  max-width: 68ch;
+  color: var(--ffx-ink-sec);
+}
+.sx-display {
+  font-family: var(--ffx-display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* ============================ structure ============================ */
+
+.ffx-shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: var(--ffx-shell-max);
+}
+
+/* A card: white, rounded, lifted by a soft shadow, no border. */
+.ffx-panel {
+  background: var(--ffx-surface);
+  border-radius: var(--ffx-radius-md);
+  box-shadow: var(--ffx-shadow-card);
+  min-width: 0;
+  overflow: hidden;
+}
+.ffx-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem var(--ffx-panel-pad) 0.5rem;
+}
+.ffx-panel-title {
+  font-family: var(--ffx-display);
+  font-size: var(--ffx-t-head);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ffx-ink);
+}
+.ffx-panel-note {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.ffx-panel-body {
+  padding: var(--ffx-panel-pad);
+}
+
+/* The page: a title row, then the two columns. */
+.sx-page {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  padding: 0.5rem var(--ffx-edge) var(--ffx-edge);
+}
+@media (min-width: 40rem) {
+  :root {
+    --ffx-edge: 1.25rem;
+  }
+}
+.sx-cols {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  align-items: start;
+}
+.sx-col {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  min-width: 0;
+}
+/* Two even columns, as STAC Browser has them. Below 64rem they stack in
+   source order, the left column first, which is also STAC Browser's order. */
+@media (min-width: 64rem) {
+  .sx-cols {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* The header block sits on the canvas, no card around it, one line tall:
+   title and facts on the left, actions on the right. */
+.sx-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 0.375rem 0 0.125rem;
+}
+.sx-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  min-width: 0;
+}
+.sx-title {
+  font-family: var(--ffx-display);
+  font-size: clamp(1.4rem, 1.1rem + 0.9vw, 1.875rem);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+.sx-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-subtitle .ffx-id {
+  font-size: var(--ffx-t-base);
+  background: var(--ffx-surface);
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-xs);
+  padding: 0.1875rem 0.5rem;
+}
+/* What the page is about ("USGS gage", "Storm catalog"), on its own line
+   above the title. */
+.sx-kicker {
+  flex-basis: 100%;
+  margin-bottom: -0.125rem;
+  font-size: var(--ffx-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+/* The trail back to an item's collection, on its own row across the top of
+   the header. Links are quiet until pointed at, and the last crumb, the
+   page itself, is quiet too. Each name clips past a point so a long item
+   title doesn't push the trail onto three lines on a phone. */
+.sx-crumbs {
+  flex-basis: 100%;
+  min-width: 0;
+  margin-bottom: 0.25rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.375rem;
+}
+.sx-crumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.sx-crumbs li > a,
+.sx-crumbs li > span {
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-crumbs a {
+  color: var(--ffx-ink-sec);
+  text-decoration: none;
+}
+.sx-crumbs a:hover {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* The page itself stays quiet: the title right below it carries the weight. */
+.sx-crumbs [aria-current="page"] {
+  color: var(--ffx-ink-sec);
+}
+.sx-crumbs svg {
+  flex: none;
+  color: var(--ffx-ink-dim);
+}
+@media (max-width: 39.99rem) {
+  .sx-crumbs li > a,
+  .sx-crumbs li > span {
+    max-width: 11rem;
+  }
+}
+/* Two groups: getting around (the version picker on a collection) and the
+   page's source (JSON, Download, Copy link), as STAC Browser has them. */
+.sx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.875rem;
+}
+.sx-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}

@@ -4,7 +4,7 @@ import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection, MultiPolygon } from "geojson";
-import type { EnvKey } from "@/lib/env";
+import { envMeta, type EnvKey } from "@/lib/env";
 import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
 import { itemHref } from "@/lib/utils";
@@ -264,15 +264,26 @@ export function HomeConsole({
     [bySlug, selected],
   );
 
+  // Closing the open row or the phone's sheet. Focus inside either would go
+  // down with it, so it moves to the row's button first.
+  const close = useCallback(() => {
+    if (!selected) return;
+    const item = document.querySelector(`.sx-rail [data-slug="${CSS.escape(selected)}"]`);
+    const sheet = document.querySelector(".sx-preview");
+    const at = document.activeElement;
+    if (item?.contains(at) || sheet?.contains(at)) item?.querySelector<HTMLElement>(".sx-row")?.focus({ preventScroll: true });
+    setSelected(null);
+  }, [selected]);
+
   // Escape closes the open row from anywhere on the page.
   useEffect(() => {
     if (!selected) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) setSelected(null);
+      if (e.key === "Escape" && !e.defaultPrevented) close();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [selected]);
+  }, [selected, close]);
 
   // What the map lights up. An item pointed at in the rows lights its shape
   // (a few shapes) or rings its dot (points); a shape pointed at on the map
@@ -303,6 +314,8 @@ export function HomeConsole({
   return (
     <ItemHoverContext.Provider value={hoverValue}>
       <div className="sx-home">
+        {/* The page has no visible title (the header names the app), but a screen reader's outline needs one. */}
+        <h1 className="sr-only">Collections in {envMeta(env).label}</h1>
         <div className="sx-console">
           <div ref={mapBoxRef} className="sx-console-map">
             <HomeMap
@@ -327,7 +340,7 @@ export function HomeConsole({
               area={current}
               rows={rows}
               activeIds={activeIds}
-              onClose={() => setSelected(null)}
+              onClose={close}
             />
           )}
           <HomeRail

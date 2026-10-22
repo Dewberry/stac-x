@@ -81,7 +81,7 @@ export type Palette = ReturnType<typeof palette>;
  * A few stacked shapes each get one of the three blues (lib/overview.ts
  * decides which, as the feature's `tint`): soft, river, deep. A shape with
  * none is river blue. The swatches beside their names (.sx-swatch in
- * globals.css) mix the same three tokens.
+ * styles/home.css) mix the same three tokens.
  */
 export function tintColor(p: Palette): ExpressionSpecification {
   return ["match", ["get", "tint"], 1, p.traceSoft, 2, p.trace, 3, p.traceDeep, p.trace];

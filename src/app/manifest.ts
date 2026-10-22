@@ -10,7 +10,7 @@ import { withBase } from "@/lib/utils";
  * same localhost port, in production with the other apps under one domain.
  *
  * Next doesn't add the base path to anything in here, so every URL goes
- * through withBase. Colors are the canvas and surface tokens from globals.css.
+ * through withBase. Colors are the canvas and surface tokens from styles/tokens.css.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -14,7 +14,10 @@ export function MoreMenu({ children, label = "More actions" }: { children: React
     if (!el) return;
     const close = (e: Event) => {
       if (!el.open) return;
-      if (e instanceof KeyboardEvent ? e.key === "Escape" : !el.contains(e.target as Node)) el.open = false;
+      if (e instanceof KeyboardEvent ? e.key !== "Escape" : el.contains(e.target as Node)) return;
+      // Escape from a link inside would leave focus on something now hidden.
+      if (el.contains(document.activeElement)) el.querySelector("summary")?.focus();
+      el.open = false;
     };
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", close);

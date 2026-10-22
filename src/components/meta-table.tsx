@@ -225,21 +225,25 @@ function MiniCopy({ text }: { text: string }) {
     return () => clearTimeout(t);
   }, [done]);
   return (
-    <button
-      type="button"
-      className="sx-copy-mini"
-      aria-live="polite"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setDone(true);
-        } catch {
-          window.prompt("Copy this", text);
-        }
-      }}
-    >
-      {done ? "Copied" : "Copy"}
-    </button>
+    <>
+      <button
+        type="button"
+        className="sx-copy-mini"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setDone(true);
+          } catch {
+            window.prompt("Copy this", text);
+          }
+        }}
+      >
+        {done ? "Copied" : "Copy"}
+      </button>
+      <span className="sr-only" role="status">
+        {done ? "Copied" : ""}
+      </span>
+    </>
   );
 }
 

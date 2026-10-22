@@ -1,0 +1,78 @@
+/* ============================ status marks ============================ */
+
+.ffx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.5rem;
+  padding: 0 0.6rem 0 0.5rem;
+  border-radius: 999px;
+  font-size: var(--ffx-t-micro);
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--ffx-chip-bg, var(--ffx-surface-sunken));
+  color: var(--ffx-chip-ink, var(--ffx-ink-sec));
+}
+.ffx-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ffx-chip-mark, var(--ffx-neutral));
+}
+.ffx-chip[data-shape="ring"]::before {
+  background: transparent;
+  border: 2px solid var(--ffx-chip-mark, var(--ffx-neutral));
+}
+.ffx-chip[data-shape="bar"]::before {
+  height: 3px;
+  border-radius: 2px;
+}
+.ffx-chip[data-shape="slash"]::before {
+  border-radius: 1px;
+  background: linear-gradient(to top right, transparent 40%, var(--ffx-chip-mark) 40%, var(--ffx-chip-mark) 60%, transparent 60%);
+}
+.ffx-chip[data-tone="verified"] {
+  --ffx-chip-mark: var(--ffx-verified);
+  --ffx-chip-ink: var(--ffx-verified-text);
+  --ffx-chip-bg: var(--ffx-verified-pale);
+}
+.ffx-chip[data-tone="bad"] {
+  --ffx-chip-mark: var(--ffx-bad);
+  --ffx-chip-ink: var(--ffx-bad-text);
+  --ffx-chip-bg: var(--ffx-bad-pale);
+}
+.ffx-chip[data-tone="attn"] {
+  --ffx-chip-mark: var(--ffx-attn);
+  --ffx-chip-ink: var(--ffx-attn-text);
+  --ffx-chip-bg: var(--ffx-attn-pale);
+}
+.ffx-chip[data-tone="active"] {
+  --ffx-chip-mark: var(--ffx-active);
+  --ffx-chip-ink: var(--ffx-active-text);
+}
+.ffx-chip[data-tone="neutral"],
+.ffx-chip[data-tone="idle"] {
+  --ffx-chip-mark: var(--ffx-neutral);
+  --ffx-chip-ink: var(--ffx-neutral-text);
+  --ffx-chip-bg: transparent;
+  padding-inline: 0.25rem;
+}
+
+/* A small tag for a media type or a role. */
+.sx-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.25rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-tiny);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ffx-active-text);
+  background: color-mix(in srgb, var(--ffx-active) 12%, var(--ffx-surface));
+  white-space: nowrap;
+}

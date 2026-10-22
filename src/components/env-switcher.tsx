@@ -93,12 +93,12 @@ export function EnvBand() {
   if (env === "prod") return null;
   const e = envMeta(env);
   return (
-    <div className="ffx-envband" data-env={env} role="note">
+    <section className="ffx-envband" data-env={env} aria-label="Environment">
       <div className="ffx-shell ffx-envband-inner">
         <b>{e.label}</b>
         <span>{e.blurb}</span>
       </div>
-    </div>
+    </section>
   );
 }
 

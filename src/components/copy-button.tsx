@@ -46,16 +46,21 @@ export function CopyButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={copy}
-      className={`ffx-btn ${small ? "ffx-btn-sm" : ""} ${className}`.trim()}
-      aria-label={ariaLabel}
-      title={ariaLabel}
-      aria-live="polite"
-    >
-      <Icon d={icon} size={small ? 12 : 14} />
-      {done ? copiedLabel : label}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={copy}
+        className={`ffx-btn ${small ? "ffx-btn-sm" : ""} ${className}`.trim()}
+        aria-label={ariaLabel}
+        title={ariaLabel}
+      >
+        <Icon d={icon} size={small ? 12 : 14} />
+        {done ? copiedLabel : label}
+      </button>
+      {/* ariaLabel can fix the button's name, so the confirmation is spoken from here. */}
+      <span className="sr-only" role="status">
+        {done ? copiedLabel : ""}
+      </span>
+    </>
   );
 }

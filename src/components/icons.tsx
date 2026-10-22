@@ -21,7 +21,7 @@ export function Icon({ d, size = 14 }: { d: string; size?: number }) {
  * The one chevron that marks everything that folds: an asset group, an
  * asset row, a node of the JSON tree, a structure in a table cell. It
  * points right and turns down when its holder is open (.sx-chev in
- * globals.css reads the open state off the parent).
+ * styles/item-pages.css reads the open state off the parent).
  */
 export function Chevron() {
   return (

@@ -78,27 +78,22 @@ export function AssetGroups({ groups }: { groups: AssetGroupData[] }) {
             {isOpen && (
               <div className="sx-arows">
                 {rows.map((r) => (
-                  <details key={r.key} className="sx-arow">
-                    <summary>
-                      <Chevron />
-                      <span className="sx-arow-file">{r.file}</span>
-                      <span className="sx-arow-what">{r.what}</span>
-                      <span className="sx-arow-size ffx-num">{r.size ?? ""}</span>
-                      {r.action && (
-                        // A click here is the button's, not the row's: it mustn't open or close it.
-                        <span
-                          className="sx-arow-act"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                        >
-                          {r.action}
-                        </span>
-                      )}
-                    </summary>
-                    <div className="sx-asset-body">{r.body}</div>
-                  </details>
+                  // The row's button sits beside the <details>, drawn over the
+                  // end of its summary. Inside the summary it would be a
+                  // control within a control, and its dialog would inherit the
+                  // summary's click handling.
+                  <div key={r.key} className="sx-arow-wrap" data-act={r.action ? "" : undefined}>
+                    <details className="sx-arow">
+                      <summary>
+                        <Chevron />
+                        <span className="sx-arow-file">{r.file}</span>
+                        <span className="sx-arow-what">{r.what}</span>
+                        <span className="sx-arow-size ffx-num">{r.size ?? ""}</span>
+                      </summary>
+                      <div className="sx-asset-body">{r.body}</div>
+                    </details>
+                    {r.action && <div className="sx-arow-act">{r.action}</div>}
+                  </div>
                 ))}
               </div>
             )}

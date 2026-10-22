@@ -1,0 +1,213 @@
+/* ============================== controls ============================== */
+
+.ffx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 2.125rem;
+  padding: 0 0.8rem;
+  font-size: var(--ffx-t-small);
+  font-weight: 500;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface);
+  color: var(--ffx-ink);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 1px 1px rgb(19 26 34 / 0.04);
+  transition: background-color 90ms linear, border-color 90ms linear;
+}
+.ffx-btn:hover {
+  border-color: var(--ffx-rule-strong);
+  background: var(--ffx-surface-sunken);
+}
+.ffx-btn-primary {
+  background: var(--ffx-ink);
+  color: var(--ffx-surface);
+  border-color: var(--ffx-ink);
+  font-weight: 600;
+}
+.ffx-btn-primary:hover {
+  background: var(--ffx-ink-sec);
+  border-color: var(--ffx-ink-sec);
+}
+.ffx-btn:disabled,
+.ffx-btn:disabled:hover,
+.ffx-btn[aria-disabled="true"],
+.ffx-btn[aria-disabled="true"]:hover {
+  background: var(--ffx-surface-sunken);
+  border-color: var(--ffx-rule);
+  color: var(--ffx-ink-dim);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.ffx-btn-sm {
+  height: 1.875rem;
+  padding: 0 0.625rem;
+  font-size: var(--ffx-t-micro);
+}
+/* An icon alone, as wide as it is tall; its name is in aria-label and title. */
+.ffx-btn-icon {
+  padding: 0;
+  aspect-ratio: 1;
+}
+@media (pointer: coarse) {
+  .ffx-btn,
+  .ffx-btn-sm {
+    min-height: 2.75rem;
+    padding-inline: 0.875rem;
+  }
+}
+
+.ffx-input {
+  width: 100%;
+  height: 2.375rem;
+  padding: 0 0.75rem;
+  font-family: var(--ffx-sans);
+  font-size: var(--ffx-t-base);
+  color: var(--ffx-ink);
+  background: var(--ffx-surface-sunken);
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+}
+.ffx-input::placeholder {
+  color: var(--ffx-ink-mut);
+}
+.ffx-input:focus {
+  background: var(--ffx-surface);
+  border-color: var(--ffx-river);
+}
+
+.ffx-link {
+  color: var(--ffx-active-text);
+  text-decoration: none;
+}
+.ffx-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* One field style for search boxes, selects and date inputs. */
+.ffx-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.375rem;
+  min-width: 0;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  font-size: var(--ffx-t-base);
+  color: var(--ffx-ink);
+}
+.ffx-field:hover {
+  border-color: var(--ffx-rule-strong);
+}
+.ffx-field:focus-within {
+  background: var(--ffx-surface);
+  border-color: var(--ffx-river);
+  outline: 3px solid color-mix(in srgb, var(--ffx-river) 18%, transparent);
+}
+.ffx-field > svg {
+  flex: none;
+  color: var(--ffx-ink-dim);
+}
+.ffx-field input,
+.ffx-field select {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+.ffx-field input::placeholder {
+  color: var(--ffx-ink-mut);
+}
+.ffx-field-label {
+  flex: none;
+  color: var(--ffx-ink-mut);
+  font-size: var(--ffx-t-small);
+}
+.ffx-field-select {
+  position: relative;
+  padding-right: 1.9rem;
+}
+.ffx-field-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  text-overflow: ellipsis;
+  color-scheme: inherit;
+  cursor: pointer;
+}
+.ffx-field-select::after {
+  content: "";
+  position: absolute;
+  right: 0.8rem;
+  top: 50%;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-top: -0.3rem;
+  border-right: 1.5px solid var(--ffx-ink-mut);
+  border-bottom: 1.5px solid var(--ffx-ink-mut);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.ffx-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem var(--ffx-panel-pad) 0.75rem;
+}
+
+/* Status tabs on a list: pills, the chosen one filled. */
+.ffx-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0 var(--ffx-panel-pad) 0.625rem;
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.ffx-tabs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.ffx-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 1.875rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font: 500 var(--ffx-t-small) var(--ffx-sans);
+  color: var(--ffx-ink-sec);
+  cursor: pointer;
+}
+.ffx-tab:hover {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
+}
+.ffx-tab[aria-selected="true"] {
+  background: var(--ffx-ink);
+  color: var(--ffx-surface);
+}
+.ffx-tab-count {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.ffx-tabs-aside {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}

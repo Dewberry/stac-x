@@ -1,0 +1,100 @@
+/* ============================== chrome ============================== */
+
+.sx-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--ffx-header-bg);
+  color: var(--ffx-header-ink);
+  /* Everything inside the bar reads the header palette through the same
+     tokens the rest of the app uses, so the theme control needs no styles of
+     its own. */
+  --ffx-ink: var(--ffx-header-ink);
+  --ffx-ink-mut: var(--ffx-header-ink-mut);
+  --ffx-control-edge: var(--ffx-header-rule);
+}
+.sx-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  height: var(--ffx-header);
+  padding-inline: var(--ffx-edge);
+}
+/* The wordmark is the app's name and nothing else, one line, the same in
+   ffrd-x. */
+.sx-brand {
+  color: var(--ffx-header-ink);
+  font-family: var(--ffx-display);
+  font-size: 1.125rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+/* It's the way home, so it should look like a link when pointed at. */
+.sx-brand:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--ffx-header-ink-mut);
+}
+/* The site the app sits under, as the step before the wordmark: quieter
+   than it, the same size so the two read as one path. */
+.sx-portal {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sx-portal-link {
+  color: var(--ffx-header-ink-mut);
+  font-family: var(--ffx-display);
+  font-size: 1.125rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.sx-portal-link:hover {
+  color: var(--ffx-header-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--ffx-header-ink-mut);
+}
+.sx-portal-sep {
+  color: var(--ffx-header-rule);
+  font-size: 1.125rem;
+  line-height: 1;
+}
+/* The footer band, the same as ffrd-x's: full bleed on the surface with a
+   hairline above, contents on the shell and the edge gutter. */
+.sx-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface);
+  padding-block: 0.5rem;
+  font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink-mut);
+}
+.sx-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-inline: var(--ffx-edge);
+}
+
+/* A button in the bar is an outline on navy, not a white card. The same in
+   ffrd-x. */
+.sx-header .ffx-btn {
+  background: transparent;
+  color: var(--ffx-header-ink);
+  border-color: var(--ffx-header-rule);
+  box-shadow: none;
+}
+.sx-header .ffx-btn:hover {
+  background: color-mix(in srgb, var(--ffx-header-ink) 10%, transparent);
+  border-color: var(--ffx-header-ink-mut);
+}

@@ -1,0 +1,514 @@
+/* ============================== admin ============================== */
+
+.sx-admin-stack {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+}
+/* Four counts across the top, two by two on a phone. The label sits under
+   the figure, as on the landing page, while dt still comes first in the
+   markup. */
+.sx-stats.sx-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ffx-deck-gap);
+}
+@media (min-width: 40rem) {
+  .sx-stats.sx-admin-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.sx-admin-stats .sx-stat {
+  padding: 0.625rem 0.875rem;
+}
+.sx-admin-stats .sx-stat dt {
+  order: 1;
+}
+
+/* The queue takes most of the width, activity sits beside it; below 64rem
+   activity drops under the queue. */
+.sx-admin {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  align-items: start;
+}
+@media (min-width: 64rem) {
+  .sx-admin {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  }
+}
+.sx-admin .ffx-tabs {
+  padding-top: 0.25rem;
+  border-bottom: 0;
+}
+.sx-queue-tools {
+  padding-top: 0;
+  border-bottom: 1px solid var(--ffx-rule);
+}
+/* Always in the page so screen readers hear what a save did; empty, it takes no room. */
+.sx-admin-flash:not(:empty) {
+  margin: 0.625rem var(--ffx-panel-pad) 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-verified-pale);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-verified-text);
+}
+.sx-admin-flash[data-tone="bad"]:not(:empty) {
+  background: var(--ffx-bad-pale);
+  color: var(--ffx-bad-text);
+}
+/* The link after a save sits in the sentence, so it's underlined: its blue
+   alone is too close to the green text around it. */
+.sx-admin-flash .ffx-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* With rows selected: what to do with them. */
+.sx-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem var(--ffx-panel-pad);
+  background: var(--ffx-surface-sunken);
+  border-bottom: 1px solid var(--ffx-rule);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-bulk b {
+  color: var(--ffx-ink);
+}
+.sx-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.sx-bulk-clear {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sx-queue tbody tr {
+  cursor: pointer;
+}
+.sx-queue td {
+  vertical-align: middle;
+  padding-block: 0.55rem;
+}
+.sx-queue tbody tr[data-selected] td {
+  background: color-mix(in srgb, var(--ffx-river) 7%, var(--ffx-surface));
+}
+.sx-queue td:first-child,
+.sx-queue th:first-child {
+  padding-left: var(--ffx-panel-pad);
+}
+.sx-queue td:last-child,
+.sx-queue th:last-child {
+  padding-right: var(--ffx-panel-pad);
+}
+.sx-queue-check {
+  width: 1px;
+  padding-right: 0.25rem;
+}
+.sx-queue-check input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--ffx-ink);
+  cursor: pointer;
+}
+.sx-queue-name {
+  white-space: normal;
+  min-width: 13rem;
+}
+.sx-queue-title {
+  display: block;
+  font-weight: 600;
+  color: var(--ffx-ink);
+  text-decoration: none;
+}
+a.sx-queue-title:hover {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-queue-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.15rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+
+/* Dev, Test, Prod as three small marks, filled where the collection is. */
+.sx-minipath {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.sx-minipath-step {
+  display: inline-grid;
+  place-items: center;
+  height: 1.375rem;
+  padding: 0 0.375rem;
+  border-radius: var(--ffx-radius-xs);
+  border: 1px dashed var(--ffx-rule-strong);
+  font-size: var(--ffx-t-tiny);
+  font-weight: 600;
+  color: var(--ffx-ink-dim);
+}
+.sx-minipath-step[data-here="true"] {
+  border: 1px solid transparent;
+  background: var(--ffx-ink);
+  color: var(--ffx-surface);
+}
+.sx-minipath-step[data-here="true"][data-env="dev"] {
+  background: var(--ffx-env-dev);
+  color: #fff;
+}
+.sx-minipath-step[data-here="true"][data-env="test"] {
+  background: var(--ffx-env-test);
+  color: #fff;
+}
+
+/* The review sheet: a native dialog pinned to the right edge, full height,
+   sliding in. The head and foot stay put while the middle scrolls. */
+.sx-sheet {
+  inset: 0 0 0 auto;
+  width: min(32rem, 100vw);
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--ffx-surface-raised);
+  color: var(--ffx-ink);
+  box-shadow: var(--ffx-shadow-overlay);
+  transition:
+    translate 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    display 220ms allow-discrete,
+    overlay 220ms allow-discrete;
+}
+.sx-sheet[open] {
+  translate: 0 0;
+}
+@starting-style {
+  .sx-sheet[open] {
+    translate: 100% 0;
+  }
+}
+.sx-sheet::backdrop {
+  background: rgb(19 26 34 / 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-sheet {
+    transition: none;
+  }
+}
+.sx-sheet-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+.sx-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem 0.875rem;
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-sheet-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+.sx-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-stepper > span {
+  margin-right: 0.25rem;
+}
+.sx-stepper .ffx-btn {
+  width: 1.875rem;
+  padding: 0;
+}
+.sx-sheet-scroll {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-y: auto;
+}
+.sx-sheet-scroll .sx-path {
+  margin: 0;
+}
+.sx-sheet-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-raised);
+}
+.sx-sheet-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem 1rem;
+  margin: 0;
+}
+.sx-sheet-facts dt {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-sheet-facts dd {
+  margin: 0;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+/* The last thing a reviewer said, quoted, so the next one starts from it. */
+.sx-lastnote {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+}
+.sx-lastnote figcaption {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-lastnote blockquote {
+  margin: 0.25rem 0 0;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+}
+.sx-sheet-history summary {
+  cursor: pointer;
+  font-size: var(--ffx-t-small);
+  font-weight: 500;
+  color: var(--ffx-ink-sec);
+}
+.sx-sheet-history[open] summary {
+  margin-bottom: 0.5rem;
+}
+.sx-bulk-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+}
+.sx-bulk-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--ffx-grid);
+  font-size: var(--ffx-t-small);
+}
+.sx-bulk-list li:first-child {
+  border-top: 0;
+}
+
+/* Decisions as full-width cards with a drawn radio. Picked, the ring, the dot
+   and the card's border take the state's color; unpicked, none show it. */
+.sx-choices {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.sx-choices-legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 0.375rem;
+  padding: 0;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-choice {
+  --sx-choice-mark: var(--ffx-ink);
+  border: 1px solid var(--ffx-rule);
+  border-radius: 10px;
+  background: var(--ffx-surface);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.sx-choice:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-choice[data-tone="verified"] {
+  --sx-choice-mark: var(--ffx-verified);
+}
+.sx-choice[data-tone="attn"] {
+  --sx-choice-mark: var(--ffx-attn);
+}
+.sx-choice[data-tone="bad"] {
+  --sx-choice-mark: var(--ffx-bad);
+}
+.sx-choice:has(input:checked) {
+  border-color: var(--sx-choice-mark);
+  box-shadow: 0 0 0 1px var(--sx-choice-mark);
+  background: var(--ffx-surface);
+}
+.sx-choice-hit {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 0.15rem;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+.sx-choice-hit input {
+  appearance: none;
+  grid-row: span 2;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--ffx-n-400);
+  background: var(--ffx-surface);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sx-choice-hit input::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sx-choice-mark);
+  scale: 0;
+  transition: scale 120ms ease;
+}
+.sx-choice-hit input:checked {
+  border-color: var(--sx-choice-mark);
+}
+.sx-choice-hit input:checked::after {
+  scale: 1;
+}
+.sx-choice-hit input:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+}
+.sx-choice-hit input:disabled {
+  cursor: default;
+}
+.sx-choice-label {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ffx-ink);
+}
+.sx-choice-hint {
+  grid-column: 2;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ffx-ink-sec);
+}
+
+/* Recent activity: a timeline, each event marked with its QC color, moves
+   between environments in ink. */
+.sx-activity {
+  margin: 0;
+  padding: 0.25rem var(--ffx-panel-pad) var(--ffx-panel-pad);
+  list-style: none;
+  display: grid;
+}
+.sx-activity[data-bare] {
+  padding: 0;
+}
+.sx-activity li {
+  position: relative;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0 0 0.875rem 1.125rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+/* The rail between marks. */
+.sx-activity li::after {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 1rem;
+  bottom: 0.1rem;
+  width: 1px;
+  background: var(--ffx-rule);
+}
+.sx-activity li:last-child {
+  padding-bottom: 0;
+}
+.sx-activity li:last-child::after {
+  display: none;
+}
+.sx-activity li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: 50%;
+  background: var(--sx-mark, var(--ffx-ink-dim));
+}
+.sx-activity li[data-tone="verified"] {
+  --sx-mark: var(--ffx-verified);
+}
+.sx-activity li[data-tone="attn"] {
+  --sx-mark: var(--ffx-attn);
+}
+.sx-activity li[data-tone="bad"] {
+  --sx-mark: var(--ffx-bad);
+}
+.sx-activity li[data-tone="move"] {
+  --sx-mark: var(--ffx-ink);
+}
+.sx-activity-title {
+  font-weight: 600;
+  color: var(--ffx-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+a.sx-activity-title:hover {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-activity-what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 0.75rem;
+}
+.sx-activity-when {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+
+.sx-callout {
+  padding: 0.625rem var(--ffx-panel-pad);
+  border-left: 3px solid var(--ffx-attn);
+  background: var(--ffx-attn-pale);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}

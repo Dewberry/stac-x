@@ -1,0 +1,295 @@
+/* ============================== maps ==============================
+
+   MapLibre draws into a canvas; the frame, the buttons and the readout are
+   CSS. The buttons are the app's own (map-core.tsx) so they match the cards. */
+.ffx-map {
+  position: relative;
+  margin: 0;
+  background: var(--ffx-surface-inset);
+}
+.ffx-map-canvas {
+  height: 16rem;
+}
+@media (min-width: 40rem) {
+  .ffx-map-canvas {
+    height: 20rem;
+  }
+}
+@media (min-width: 64rem) {
+  .ffx-map-canvas {
+    height: clamp(20rem, 42vh, 26rem);
+  }
+}
+.ffx-map:fullscreen {
+  display: flex;
+  flex-direction: column;
+  background: var(--ffx-surface);
+}
+.ffx-map:fullscreen .ffx-map-canvas {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.ffx-map .maplibregl-canvas:focus-visible {
+  outline-offset: -2px;
+}
+.ffx-map-ctl {
+  display: flex;
+  flex-direction: column;
+  background: var(--ffx-surface);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: var(--ffx-shadow-float);
+}
+.ffx-map-ctl button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ffx-ink-sec);
+  cursor: pointer;
+}
+.ffx-map-ctl button + button {
+  border-top: 1px solid var(--ffx-rule);
+}
+.ffx-map-ctl button:hover {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
+}
+.ffx-map-ctl button:focus-visible {
+  outline-offset: -3px;
+}
+.ffx-map-ctl svg {
+  width: 16px;
+  height: 16px;
+}
+.ffx-map .maplibregl-ctrl-scale {
+  background: color-mix(in srgb, var(--ffx-surface) 80%, transparent);
+  border-color: var(--ffx-ink-sec);
+  color: var(--ffx-ink-sec);
+  font: var(--ffx-t-tiny) / 1.6 var(--ffx-mono);
+  border-radius: 0 0 4px 4px;
+}
+.ffx-map-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-height: 2rem;
+  padding: 0.4rem var(--ffx-panel-pad);
+  border-top: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface);
+  font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink-mut);
+}
+.ffx-map-credit {
+  margin-left: auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0 0.375rem;
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
+.ffx-map-credit > * {
+  white-space: nowrap;
+}
+.ffx-map-credit a {
+  color: inherit;
+}
+.ffx-map-note {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 2.75rem;
+  padding: 0.25rem 0.625rem;
+  background: var(--ffx-glass);
+  border-radius: 8px;
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-sec);
+}
+
+/* The id of the feature under the cursor, beside it. */
+.ffx-map-tip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.2rem 0.5rem;
+  background: var(--ffx-glass);
+  border-radius: 6px;
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(14px, -50%);
+}
+.ffx-map-tip[data-flip] {
+  transform: translate(calc(-100% - 14px), -50%);
+}
+.ffx-map-tip-label {
+  color: var(--ffx-ink-mut);
+}
+/* Several features under the cursor: one row each, the top one first. */
+.ffx-map-tip[data-stack] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.125rem;
+}
+.ffx-map-tip-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+.ffx-map-tip-kind {
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-sec);
+}
+.ffx-map-tip-more {
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
+
+/* The click card's popup (map-card.tsx), restyled as one of ours. */
+.ffx-map .maplibregl-popup {
+  z-index: 3;
+}
+.ffx-map .maplibregl-popup-content {
+  padding: 0.5rem 0.625rem;
+  background: var(--ffx-surface);
+  border-radius: 10px;
+  box-shadow: var(--ffx-shadow-float);
+  font-family: inherit;
+}
+.ffx-map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--ffx-surface);
+}
+.ffx-map .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.ffx-map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--ffx-surface);
+}
+.ffx-map .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--ffx-surface);
+}
+.ffx-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--ffx-surface);
+}
+/* The card a click on a map opens (map-card.tsx): the items under the
+   click as rows, under a tinted band naming the collection on the landing
+   map. */
+.ffx-map .sx-map-card .maplibregl-popup-content {
+  padding: 0;
+  overflow: hidden;
+}
+/* Under the point, the tip touches the band. */
+.ffx-map .sx-map-card-band.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.ffx-map .sx-map-card-band.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.ffx-map .sx-map-card-band.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--ffx-surface-sunken);
+}
+.sx-card {
+  min-width: 15rem;
+  max-width: 24rem;
+  font-size: var(--ffx-t-micro);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink);
+}
+.sx-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--ffx-surface-sunken);
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-card-name {
+  min-width: 0;
+  font-family: var(--ffx-display);
+  font-size: var(--ffx-t-small);
+  line-height: var(--ffx-t-small-lh);
+  font-weight: 600;
+}
+.sx-card-open {
+  flex: none;
+  font-weight: 600;
+}
+.sx-card-body {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem 0.5rem;
+}
+.sx-card-label {
+  padding: 0 0.25rem;
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-mut);
+}
+.sx-card-items {
+  display: grid;
+  max-height: 13rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.sx-card-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.3rem 0.25rem;
+  border-radius: 4px;
+  color: var(--ffx-ink);
+  text-decoration: none;
+}
+.sx-card-item:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-card-item-name {
+  font-weight: 600;
+}
+.sx-card-item-id {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ffx-ink-mut);
+}
+.sx-card-item svg {
+  flex: none;
+  align-self: center;
+  margin-left: auto;
+  color: var(--ffx-ink-mut);
+}
+
+/* The map on a collection or item page: a card as wide as the columns
+   under it, straight under the title, with the readout as a strip beneath. */
+.sx-mapcard {
+  background: var(--ffx-surface);
+  border-radius: var(--ffx-radius-md);
+  box-shadow: var(--ffx-shadow-card);
+  overflow: hidden;
+}
+.sx-mapcard .ffx-map-canvas {
+  height: 16rem;
+}
+@media (min-width: 40rem) {
+  .sx-mapcard .ffx-map-canvas {
+    height: 20rem;
+  }
+}
+@media (min-width: 64rem) {
+  .sx-mapcard .ffx-map-canvas {
+    height: clamp(18rem, 38vh, 26rem);
+  }
+}

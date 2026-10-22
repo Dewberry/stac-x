@@ -1,0 +1,432 @@
+/* ======== Item pages: heading, assets, metadata (design review, Oct 2026) ======== */
+
+/* The page's source actions fold into one ⋯ pill below 64rem, so the header
+   keeps one row of actions. */
+.sx-more {
+  position: relative;
+}
+.sx-more > summary {
+  list-style: none;
+  width: 2.125rem;
+  padding: 0;
+}
+.sx-more > summary::-webkit-details-marker {
+  display: none;
+}
+.sx-more-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.375rem);
+  z-index: 20;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 11rem;
+  padding: 0.375rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-raised);
+  box-shadow: var(--ffx-shadow-float);
+}
+.sx-more-menu > * {
+  justify-content: flex-start;
+}
+@media (min-width: 64rem) {
+  .sx-more {
+    display: none;
+  }
+}
+@media (max-width: 63.99rem) {
+  .sx-actions-wide {
+    display: none;
+  }
+  .sx-actions {
+    flex-wrap: nowrap;
+  }
+}
+
+/* The one chevron (Chevron in components/icons.tsx) on everything that
+   folds: an asset group, an asset row, a node of the JSON tree, a structure
+   in a table cell, a metadata fold. Points right; turns down when its
+   holder is open. */
+.sx-chev {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--ffx-ink-mut);
+}
+.sx-chev svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 110ms linear;
+}
+[aria-expanded="true"] > .sx-chev svg,
+details[open] > summary > .sx-chev svg {
+  transform: rotate(90deg);
+}
+.sx-agroup-head .sx-chev {
+  color: var(--ffx-ink-sec);
+}
+button:hover > .sx-chev,
+summary:hover > .sx-chev {
+  color: var(--ffx-ink);
+}
+@media (pointer: coarse) {
+  .sx-chev {
+    width: 24px;
+    height: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-chev svg {
+    transition: none;
+  }
+}
+
+/* A text button that reads as a link. */
+.sx-linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-active-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sx-linkbtn:hover {
+  text-decoration: underline;
+}
+
+/* Assets, grouped. */
+.sx-agroups {
+  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
+}
+.sx-agroups-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.625rem;
+}
+.sx-afilter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  max-width: 280px;
+  height: 30px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink-mut);
+}
+.sx-afilter input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink);
+}
+.sx-afilter:focus-within {
+  outline: 2px solid var(--ffx-active);
+  outline-offset: 1px;
+}
+.sx-agroups-by {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-agroup {
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-agroup-head {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 10px 6px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--ffx-ink);
+  cursor: pointer;
+}
+.sx-agroup-head:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-agroup-name b {
+  font-weight: 600;
+}
+.sx-agroup-name span {
+  margin-left: 0.25rem;
+  font-size: 0.78125rem;
+  color: var(--ffx-ink-mut);
+}
+.sx-agroup-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.sx-agroup-count {
+  min-width: 1.75rem;
+  text-align: right;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-arows {
+  padding-bottom: 0.375rem;
+}
+.sx-arow > summary {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 6px;
+  border-top: 1px solid var(--ffx-surface-sunken);
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.78125rem;
+}
+.sx-arow > summary::-webkit-details-marker {
+  display: none;
+}
+.sx-arow > summary:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-arow-file {
+  font-family: var(--ffx-mono);
+  color: var(--ffx-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-arow-what {
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-arow-size {
+  min-width: 3.5rem;
+  text-align: right;
+  color: var(--ffx-ink-sec);
+}
+/* The row's own button (Preview), short enough not to make the row taller.
+   It's a sibling of the <details>, laid over the end of the summary line,
+   which keeps room for it. */
+.sx-arow-wrap {
+  position: relative;
+}
+.sx-arow-wrap[data-act] > .sx-arow > summary {
+  min-height: calc(2.3rem + 1px);
+  padding-right: calc(6px + 4.5rem);
+}
+.sx-arow-act {
+  position: absolute;
+  top: 1px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  height: 2.3rem;
+}
+.sx-arow-act > .ffx-btn {
+  height: 1.5rem;
+  padding: 0 0.5rem;
+}
+.sx-arow > .sx-asset-body {
+  padding: 4px 6px 14px 32px;
+}
+/* The open row's header line: title left, actions right. */
+.sx-asset-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sx-asset-head:has(> .sx-asset-acts:only-child) {
+  justify-content: flex-end;
+}
+.sx-asset-head > p {
+  margin: 0;
+  padding-top: 4px;
+}
+.sx-asset-title {
+  font-size: var(--ffx-t-small);
+  font-weight: 600;
+  line-height: 18px;
+  padding-top: 4px;
+  color: var(--ffx-ink);
+}
+.sx-asset-acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  flex: none;
+}
+.sx-asset-acts .ffx-btn {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+@media (max-width: 39.99rem) {
+  .sx-asset-head {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 39.99rem) {
+  .sx-agroup-name span,
+  .sx-agroup-meta .sx-tag,
+  .sx-agroups-by,
+  .sx-arow-what {
+    display: none;
+  }
+  .sx-arow-file {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Metadata values cut to one line, with Copy at the right. */
+.sx-val-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sx-val-clip {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-copy-mini {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--ffx-rule);
+  border-radius: 5px;
+  background: var(--ffx-surface);
+  font-size: var(--ffx-t-micro);
+  line-height: 1.4;
+  color: var(--ffx-ink-sec);
+  cursor: pointer;
+}
+.sx-copy-mini:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-val-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.125rem;
+  font-size: 0.78125rem;
+  color: var(--ffx-ink-mut);
+}
+.sx-val-more .sx-linkbtn {
+  font-size: inherit;
+}
+.sx-wkt {
+  margin: 0.375rem 0 0.25rem;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-micro);
+  line-height: 1.5;
+  white-space: pre;
+  color: var(--ffx-ink-sec);
+}
+/* A few counts in a row: "Basins 1 · Controls 2". */
+.sx-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.875rem;
+  font-size: var(--ffx-t-small);
+}
+.sx-counts b {
+  font-weight: 600;
+}
+/* A list of like objects, its first rows in a bordered table. */
+.sx-mini {
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  overflow: hidden;
+}
+.sx-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ffx-t-small);
+}
+.sx-mini-table th {
+  padding: 0.3rem 0.625rem;
+  text-align: left;
+  font-weight: 400;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  background: var(--ffx-surface-sunken);
+  white-space: nowrap;
+}
+.sx-mini-table td {
+  overflow-wrap: normal;
+  min-width: 5rem;
+  padding: 0.3rem 0.625rem;
+  border-top: 1px solid var(--ffx-surface-sunken);
+  vertical-align: top;
+  color: var(--ffx-ink);
+}
+.sx-mini-table .ffx-r {
+  text-align: right;
+}
+.sx-mini-more {
+  display: block;
+  width: 100%;
+  padding: 0.35rem 0.625rem;
+  border: 0;
+  border-top: 1px solid var(--ffx-surface-sunken);
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-active-text);
+  cursor: pointer;
+}
+.sx-mini-more:hover {
+  background: var(--ffx-surface-sunken);
+}
+/* The STAC section, folded behind its summary. */
+.sx-meta-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.625rem var(--ffx-panel-pad);
+  border: 0;
+  border-top: 1px solid var(--ffx-grid);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sx-meta-fold-head:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-meta-fold-title {
+  font-size: var(--ffx-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-meta-fold-sum {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}

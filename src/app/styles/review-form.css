@@ -1,0 +1,258 @@
+/* ============================== review form ============================== */
+.sx-form {
+  display: grid;
+  gap: 0.875rem;
+}
+.sx-label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-label textarea.ffx-input {
+  height: auto;
+  min-height: 4.25rem;
+  padding: 0.5rem 0.75rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+.sx-form-note {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-form-error {
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-bad-text);
+}
+/* The Production confirmation: a second step inside the form, not a modal. */
+.sx-confirm {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface-sunken);
+  box-shadow: inset 3px 0 0 var(--ffx-ink);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-confirm b {
+  color: var(--ffx-ink);
+}
+
+/* Where a collection stands: a stepper, three equal columns in the order it
+   moves. The line runs through the dots at their centers and turns green from
+   a step where it was approved to the next. Each dot carries a halo of the
+   card so the line stops short of it. */
+.sx-path {
+  --sx-path-y: 9px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0.25rem 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+.sx-path-step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 0.15rem;
+  text-align: center;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-path-step::before,
+.sx-path-step::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--sx-path-y) - 1px);
+  height: 2px;
+  width: 50%;
+  background: var(--ffx-rule);
+}
+.sx-path-step::before {
+  left: 0;
+}
+.sx-path-step::after {
+  right: 0;
+}
+.sx-path-step:first-child::before,
+.sx-path-step:last-child::after {
+  display: none;
+}
+.sx-path-step[data-in]::before,
+.sx-path-step[data-out]::after {
+  background: var(--ffx-verified);
+}
+.sx-path-mark {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin: calc(var(--sx-path-y) - 6px) 0 0.3rem;
+  border-radius: 50%;
+  border: 2px solid var(--ffx-rule-strong);
+  background: var(--ffx-surface);
+  box-shadow: 0 0 0 3px var(--sx-path-halo, var(--ffx-surface));
+}
+.sx-path-step[data-state="pending"] .sx-path-mark {
+  border-color: var(--ffx-qc-none);
+}
+.sx-path-step[data-state="approved"] .sx-path-mark {
+  border-color: var(--ffx-verified);
+  background: var(--ffx-verified);
+}
+.sx-path-step[data-state="needs_revision"] .sx-path-mark {
+  border-color: var(--ffx-attn);
+  background: var(--ffx-attn);
+}
+.sx-path-step[data-state="rejected"] .sx-path-mark {
+  border-color: var(--ffx-bad);
+  background: var(--ffx-bad);
+}
+/* Where you are: a bigger ring, its color the state's once decided. */
+.sx-path-step[aria-current="step"] .sx-path-mark {
+  width: 16px;
+  height: 16px;
+  margin: calc(var(--sx-path-y) - 8px) 0 calc(0.3rem - 4px);
+  border-width: 3px;
+  border-color: var(--ffx-ink);
+  background: var(--ffx-surface);
+}
+.sx-path-step[aria-current="step"][data-state="approved"] .sx-path-mark {
+  border-color: var(--ffx-verified);
+}
+.sx-path-step[aria-current="step"][data-state="needs_revision"] .sx-path-mark {
+  border-color: var(--ffx-attn);
+}
+.sx-path-step[aria-current="step"][data-state="rejected"] .sx-path-mark {
+  border-color: var(--ffx-bad);
+}
+.sx-path-step[aria-current="step"] .sx-path-name {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-path-state {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-path-step[data-done] .sx-path-state {
+  font-weight: 500;
+  color: var(--ffx-verified-text);
+}
+.sx-path-step[data-state="needs_revision"] .sx-path-state {
+  color: var(--ffx-attn-text);
+}
+.sx-path-step[data-state="rejected"] .sx-path-state {
+  color: var(--ffx-bad-text);
+}
+.sx-path-step[data-state="absent"] .sx-path-state {
+  color: var(--ffx-ink-dim);
+}
+
+
+/* History folded into the end of a review: one row that opens in place. */
+.sx-history-row {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-history-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 0 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+  text-align: left;
+  cursor: pointer;
+}
+.sx-history-toggle b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-history-toggle:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.sx-caret {
+  flex: none;
+  align-self: center;
+  color: var(--ffx-ink-mut);
+  transition: rotate 150ms ease;
+}
+[aria-expanded="true"] > .sx-caret,
+[open] > summary > .sx-caret {
+  rotate: 90deg;
+}
+.sx-history-body {
+  padding-top: 0.75rem;
+}
+/* A collection's history in one environment, on a rail. */
+.sx-history {
+  margin: 0 0 0 0.25rem;
+  padding: 0 0 0 0.875rem;
+  border-left: 2px solid var(--ffx-rule);
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+.sx-history li {
+  display: grid;
+  gap: 0.1rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.sx-history-what {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-history-when {
+  flex: none;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-history-note {
+  display: block;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  overflow-wrap: anywhere;
+}
+
+/* Below 64rem the columns are one, so the collection page puts what people
+   came for first: the map, the items, then the description and metadata.
+   The columns give up their boxes and the panels take an order. */
+@media (max-width: 63.99rem) {
+  .sx-cols:has(> .sx-col > #items) {
+    display: grid;
+  }
+  .sx-cols:has(> .sx-col > #items) > .sx-col {
+    display: contents;
+  }
+  .sx-cols:has(> .sx-col > #items) .sx-mapcard {
+    order: 1;
+  }
+  .sx-cols:has(> .sx-col > #items) #items {
+    order: 2;
+  }
+  .sx-cols:has(> .sx-col > #items) #about {
+    order: 3;
+  }
+  .sx-cols:has(> .sx-col > #items) #assets {
+    order: 4;
+  }
+  .sx-cols:has(> .sx-col > #items) #meta {
+    order: 5;
+  }
+}

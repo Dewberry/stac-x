@@ -135,8 +135,14 @@ export function HomeRail({
             <input type="search" placeholder="Search collections" value={query} onChange={(e) => onQuery(e.target.value)} />
           </label>
         )}
+        {/* Said once the search or filter changes. The lines below show the
+            same, but a status region that mounts with its text is often missed. */}
+        <p className="sr-only" role="status">
+          {search ? `${search.collections} ${search.collections === 1 ? "collection matches" : "collections match"}` : ""}
+          {filter ? ` Showing ${QC_LABEL[filter]} only` : ""}
+        </p>
         {search && (
-          <p className="sx-search-line" role="status">
+          <p className="sx-search-line" aria-hidden="true">
             <b>
               <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "collection matches" : "collections match"}
             </b>{" "}
@@ -163,11 +169,18 @@ export function HomeRail({
           </div>
         )}
         {filter && (
-          <p className="sx-filter-line" role="status">
-            <span>
+          <p className="sx-filter-line">
+            <span aria-hidden="true">
               Showing <b>{QC_LABEL[filter]}</b> only
             </span>
-            <button type="button" onClick={() => onFilter(null)}>
+            <button
+              type="button"
+              onClick={() => {
+                // This line goes with the filter, so focus goes to the state button that set it.
+                document.querySelector<HTMLElement>(".sx-state-btn[aria-pressed=true]")?.focus();
+                onFilter(null);
+              }}
+            >
               Show all
             </button>
           </p>
@@ -213,7 +226,13 @@ export function HomeRail({
         {search && search.hidden && (
           <li className="sx-rail-fold">
             {groups.length ? "No other collections match." : "No collections match."}{" "}
-            <button type="button" onClick={() => onQuery("")}>
+            <button
+              type="button"
+              onClick={() => {
+                document.querySelector<HTMLElement>(".sx-rail input[type=search]")?.focus();
+                onQuery("");
+              }}
+            >
               Clear search
             </button>
           </li>
