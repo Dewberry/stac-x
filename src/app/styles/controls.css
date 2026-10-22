@@ -69,7 +69,7 @@
   font-size: var(--ffx-t-base);
   color: var(--ffx-ink);
   background: var(--ffx-surface-sunken);
-  border: 1px solid var(--ffx-rule);
+  border: 1px solid var(--ffx-control-edge);
   border-radius: var(--ffx-radius-sm);
 }
 .ffx-input::placeholder {
@@ -97,14 +97,14 @@
   height: 2.375rem;
   min-width: 0;
   padding: 0 0.75rem;
-  border: 1px solid var(--ffx-rule);
+  border: 1px solid var(--ffx-control-edge);
   border-radius: var(--ffx-radius-sm);
   background: var(--ffx-surface-sunken);
   font-size: var(--ffx-t-base);
   color: var(--ffx-ink);
 }
 .ffx-field:hover {
-  border-color: var(--ffx-rule-strong);
+  border-color: var(--ffx-ink-mut);
 }
 .ffx-field:focus-within {
   background: var(--ffx-surface);
@@ -206,6 +206,11 @@
 .ffx-tab-count {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
+}
+/* The muted gray is too faint on the filled pill, so the count takes the
+   pill's own text color. */
+.ffx-tab[aria-selected="true"] .ffx-tab-count {
+  color: inherit;
 }
 .ffx-tabs-aside {
   font-size: var(--ffx-t-micro);

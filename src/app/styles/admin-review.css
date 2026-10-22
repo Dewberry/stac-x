@@ -101,7 +101,7 @@
   height: 22px;
   margin: 1px 0 0;
   border-radius: 6px;
-  border: 1.5px solid var(--ffx-n-400);
+  border: 1.5px solid var(--ffx-control-edge);
   background: var(--ffx-surface);
   display: grid;
   place-items: center;
@@ -381,7 +381,7 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   height: 3rem;
   border-radius: 999px;
   background: var(--ffx-surface-sunken);
-  color: var(--ffx-river);
+  color: var(--ffx-active);
 }
 /* An error isn't a QC state, so it doesn't borrow red. It's ink on the
    sunken circle, which reads as "stopped" without saying "rejected". */

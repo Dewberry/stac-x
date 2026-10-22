@@ -125,7 +125,7 @@ const LONG = 160;
 /** `label` is what the row is called on screen, for naming its Copy button; the key, humanized, stands in. */
 export function Value({ value, keyName = "", label }: { value: unknown; keyName?: string; label?: string }): ReactNode {
   if (value === null || value === undefined || value === "") {
-    return <span className="text-ink-dim">n/a</span>;
+    return <span className="text-ink-mut">n/a</span>;
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") {
@@ -148,7 +148,7 @@ export function Value({ value, keyName = "", label }: { value: unknown; keyName?
     return value;
   }
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-ink-dim">none</span>;
+    if (value.length === 0) return <span className="text-ink-mut">none</span>;
     if (value.every((v) => v === null || typeof v !== "object")) {
       return value.map((v, i) => (
         <span key={i}>

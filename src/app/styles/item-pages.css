@@ -117,7 +117,7 @@ summary:hover > .sx-chev {
   max-width: 280px;
   height: 30px;
   padding: 0 0.6rem;
-  border: 1px solid var(--ffx-rule);
+  border: 1px solid var(--ffx-control-edge);
   border-radius: var(--ffx-radius-sm);
   background: var(--ffx-surface-sunken);
   color: var(--ffx-ink-mut);

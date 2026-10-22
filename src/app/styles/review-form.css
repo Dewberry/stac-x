@@ -148,7 +148,7 @@
   color: var(--ffx-bad-text);
 }
 .sx-path-step[data-state="absent"] .sx-path-state {
-  color: var(--ffx-ink-dim);
+  color: var(--ffx-ink-mut);
 }
 
 

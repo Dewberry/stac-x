@@ -85,11 +85,14 @@
   --ffx-rule: var(--ffx-n-250);
   --ffx-rule-strong: var(--ffx-n-300);
   --ffx-panel-edge: transparent;
-  --ffx-control-edge: var(--ffx-n-300);
+  /* Fields, checkboxes and radios. 3:1 on white, the WCAG floor for the
+     edge that shows where a control is. */
+  --ffx-control-edge: #848e9a;
   --ffx-grid: var(--ffx-n-100);
   /* The 1px ring gives a card an edge where the soft shadow alone would fade
-     into whatever is under it, a map or a canvas-colored basemap. */
-  --ffx-shadow-card: 0 0 0 1px rgb(19 26 34 / 0.07), 0 1px 2px rgb(19 26 34 / 0.06), 0 6px 18px rgb(19 26 34 / 0.07);
+     into whatever is under it, a map or a canvas-colored basemap. It's strong
+     enough to see against the pale canvas too, which is only a shade off white. */
+  --ffx-shadow-card: 0 0 0 1px rgb(19 26 34 / 0.12), 0 1px 2px rgb(19 26 34 / 0.06), 0 6px 18px rgb(19 26 34 / 0.07);
   --ffx-shadow-float: 0 1px 2px rgb(19 26 34 / 0.08), 0 10px 32px rgb(19 26 34 / 0.14);
   --ffx-shadow-overlay: var(--ffx-shadow-float);
   --ffx-shell-max: 96rem;
@@ -204,12 +207,12 @@
     --ffx-header-ink: #e8edf2;
     --ffx-header-ink-mut: #8d98a4;
     --ffx-header-rule: #2a333d;
-    --ffx-bg: var(--ffx-n-990);
-    --ffx-surface: var(--ffx-n-900);
-    --ffx-surface-raised: #212932;
+    --ffx-bg: #0b0f13;
+    --ffx-surface: #1c232b;
+    --ffx-surface-raised: #252e38;
     --ffx-surface-sunken: #141a20;
     --ffx-surface-inset: #10161c;
-    --ffx-glass: rgba(26, 32, 39, 0.92);
+    --ffx-glass: rgba(28, 35, 43, 0.92);
     /* The basemap's dark style draws roads, parks and boundaries a shade
        lighter than its ground, so the land has to sit under them: cool and
        near black, in the page's own slate. A lighter land turned every
@@ -222,9 +225,9 @@
     --ffx-map-light: #2c333b;
     --ffx-rule: #2a333d;
     --ffx-rule-strong: #3a4550;
-    --ffx-control-edge: #4a5661;
+    --ffx-control-edge: #66727e;
     --ffx-grid: #222a33;
-    --ffx-shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
+    --ffx-shadow-card: 0 0 0 1px #2c3540, 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
     --ffx-shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 32px rgb(0 0 0 / 0.5);
     --ffx-shadow-overlay: var(--ffx-shadow-float);
     --ffx-ink: #e8edf2;
@@ -253,7 +256,7 @@
     --ffx-trace-deep: #c4d7f8;
     --ffx-qc-none: #b3bcc6;
     --ffx-focus: #6b9cf0;
-    --ffx-focus-halo: var(--ffx-n-900);
+    --ffx-focus-halo: var(--ffx-surface);
     --ffx-env-sandbox: #5d6d83;
     --ffx-env-dev: #7053cd;
     --ffx-env-test: #ac4089;
@@ -267,12 +270,12 @@
   --ffx-header-ink: #e8edf2;
   --ffx-header-ink-mut: #8d98a4;
   --ffx-header-rule: #2a333d;
-  --ffx-bg: var(--ffx-n-990);
-  --ffx-surface: var(--ffx-n-900);
-  --ffx-surface-raised: #212932;
+  --ffx-bg: #0b0f13;
+  --ffx-surface: #1c232b;
+  --ffx-surface-raised: #252e38;
   --ffx-surface-sunken: #141a20;
   --ffx-surface-inset: #10161c;
-  --ffx-glass: rgba(26, 32, 39, 0.92);
+  --ffx-glass: rgba(28, 35, 43, 0.92);
   /* The basemap's dark style draws roads, parks and boundaries a shade
      lighter than its ground, so the land has to sit under them: cool and
      near black, in the page's own slate. A lighter land turned every
@@ -285,9 +288,9 @@
   --ffx-map-light: #2c333b;
   --ffx-rule: #2a333d;
   --ffx-rule-strong: #3a4550;
-  --ffx-control-edge: #4a5661;
+  --ffx-control-edge: #66727e;
   --ffx-grid: #222a33;
-  --ffx-shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
+  --ffx-shadow-card: 0 0 0 1px #2c3540, 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.3);
   --ffx-shadow-float: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 32px rgb(0 0 0 / 0.5);
   --ffx-shadow-overlay: var(--ffx-shadow-float);
   --ffx-ink: #e8edf2;
@@ -316,7 +319,7 @@
   --ffx-trace-deep: #c4d7f8;
   --ffx-qc-none: #b3bcc6;
   --ffx-focus: #6b9cf0;
-  --ffx-focus-halo: var(--ffx-n-900);
+  --ffx-focus-halo: var(--ffx-surface);
   --ffx-env-sandbox: #5d6d83;
   --ffx-env-dev: #7053cd;
   --ffx-env-test: #ac4089;

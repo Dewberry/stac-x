@@ -752,7 +752,7 @@ button.sx-map-pill {
   cursor: pointer;
 }
 button.sx-map-pill:hover {
-  background: var(--ffx-n-50);
+  background: var(--ffx-surface-sunken);
 }
 button.sx-map-pill svg {
   flex: none;
@@ -882,7 +882,7 @@ button.sx-map-pill svg {
   border-top: 0;
 }
 .sx-item:hover {
-  background: var(--ffx-n-50);
+  background: var(--ffx-surface-sunken);
 }
 .sx-item-name {
   flex: 1;
@@ -895,7 +895,7 @@ button.sx-map-pill svg {
 }
 .sx-item > svg {
   flex: none;
-  color: var(--ffx-n-400);
+  color: var(--ffx-ink-dim);
 }
 .sx-item .sx-tag {
   flex: none;
@@ -910,7 +910,7 @@ button.sx-map-pill svg {
 }
 .sx-item mark {
   border-radius: 2px;
-  background: var(--ffx-amber-pale);
+  background: var(--ffx-attn-pale);
   color: inherit;
 }
 .sx-item-foot {
