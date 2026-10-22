@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { isCatalogAsset } from "@/lib/catalog";
-import { awsLooksConfigured, isUnderCwd, parseRef, presign } from "@/lib/storage";
+import { awsAvailable, isUnderCwd, parseRef, presign } from "@/lib/storage";
 
 /**
  * Turns an asset href into something a browser can open. An s3:// href
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   const ref = parseRef(href);
   if (ref.kind === "s3") {
-    if (!awsLooksConfigured()) {
+    if (!(await awsAvailable())) {
       return NextResponse.json(
         { error: "No AWS credentials on the server, so private S3 objects cannot be fetched." },
         { status: 503 },

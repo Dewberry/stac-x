@@ -11,6 +11,7 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { awsRegion } from "./config";
 
@@ -263,14 +264,35 @@ function isMissing(e: unknown) {
   );
 }
 
-/** Whether S3 calls have any chance of working: a region and some credential source. */
-export function awsLooksConfigured() {
-  return Boolean(
-    process.env.AWS_ACCESS_KEY_ID ||
-      process.env.AWS_PROFILE ||
-      process.env.AWS_WEB_IDENTITY_TOKEN_FILE ||
-      process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ||
-      process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI ||
-      process.env.STAC_ASSUME_AWS,
-  );
+/**
+ * Whether S3 calls have any chance of working: the SDK's credential chain
+ * finds something. That's the same chain the client uses, so a task or
+ * instance role counts even though no variable names it; an earlier check
+ * read the environment and turned such a server's assets and previews
+ * away. Asked once and remembered. A chain that found nothing is asked
+ * again a minute later, so a role that arrives after boot isn't missed for
+ * good. STAC_ASSUME_AWS=1 skips the question.
+ */
+let aws: { at: number; ok: boolean } | null = null;
+let awsCheck: Promise<boolean> | null = null;
+
+export function awsAvailable(): Promise<boolean> {
+  if (process.env.STAC_ASSUME_AWS) return Promise.resolve(true);
+  if (aws && (aws.ok || Date.now() - aws.at < 60_000)) return Promise.resolve(aws.ok);
+  if (!awsCheck) {
+    awsCheck = defaultProvider()()
+      .then(
+        () => true,
+        () => false,
+      )
+      .then((ok) => {
+        aws = { at: Date.now(), ok };
+        if (!ok) console.error("stac-x: no AWS credentials found by the SDK's chain, so S3 assets and previews are turned away");
+        return ok;
+      })
+      .finally(() => {
+        awsCheck = null;
+      });
+  }
+  return awsCheck;
 }

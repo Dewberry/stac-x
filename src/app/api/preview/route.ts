@@ -3,7 +3,7 @@ import { isCatalogAsset } from "@/lib/catalog";
 import { fmtBytes, isCsvType, isJsonType, isParquetType } from "@/lib/format";
 import { previewParquet } from "@/lib/parquet";
 import { previewCsv, previewJson, TooBig } from "@/lib/text-preview";
-import { awsLooksConfigured, isUnderCwd, NotFound, parseRef } from "@/lib/storage";
+import { awsAvailable, isUnderCwd, NotFound, parseRef } from "@/lib/storage";
 
 /**
  * A look inside an asset, for the preview dialog behind an asset row: the
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   if (!href) return NextResponse.json({ error: "href is required" }, { status: 400 });
   if (!(await isCatalogAsset(href))) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const ref = parseRef(href);
-  if (ref.kind === "s3" && !awsLooksConfigured()) {
+  if (ref.kind === "s3" && !(await awsAvailable())) {
     return NextResponse.json({ error: "No AWS credentials on the server." }, { status: 503 });
   }
   if (ref.kind === "file" && !isUnderCwd(ref.path)) {

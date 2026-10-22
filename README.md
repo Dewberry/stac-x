@@ -95,7 +95,7 @@ and its pages load empty. The example file points Sandbox and Production at
 S3 paths for you to replace.
 
 AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
-an instance role.
+a task or instance role; nothing has to name the role.
 
 ### Promotion
 

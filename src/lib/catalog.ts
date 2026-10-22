@@ -7,7 +7,7 @@ import { collectionName } from "./format";
 import { NotStac, readItems } from "./parquet";
 import { collectionsOf, readCollectionJson, resolveHref } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
-import { awsLooksConfigured, CATALOG_JSON, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
+import { awsAvailable, CATALOG_JSON, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
 /**
@@ -427,7 +427,7 @@ function docAssets(raw: unknown, base: string | null): Record<string, StacAsset>
 
 async function collectionDoc(cache: Cache, href: string | null, now: number): Promise<CollectionDoc> {
   if (!href) return null;
-  if (isS3(href) && !awsLooksConfigured()) return null;
+  if (isS3(href) && !(await awsAvailable())) return null;
   const hit = cache.docs.get(href);
   if (hit && now - hit.at < refreshMs * 10) return hit.doc;
   let doc: CollectionDoc = null;
