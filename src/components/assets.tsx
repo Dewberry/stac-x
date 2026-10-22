@@ -193,6 +193,7 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
             <PreviewButton
               url={withBase(`/api/preview?href=${encodeURIComponent(a.href)}`)}
               file={file}
+              ariaLabel={`Preview ${file}`}
               title={a.title && a.title !== file ? a.title : undefined}
               format={formatTag(a.type, a.href)}
               icon={null}

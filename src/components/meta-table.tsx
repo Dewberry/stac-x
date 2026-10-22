@@ -34,7 +34,7 @@ export function MetaTable({ entries, className = "" }: { entries: Entry[]; class
           <tr key={key}>
             <th scope="row">{label ?? humanize(key)}</th>
             <td>
-              <Value value={value} keyName={key} />
+              <Value value={value} keyName={key} label={label} />
             </td>
           </tr>
         ))}
@@ -122,7 +122,8 @@ function Folded({ title, summary, children }: { title: string; summary?: string;
 const WKT = /^(COMPD_CS|COMPOUNDCRS|PROJCS|PROJCRS|GEOGCS|GEOGCRS|BOUNDCRS|VERT_CS|VERTCRS)\[/;
 const LONG = 160;
 
-export function Value({ value, keyName = "" }: { value: unknown; keyName?: string }): ReactNode {
+/** `label` is what the row is called on screen, for naming its Copy button; the key, humanized, stands in. */
+export function Value({ value, keyName = "", label }: { value: unknown; keyName?: string; label?: string }): ReactNode {
   if (value === null || value === undefined || value === "") {
     return <span className="text-ink-dim">n/a</span>;
   }
@@ -134,12 +135,13 @@ export function Value({ value, keyName = "" }: { value: unknown; keyName?: strin
     // isIsoDate is a type guard, so past it TS would call the string never.
     const text: string = value;
     if (isIsoDate(text)) return <span className="ffx-num">{fmtDate(text)}</span>;
-    if (/^https?:\/\//.test(value)) return <OneLine text={value} href={value} />;
-    if (/^s3:\/\//.test(value)) return <OneLine text={value} mono />;
-    if (WKT.test(value)) return <Wkt text={value} />;
+    const name = label ?? (keyName ? humanize(keyName) : undefined);
+    if (/^https?:\/\//.test(value)) return <OneLine text={value} href={value} name={name} unfold />;
+    if (/^s3:\/\//.test(value)) return <OneLine text={value} mono name={name} unfold />;
+    if (WKT.test(value)) return <Wkt text={value} name={name} />;
     const parsed = looseJson(value);
-    if (parsed !== undefined) return <Value value={parsed} keyName={keyName} />;
-    if (value.length > LONG) return <LongText text={value} />;
+    if (parsed !== undefined) return <Value value={parsed} keyName={keyName} label={label} />;
+    if (value.length > LONG) return <LongText text={value} name={name} />;
     if (/^[0-9a-f]{8,}$/i.test(value) || /(_no|_cd|_id|id)$/i.test(keyName)) {
       return <span className="ffx-id">{value}</span>;
     }
@@ -217,7 +219,7 @@ function singular(s: string): string {
 }
 
 /** A small Copy beside a value cut to one line. */
-function MiniCopy({ text }: { text: string }) {
+function MiniCopy({ text, name }: { text: string; name?: string }) {
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (!done) return;
@@ -229,6 +231,7 @@ function MiniCopy({ text }: { text: string }) {
       <button
         type="button"
         className="sx-copy-mini"
+        aria-label={name ? `Copy ${name}` : undefined}
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(text);
@@ -247,10 +250,27 @@ function MiniCopy({ text }: { text: string }) {
   );
 }
 
-/** One line, cut with an ellipsis, the whole value in its tooltip and a Copy beside it. */
-function OneLine({ text, href, mono = false }: { text: string; href?: string; mono?: boolean }) {
+/**
+ * One line, cut with an ellipsis, the whole value in its tooltip and a Copy
+ * beside it. A keyboard has no tooltip, so with `unfold` (a URL, an S3 key)
+ * the value shows in full while the link or Copy has focus. Long text and
+ * WKT have their own Show all instead.
+ */
+function OneLine({
+  text,
+  href,
+  mono = false,
+  name,
+  unfold = false,
+}: {
+  text: string;
+  href?: string;
+  mono?: boolean;
+  name?: string;
+  unfold?: boolean;
+}) {
   return (
-    <span className="sx-val-line">
+    <span className="sx-val-line" data-unfold={unfold || undefined}>
       {href ? (
         <a href={href} className="ffx-link sx-val-clip" title={text} target="_blank" rel="noreferrer">
           {text}
@@ -260,16 +280,16 @@ function OneLine({ text, href, mono = false }: { text: string; href?: string; mo
           {text}
         </span>
       )}
-      <MiniCopy text={text} />
+      <MiniCopy text={text} name={name} />
     </span>
   );
 }
 
-function LongText({ text }: { text: string }) {
+function LongText({ text, name }: { text: string; name?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <span className="block">
-      {open ? <span className="block">{text}</span> : <OneLine text={text} />}
+      {open ? <span className="block">{text}</span> : <OneLine text={text} name={name} />}
       <span className="sx-val-more">
         <button type="button" className="sx-linkbtn" onClick={() => setOpen(!open)}>
           {open ? "Show less" : "Show all"}
@@ -280,11 +300,11 @@ function LongText({ text }: { text: string }) {
   );
 }
 
-function Wkt({ text }: { text: string }) {
+function Wkt({ text, name }: { text: string; name?: string }) {
   const [tree, setTree] = useState(false);
   return (
     <span className="block">
-      <OneLine text={text} mono />
+      <OneLine text={text} mono name={name} />
       {tree && <pre className="sx-wkt">{wktTree(text)}</pre>}
       <span className="sx-val-more">
         <button type="button" className="sx-linkbtn" onClick={() => setTree(!tree)}>

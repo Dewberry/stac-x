@@ -27,8 +27,8 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * Selecting a collection opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
- * footprint over the selection. Enter on a row opens the collection,
- * Escape closes the row.
+ * footprint over the selection. Enter or Space on a row opens it like a
+ * click, and Escape closes it.
  *
  * The rail and the map are one view: pointing at an item on either side
  * lights it up on the other.
@@ -364,7 +364,6 @@ export function HomeConsole({
             activeIds={activeIds}
             onHover={setHovered}
             onSelect={(slug) => select(slug, true)}
-            onOpen={(href) => router.push(href)}
           />
         </div>
       </div>

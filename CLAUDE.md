@@ -82,6 +82,12 @@ screen reader, so these are the patterns the code follows by hand:
 - No controls inside `<summary>`. Put the control beside the `<details>`.
 - A link inside a sentence is underlined; color alone doesn't set it apart.
 - Content that shows on hover (map tooltips) goes away on Escape.
+- Nothing a person needs lives only in a `title` tooltip, which keyboards
+  and touch can't reach. A cut-off value unfolds while its link or Copy has
+  focus, or opens whole (a long table cell opens into the drawer row).
+- Buttons repeated down a list get names that tell them apart
+  (`Preview gages.parquet`, `Copy Source file`), starting with the visible
+  label.
 - Text uses `--ffx-ink`, `--ffx-ink-sec` or `--ffx-ink-mut`. `--ffx-ink-dim`
   is only 4.5:1 on white and fails on the sunken surfaces; the raw `--ffx-n-*`
   grays are for borders and fills.

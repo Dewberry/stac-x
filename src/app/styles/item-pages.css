@@ -305,6 +305,12 @@ summary:hover > .sx-chev {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A keyboard has no tooltip, so focus on the link or Copy unfolds a URL or
+   an S3 key. */
+.sx-val-line[data-unfold]:focus-within .sx-val-clip {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .sx-copy-mini {
   flex: none;
   padding: 1px 6px;

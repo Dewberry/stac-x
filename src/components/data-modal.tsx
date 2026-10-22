@@ -50,6 +50,7 @@ export function PreviewButton({
   icon = ICONS.table,
   className = "ffx-btn ffx-btn-sm",
   children = "Preview",
+  ariaLabel,
 }: {
   url: string;
   file: string;
@@ -61,11 +62,19 @@ export function PreviewButton({
   icon?: string | null;
   className?: string;
   children?: ReactNode;
+  /** The accessible name, where many of these sit in a list ("Preview gages.parquet"). */
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" className={className} onClick={() => setOpen(true)} title={mode === "json" ? "Read it here" : "Preview the first rows"}>
+      <button
+        type="button"
+        className={className}
+        onClick={() => setOpen(true)}
+        aria-label={ariaLabel}
+        title={mode === "json" ? "Read it here" : "Preview the first rows"}
+      >
         {icon && <Icon d={icon} size={12} />} {children}
       </button>
       {open && (

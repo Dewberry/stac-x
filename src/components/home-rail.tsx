@@ -16,7 +16,9 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * collection's name, its count and one line of where and when; the
  * selected row opens in place (OpenRow) with the collection's description,
  * its review state, the way in and its items. Pointing at a row previews
- * its footprint on the map; Enter on a row opens the collection.
+ * its footprint on the map. Enter and Space open and close a row like a
+ * click, as on any button; the open row's Browse collection goes on to the
+ * collection's page.
  *
  * The search box matches collections by title and description, not their
  * items. While it does, the groups with nothing in them fold into one line.
@@ -57,7 +59,6 @@ export function HomeRail({
   activeIds,
   onHover,
   onSelect,
-  onOpen,
 }: {
   env: EnvKey;
   areas: HomeArea[];
@@ -84,7 +85,6 @@ export function HomeRail({
   activeIds: ReadonlySet<string>;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string) => void;
-  onOpen: (href: string) => void;
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
@@ -216,7 +216,6 @@ export function HomeRail({
                     activeIds={open ? activeIds : undefined}
                     onHover={onHover}
                     onSelect={onSelect}
-                    onOpen={() => onOpen(a.href)}
                   />
                 );
               })}
@@ -252,7 +251,6 @@ function AreaRow({
   activeIds,
   onHover,
   onSelect,
-  onOpen,
 }: {
   env: EnvKey;
   area: HomeArea;
@@ -263,7 +261,6 @@ function AreaRow({
   activeIds?: ReadonlySet<string>;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string) => void;
-  onOpen: () => void;
 }) {
   const count = countOf(area);
   return (
@@ -273,11 +270,6 @@ function AreaRow({
         className="sx-row"
         aria-expanded={open}
         onClick={() => onSelect(area.slug)}
-        onKeyDown={(e) => {
-          if (e.key !== "Enter") return;
-          e.preventDefault();
-          onOpen();
-        }}
         onMouseEnter={() => onHover(area.slug)}
         onMouseLeave={() => onHover(null)}
         onFocus={() => onHover(area.slug)}

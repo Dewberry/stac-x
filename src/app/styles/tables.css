@@ -88,6 +88,29 @@
 .sx-fold[aria-expanded="true"] > .sx-chev {
   color: inherit;
 }
+/* Long text in a table cell: cut to the column, and a button that opens it
+   whole in the drawer row. */
+.sx-fold-text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sx-fold-text:hover {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.sx-fold-text[aria-expanded="true"] {
+  color: var(--ffx-active-text);
+}
 /* The rows table (components/data-table.tsx), in the Data panel and the
    dialog. The header stays put as it scrolls down; the row gutter and the
    first column (the id) stay put as it scrolls across, so a wide file can
@@ -156,6 +179,10 @@
   color: var(--ffx-ink);
   max-height: 16rem;
   overflow: auto;
+}
+.sx-dt-drawer pre[data-text] {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .sx-dt .sx-dt-n,
 .sx-dt .sx-dt-n + th,
