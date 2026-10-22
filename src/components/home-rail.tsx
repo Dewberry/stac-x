@@ -267,11 +267,17 @@ function AreaRow({
         <span className="sx-row-main">
           <span className="sx-row-title">{area.name}</span>
           <AreaSub area={area} open={open} />
-          {/* Over the end of the facts line, out of the flow, so the word
-              never wraps the line or changes the row's height. */}
-          {previewing && <span className="sx-row-previewing">previewing</span>}
         </span>
         <span className="sx-row-aside">
+          {/* An eye beside the count on the row the map is previewing. Its
+              slot is always there, so showing it moves nothing. */}
+          <span className="sx-row-eye" data-on={previewing || undefined}>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" aria-hidden="true">
+              <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" />
+              <circle cx="8" cy="8" r="2" />
+            </svg>
+            {previewing && <span className="sr-only">Previewing on the map</span>}
+          </span>
           <b className="sx-row-fig ffx-num">{count.n}</b>
           <span className="sx-row-unit">
             <UnitGlyph unit={area.unit} />

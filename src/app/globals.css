@@ -3503,7 +3503,6 @@ main:focus {
   outline-offset: -2px;
 }
 .sx-rail-item .sx-row-main {
-  position: relative;
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -3546,11 +3545,25 @@ main:focus {
 .sx-row-qc[data-qc="rejected"] {
   color: var(--ffx-bad-text);
 }
+/* The count, with the preview eye's slot to its left, over the unit. */
 .sx-rail-item .sx-row-aside {
   display: grid;
+  grid-template-columns: 14px auto;
+  align-items: center;
   justify-items: end;
-  gap: 2px;
+  gap: 2px 6px;
   min-width: 48px;
+}
+.sx-row-eye {
+  display: flex;
+  visibility: hidden;
+  color: var(--ffx-active-text);
+}
+.sx-row-eye[data-on] {
+  visibility: visible;
+}
+.sx-rail-item .sx-row-unit {
+  grid-column: 1 / -1;
 }
 .sx-row-fig {
   font-family: var(--ffx-display);
@@ -3585,21 +3598,6 @@ main:focus {
     font-size: 16px;
     line-height: 20px;
   }
-}
-/* "previewing", on the row the map is drawing over the selection. It sits
-   over the right end of the facts line, out of the flow, so it never wraps
-   the line or changes the row's height. A long line runs under a fade in
-   the preview row's own background. */
-.sx-row-previewing {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  padding-left: 20px;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--ffx-active-text);
-  background: linear-gradient(to right, transparent, var(--ffx-surface-sunken) 16px);
-  pointer-events: none;
 }
 .sx-rail-item .sx-row:hover,
 .sx-rail-item[data-active="true"] .sx-row {
