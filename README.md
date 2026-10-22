@@ -11,7 +11,7 @@ collection's file (`gages.parquet` gets `gages.edits.json`), never into the
 parquet itself, and a promoted collection is copied byte for byte into the
 next environment's first source.
 
-![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with its description, review state and the gages listed by name](docs/images/home.png)
+![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with its description, version, dates, license and asset count, its review state, a Browse collection button and the gages listed by name](docs/images/home.png)
 
 ## Running it
 
