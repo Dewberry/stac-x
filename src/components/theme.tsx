@@ -54,6 +54,16 @@ function apply(next: Choice) {
   window.requestAnimationFrame(() => root.removeAttribute("data-theme-switching"));
 }
 
+/**
+ * The stored theme as a data-theme value, for global-error. It renders its
+ * own <html> as a client component, where ThemeScript's <script> wouldn't
+ * run, so it sets the attribute through React instead.
+ */
+export function useStoredTheme(): "light" | "dark" | undefined {
+  const choice = useSyncExternalStore(subscribe, readChoice, readServerChoice);
+  return choice === "system" ? undefined : choice;
+}
+
 const CHOICES: { value: Choice; label: string }[] = [
   { value: "system", label: "System" },
   { value: "light", label: "Light" },

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+import { MessageCard, MessageRow } from "./message-card";
 import { QcMark } from "./qc-mark";
 import { getCatalog, getCollection } from "@/lib/catalog";
 import { ENVS, envMeta, type EnvKey } from "@/lib/env";
@@ -38,47 +39,63 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
       }
     : null;
 
+  const missing = found.length === 0;
+
   return (
-    <div className="sx-page sx-notin">
-      <div className="ffx-panel sx-notin-card">
-        <h1 className="font-display text-head font-semibold tracking-[-0.015em]">
-          {found.length ? `${collection} isn't in ${here} yet` : "Not found"}
-        </h1>
-        {stand && (
-          <p className="sx-notin-state">
-            <span>In {stand.env}</span>
-            <span className="inline-flex items-center gap-1.5">
-              <QcMark state={stand.qc} />
-              {qcMeta(stand.qc).label}
-            </span>
-            {stand.since && <span className="ffx-num">{fmtAge(stand.since, now)}</span>}
-          </p>
-        )}
-        <p className="mt-2 text-small text-ink-mut">
-          {found.length
-            ? `It's in ${new Intl.ListFormat("en-US").format(found.map((k) => envMeta(k).label))}. ${
-                envMeta(env).onPath
+    <div className="sx-page sx-msg">
+      <div className="sx-msg-stage">
+        <MessageCard
+          mark={missing ? "missing" : "elsewhere"}
+          kicker={missing ? "404" : "Collection"}
+          title={missing ? "Collection not found" : `Not in ${here} yet`}
+          aside={
+            sibling && (
+              <MessageRow href={collectionHref(env, sibling.id)} title={sibling.id} sub={`${siblingName} of it, in ${here}`} />
+            )
+          }
+          actions={
+            <>
+              {found.map((k, i) => (
+                <Link
+                  key={k}
+                  href={collectionHref(k, collection)}
+                  className={i === 0 && !sibling ? "ffx-btn ffx-btn-primary" : "ffx-btn"}
+                >
+                  Open in {envMeta(k).label}
+                </Link>
+              ))}
+              <Link href={withEnvHome(env)} className={missing && !sibling ? "ffx-btn ffx-btn-primary" : "ffx-btn"}>
+                Back to the map
+              </Link>
+            </>
+          }
+        >
+          {missing ? (
+            <p>
+              <code className="ffx-id">{collection}</code> isn&apos;t in any environment. It may have been renamed in
+              the bucket, or the file that held it may no longer be listed.
+            </p>
+          ) : (
+            <>
+              <p>
+                <code className="ffx-id">{collection}</code> is in {new Intl.ListFormat("en-US").format(found.map((k) => envMeta(k).label))}.{" "}
+                {envMeta(env).onPath
                   ? `A collection reaches ${here} when it's approved in the environment before it.`
-                  : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`
-              }`
-            : "No collection by that id is in any environment. It may have been renamed in the bucket, or the file that held it may no longer be listed."}
-          {sibling && ` ${siblingName} of it is in ${here}.`}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {sibling && (
-            <Link href={collectionHref(env, sibling.id)} className="ffx-btn ffx-btn-sm">
-              Open {sibling.id} here
-            </Link>
+                  : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`}
+              </p>
+              {stand && (
+                <p className="sx-msg-state">
+                  <span>In {stand.env}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <QcMark state={stand.qc} />
+                    {qcMeta(stand.qc).label}
+                  </span>
+                  {stand.since && <span className="ffx-num">{fmtAge(stand.since, now)}</span>}
+                </p>
+              )}
+            </>
           )}
-          {found.map((k) => (
-            <Link key={k} href={collectionHref(k, collection)} className="ffx-btn ffx-btn-sm">
-              Open in {envMeta(k).label}
-            </Link>
-          ))}
-          <Link href={withEnvHome(env)} className="ffx-btn ffx-btn-sm">
-            Back to the map
-          </Link>
-        </div>
+        </MessageCard>
       </div>
     </div>
   );

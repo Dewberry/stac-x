@@ -5084,37 +5084,23 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   display: none;
 }
 
-/* A collection that isn't in this environment: the card alone, centered. */
-.sx-notin {
-  min-height: calc(100dvh - 10rem);
-  place-items: center;
-}
-.sx-notin-card {
-  width: 100%;
-  max-width: 35rem;
-  padding: var(--ffx-panel-pad);
-}
-.sx-notin-state {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: 0.4rem;
-  font-size: var(--ffx-t-small);
-  color: var(--ffx-ink-sec);
-}
-/* An Admin address that isn't built yet: the trail at the top, then one
-   card in the middle of the space the page has, saying what was asked for
-   and what works today. */
-.sx-soon {
+/* A page with nothing else to show: a 404, a collection that isn't in this
+   environment, an Admin page that isn't built yet, or an error. The trail
+   at the top when there is one, then one card in the middle of the space
+   the page has, saying what happened and the ways on. */
+.sx-msg {
   grid-template-rows: auto 1fr;
   min-height: calc(100dvh - 10rem);
 }
-.sx-soon-stage {
+.sx-msg > .sx-msg-stage:only-child {
+  grid-row: 1 / -1;
+}
+.sx-msg-stage {
   display: grid;
   place-items: center;
   padding-block: 2rem 4rem;
 }
-.sx-soon-card {
+.sx-msg-card {
   width: 100%;
   max-width: 34rem;
   padding: 2rem;
@@ -5122,7 +5108,12 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   justify-items: center;
   text-align: center;
 }
-.sx-soon-mark {
+@media (max-width: 30rem) {
+  .sx-msg-card {
+    padding: 1.5rem 1.25rem;
+  }
+}
+.sx-msg-mark {
   display: grid;
   place-items: center;
   width: 3rem;
@@ -5131,7 +5122,12 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   background: var(--ffx-surface-sunken);
   color: var(--ffx-river);
 }
-.sx-soon-kicker {
+/* An error isn't a QC state, so it doesn't borrow red. It's ink on the
+   sunken circle, which reads as "stopped" without saying "rejected". */
+.sx-msg-mark-error {
+  color: var(--ffx-ink-sec);
+}
+.sx-msg-kicker {
   margin-top: 1rem;
   font-size: var(--ffx-t-micro);
   font-weight: 600;
@@ -5139,7 +5135,7 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   text-transform: uppercase;
   color: var(--ffx-ink-mut);
 }
-.sx-soon-title {
+.sx-msg-title {
   margin-top: 0.25rem;
   font-family: var(--ffx-display);
   font-size: clamp(1.5rem, 1.2rem + 1vw, 1.875rem);
@@ -5147,19 +5143,40 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   letter-spacing: -0.025em;
   line-height: 1.15;
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
-.sx-soon-text {
+.sx-msg-text {
   margin-top: 0.6rem;
   max-width: 28rem;
   font-size: var(--ffx-t-small);
   line-height: var(--ffx-t-small-lh);
   color: var(--ffx-ink-sec);
+  text-wrap: pretty;
 }
-.sx-soon-text code {
+.sx-msg-text > * + * {
+  margin-top: 0.5rem;
+}
+.sx-msg-text code {
   overflow-wrap: anywhere;
 }
-/* What works today, as a row you can click, with the queue's real count. */
-.sx-soon-now {
+/* Where a collection stands in the furthest environment it has reached. */
+.sx-msg-state {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-msg-state > * + *::before {
+  content: "·";
+  margin: 0 0.5rem;
+  color: var(--ffx-ink-dim);
+}
+/* The thing you probably wanted instead, as a row you can click. On Admin
+   it's the review queue with its real count. */
+.sx-msg-now {
   margin-top: 1.5rem;
   width: 100%;
   display: flex;
@@ -5173,35 +5190,38 @@ body:not(:has(.sx-admin-stack)) > .sx-footer {
   color: var(--ffx-ink);
   text-decoration: none;
 }
-.sx-soon-now:hover {
+.sx-msg-now:hover {
   border-color: var(--ffx-river);
   background: var(--ffx-surface-sunken);
 }
-.sx-soon-now > span {
+.sx-msg-now > span {
   display: grid;
   gap: 0.1rem;
   min-width: 0;
 }
-.sx-soon-now-title {
+.sx-msg-now-title {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
-.sx-soon-now-sub {
+.sx-msg-now-sub {
   font-size: var(--ffx-t-small);
   color: var(--ffx-ink-mut);
 }
-.sx-soon-now > svg {
+.sx-msg-now > svg {
   flex: none;
   color: var(--ffx-ink-mut);
 }
-.sx-soon-actions {
+.sx-msg-actions {
   margin-top: 1.25rem;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
 }
-.sx-notin-state > * + *::before {
-  content: "·";
-  margin: 0 0.5rem;
-  color: var(--ffx-ink-dim);
+/* The error's reference, small, so it can be read out or pasted. */
+.sx-msg-ref {
+  margin-top: 1rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
 }
+

@@ -1,22 +1,13 @@
-"use client";
+import type { Metadata } from "next";
+import { NotFoundCard } from "@/components/not-found-card";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { splitEnv, withEnv } from "@/lib/env";
+export const metadata: Metadata = { title: "Not found" };
 
 export default function NotFound() {
-  const { env } = splitEnv(usePathname());
   return (
-    <div className="sx-page">
-      <div className="ffx-panel p-[var(--ffx-panel-pad)] max-w-xl">
-        <h1 className="font-display text-head font-semibold tracking-[-0.015em]">Not found</h1>
-        <p className="mt-1 text-small text-ink-mut">
-          No collection or item by that id is in the catalog. It may have been renamed in the bucket, or the file
-          that held it may no longer be listed.
-        </p>
-        <Link href={withEnv(env, "/")} className="ffx-btn ffx-btn-sm mt-3">
-          Back to the map
-        </Link>
+    <div className="sx-page sx-msg">
+      <div className="sx-msg-stage">
+        <NotFoundCard />
       </div>
     </div>
   );

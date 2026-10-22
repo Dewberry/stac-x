@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MessageCard, MessageRow } from "@/components/message-card";
 import { Breadcrumbs, homeCrumb } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
 import { envMeta, withEnv } from "@/lib/env";
@@ -28,42 +29,34 @@ export default async function AdminComingSoon({ params }: Props) {
   const here = envMeta(env).label;
 
   return (
-    <div className="sx-page sx-soon">
+    <div className="sx-page sx-msg">
       <Breadcrumbs crumbs={[homeCrumb(env), { label: "Admin", href: admin }, { label: name || "Coming soon" }]} />
-      <div className="sx-soon-stage">
-        <div className="ffx-panel sx-soon-card">
-          <div className="sx-soon-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-          </div>
-          <p className="sx-soon-kicker">{name ? `Admin · ${name}` : "Admin"}</p>
-          <h1 className="sx-soon-title">Coming soon</h1>
-          <p className="sx-soon-text">
-            <code className="ffx-id">{asked}</code> isn&apos;t built yet. Reviewing and approving collections works today.
-          </p>
-
-          <Link href={admin} className="sx-soon-now">
-            <span>
-              <span className="sx-soon-now-title">Review queue</span>
-              <span className="sx-soon-now-sub">
-                {waiting > 0
+      <div className="sx-msg-stage">
+        <MessageCard
+          mark="soon"
+          kicker={name ? `Admin · ${name}` : "Admin"}
+          title="Coming soon"
+          aside={
+            <MessageRow
+              href={admin}
+              title="Review queue"
+              sub={
+                waiting > 0
                   ? `${fmtNum(waiting)} ${waiting === 1 ? "collection" : "collections"} waiting for review in ${here}`
-                  : `Nothing waiting for review in ${here}`}
-              </span>
-            </span>
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m6 4 4 4-4 4" />
-            </svg>
-          </Link>
-
-          <div className="sx-soon-actions">
+                  : `Nothing waiting for review in ${here}`
+              }
+            />
+          }
+          actions={
             <Link href={withEnv(env, "/")} className="ffx-btn">
               Back to the map
             </Link>
-          </div>
-        </div>
+          }
+        >
+          <p>
+            <code className="ffx-id">{asked}</code> isn&apos;t built yet. Reviewing and approving collections works today.
+          </p>
+        </MessageCard>
       </div>
     </div>
   );
