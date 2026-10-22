@@ -266,6 +266,10 @@
   padding: 0.875rem 1.25rem 0.75rem;
   border-bottom: 1px solid var(--ffx-rule);
 }
+/* The title and its sub line; narrow enough to let a long name wrap. */
+.sx-dm-lead {
+  min-width: 0;
+}
 /* The title is the asset's or the document's; without one, the file name, in mono. */
 .sx-dm-title {
   font-family: var(--ffx-display);
@@ -390,6 +394,20 @@
   .sx-dm-scroll {
     flex: 1 1 auto;
   }
+  /* The actions line up on top, Close at the top right; the title and
+     its sub line take the whole width beneath them. */
+  .sx-dm-head {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+  }
+  .sx-dm-acts {
+    order: -1;
+    flex: 1 1 100%;
+  }
+  .sx-dm-lead {
+    flex: 1 1 100%;
+  }
 }
 /* A JSON document as a tree (components/json-tree.tsx): keys and values in
    mono, counts and controls in the body face, nested levels on a guide. */
@@ -500,6 +518,13 @@ a.sx-json-str {
   color: var(--ffx-ink);
   white-space: pre;
   tab-size: 2;
+}
+@media (max-width: 39.99rem) {
+  /* Long lines wrap on a phone rather than scroll the whole document sideways. */
+  .sx-json-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 }
 .sx-json-tkey {
   color: var(--ffx-ink-sec);

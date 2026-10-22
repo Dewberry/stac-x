@@ -209,7 +209,7 @@ function DataDialog({
       }}
     >
       <div className="sx-dm-head">
-        <div className="min-w-0">
+        <div className="sx-dm-lead">
           <h2 id="dm-h" ref={headRef} tabIndex={-1} className="sx-dm-title" data-mono={title ? undefined : ""}>
             {title ?? file}
           </h2>
