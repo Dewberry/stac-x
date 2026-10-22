@@ -44,8 +44,9 @@ export function countOf(area: HomeArea): { n: string; noun: string } {
   const m = area.members;
   if (!m?.length) return { n: fmtNum(area.itemCount), noun: area.itemCount === 1 ? "item" : "items" };
   const shapes = new Set(m.map((x) => x.key)).size;
-  // Members only say which model they are in a collection of models.
-  const noun = m.every((x) => x.kind) ? "model" : "shape";
+  // Members only say which model they are in a collection of models, and
+  // not every model item says it, so one is enough.
+  const noun = m.some((x) => x.kind) ? "model" : "shape";
   if (shapes === m.length) return { n: fmtNum(m.length), noun: `${noun}${m.length === 1 ? "" : "s"}` };
   return { n: fmtNum(m.length), noun: `items on ${fmtNum(shapes)} ${noun}${shapes === 1 ? "" : "s"}` };
 }
