@@ -3598,7 +3598,7 @@ main:focus {
   font-size: 12px;
   line-height: 16px;
   color: var(--ffx-active-text);
-  background: linear-gradient(to right, transparent, var(--ffx-n-100) 16px);
+  background: linear-gradient(to right, transparent, var(--ffx-surface-sunken) 16px);
   pointer-events: none;
 }
 .sx-rail-item .sx-row:hover,
@@ -3608,7 +3608,7 @@ main:focus {
 /* The row the map is previewing: a pale edge, so the rail shows the
    candidate beside the selection without the two reading alike. */
 .sx-rail-item[data-preview] .sx-row {
-  background: var(--ffx-n-100);
+  background: var(--ffx-surface-sunken);
   box-shadow: inset 4px 0 0 var(--ffx-river-pale);
 }
 /* The selected row is tinted river blue, the color its footprint is drawn
