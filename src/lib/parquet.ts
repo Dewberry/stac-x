@@ -37,11 +37,24 @@ export type ParquetStac = {
   etag: string;
 };
 
+/**
+ * A parquet file that isn't stac-geoparquet: a data table an asset points
+ * at, sitting under a prefix that's listed as a source. It has no `id`
+ * column, so its rows aren't items.
+ */
+export class NotStac extends Error {
+  constructor(uri: string) {
+    super(`${uri} isn't stac-geoparquet (it has no id column)`);
+    this.name = "NotStac";
+  }
+}
+
 export async function readItems(uri: string): Promise<ParquetStac> {
   const { bytes, etag } = await read(uri);
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const file: AsyncBuffer = { byteLength: ab.byteLength, slice: (a, b) => ab.slice(a, b) };
   const metadata = await parquetMetadataAsync(file);
+  if (!parquetSchema(metadata).children.some((c) => c.element.name === "id")) throw new NotStac(uri);
   const rows = await parquetReadObjects({ file, metadata, compressors, rowFormat: "object" });
   const fallbackCollection = uri.split("/").pop()?.replace(/\.(geo)?parquet$|\.pq$/i, "") ?? "items";
   return {

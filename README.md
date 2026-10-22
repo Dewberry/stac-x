@@ -106,6 +106,20 @@ an instance role.
 - Sandbox is outside promotion. Approving there records the decision and
   copies nothing, and nothing is ever promoted into it.
 
+### Opening page
+
+The app's bare address opens Development, for a deployment whose Production
+is still empty. Once collections have been approved through, open on
+Production instead:
+
+```bash
+STAC_HOME_ENV=prod
+```
+
+It takes `sandbox`, `dev`, `test` or `prod`, and is read per request, so a
+restart picks it up with no rebuild. Production's home page also answers at
+`/prod` whichever you pick.
+
 ### Map area
 
 The home map can focus on one area, like a state or a river basin:
@@ -129,6 +143,64 @@ outside, and collections that cover most of it say "Whole area" in the list.
   no outline. Collections with a national or world-sized box are left out of
   that view.
 
+## Setting up for another project
+
+Each project runs its own copy with its own `.env`. Everything in
+[Configuration](#configuration) applies; this is what a team starting cold
+also needs to know.
+
+### What the catalog has to look like
+
+The app reads what the pipeline writes: stac-geoparquet, one file per
+collection.
+
+- A STAC catalog's `child` links lead, through any sub-catalogs, to
+  collection files. Each collection links to its parquet file with any `rel`
+  but `self`, as long as the link's `type` says parquet
+  (`application/vnd.apache.parquet`) or its href ends in `.parquet`,
+  `.geoparquet` or `.pq`. Relative hrefs are fine.
+- A collection that links one JSON file per item is refused, and the server
+  log says so. Convert it to stac-geoparquet first.
+- Sources and the files they link to have to be on S3 (`s3://`) or a local
+  path. `https://` isn't read: the page notes that collections couldn't be
+  loaded, and the server log says why.
+- A parquet file with no `id` column (a data table an asset points at, say)
+  is left out of the catalog rather than shown as a collection.
+- Promotion copies parquet files that sit directly in a source folder or
+  prefix. A collection read through a catalog records its approval but isn't
+  copied yet (see [Promotion](#promotion)).
+
+### AWS permissions
+
+The server's credentials need:
+
+- `s3:ListBucket` on every source prefix, and `s3:GetObject` on everything
+  the sources and their catalogs link to, including assets people will
+  download or preview.
+- `s3:PutObject` beside every source file in every environment, for the QC
+  sidecars (`*.edits.json`), and on Test's and Production's first source
+  folder, where promoted collections land.
+
+QC saves are conditional writes (`If-Match` and `If-None-Match` on
+PutObject), so an S3-compatible store has to support those.
+
+### Put it behind your own sign-in
+
+There's no identity provider yet, so anyone who can reach the app can
+approve a collection, and approving copies files into Test or Production
+with the server's credentials. Serve it behind the deployment's own auth
+(an ALB with OIDC, a VPN, an authenticating proxy) until sign-in is built.
+QC records don't name who made them, for the same reason.
+
+### Size
+
+Every environment's catalog is held in memory, all four at once, and a
+parquet file that changes is read again in full. Parsing is well under a
+second for a hundred thousand items. Memory grows with the item count and
+how many properties each item carries, so a project with hundreds of
+thousands of items should size the server for it and watch its first load.
+Nothing larger has been tried.
+
 ## Docker
 
 Every push to `main` publishes `ghcr.io/dewberry/stac-x:main` for
@@ -144,7 +216,8 @@ The published image is built to be served under `/stac`, where Production
 lives (`https://ffrd.cloud.dewberryanalytics.com/stac`).
 
 - Next bakes the path into the build, so it can't be changed when the
-  container starts.
+  container starts. A project served anywhere else, including at the
+  domain's root, builds its own image (below).
 - Pages, `_next` assets and API routes all answer under `/stac/...`. The
   proxy in front should pass the path through without stripping the prefix.
 - To build for another path, set `NEXT_PUBLIC_BASE_PATH` as a build arg.
@@ -152,8 +225,8 @@ lives (`https://ffrd.cloud.dewberryanalytics.com/stac`).
 
 ### Running it
 
-The published image needs a ghcr.io login first. The repo is private, so use
-a classic GitHub token with `read:packages`:
+If the ghcr.io package is private to you, log in first with a classic
+GitHub token that has `read:packages`:
 
 ```bash
 echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin

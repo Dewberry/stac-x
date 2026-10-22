@@ -224,7 +224,8 @@ function AssetActions({ a }: { a: StacAsset }) {
 /**
  * The open row's header line: the title (or, without one, the description)
  * on the left and the actions on the right: Download, the copy button
- * that says what it copies, and Bucket View, which opens the file's folder.
+ * that says what it copies, and Bucket View, which opens the file's folder
+ * (only where CLOUD_VIEW_URL is set).
  */
 function AssetHead({ a }: { a: StacAsset }) {
   const s3 = a.href.startsWith("s3://");
@@ -238,16 +239,10 @@ function AssetHead({ a }: { a: StacAsset }) {
           <Icon d={ICONS.download} size={12} /> Download
         </a>
         <CopyButton text={a.href} label={s3 ? "S3 URI" : "URL"} ariaLabel={s3 ? "Copy S3 URI" : "Copy URL"} />
-        {cloudView ? (
+        {cloudView && (
           <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" title="Open this file's folder in Cloud View">
             <Icon d={ICONS.external} size={12} /> Bucket View
           </a>
-        ) : (
-          s3 && (
-            <button type="button" className="ffx-btn ffx-btn-sm" disabled title="Bucket View link isn't set up yet">
-              <Icon d={ICONS.external} size={12} /> Bucket View
-            </button>
-          )
         )}
       </div>
     </div>

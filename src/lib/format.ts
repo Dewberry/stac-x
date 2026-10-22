@@ -186,15 +186,6 @@ export function tidyCaps(s: string): string {
     .replace(/,\s*([a-z]{2})(\.?)$/i, (m, st: string, dot: string) => (STATES.has(st.toUpperCase()) ? `, ${st.toUpperCase()}${dot}` : m));
 }
 
-/**
- * Titles that rules can't get right, by collection id. The NID titles repeat
- * their file name in lowercase and lead with the South Platte's HUC4 code,
- * which readers won't know.
- */
-const NAME_OVERRIDES: Record<string, string> = {
-  "nid-dams": "National Inventory of Dams: South Platte",
-  "nid-low-head-dams": "National Inventory of Dams: Low-Head Dams, South Platte",
-};
 const SMALL_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "in", "la", "of", "on", "or", "the", "to", "via", "vs"]);
 const UNITS = new Set(["ft", "m", "km", "mi"]);
 
@@ -206,7 +197,6 @@ const UNITS = new Set(["ft", "m", "km", "mi"]);
  * The STAC JSON keeps its own title; this only changes what's shown.
  */
 export function collectionName(title: string | null | undefined, id: string): string {
-  if (NAME_OVERRIDES[id]) return NAME_OVERRIDES[id];
   let s = title?.trim() || id;
   if (!/\s/.test(s)) s = s.replace(/[-_]+/g, " ");
   if (s === s.toUpperCase()) s = s.toLowerCase();

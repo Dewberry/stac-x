@@ -80,7 +80,7 @@ export function SiteFooter() {
   return (
     <footer className="sx-footer">
       <div className="ffx-shell sx-footer-inner">
-        <span>Collections are read from stac-geoparquet in S3. QC edits are saved beside the source file.</span>
+        <span>Collections are read from stac-geoparquet. QC edits are saved beside the source file.</span>
       </div>
     </footer>
   );

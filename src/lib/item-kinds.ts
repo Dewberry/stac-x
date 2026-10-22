@@ -8,7 +8,7 @@ import { guessKind, type AreaKind } from "./kinds";
  * never a bare number or a 40-character file name.
  */
 export const ITEM_KIND_LABEL: Record<AreaKind, string> = {
-  gages: "USGS gage",
+  gages: "Gage",
   hms: "HEC-HMS model",
   ras: "HEC-RAS model",
   ressim: "HEC-ResSim model",
@@ -23,13 +23,15 @@ export const ITEM_KIND_LABEL: Record<AreaKind, string> = {
 type CollectionLike = { id: string; title: string; keywords: string[]; description?: string | null };
 
 /**
- * The item's kind label. A calibration collection carries HMS and RAS models
- * side by side, so for those the item's own properties decide which one it
- * is: whichever extension has values filled in (the other's fields are
- * there but null), then the id.
+ * The item's kind label. A gage is a USGS gage only when the collection says
+ * so. A calibration collection carries HMS and RAS models side by side, so
+ * for those the item's own properties decide which one it is: whichever
+ * extension has values filled in (the other's fields are there but null),
+ * then the id.
  */
 export function itemKindLabel(c: CollectionLike, item: ItemLike): string {
   const kind = guessKind(c);
+  if (kind === "gages" && /\busgs\b/i.test(`${c.id} ${c.title} ${c.keywords.join(" ")} ${c.description ?? ""}`)) return "USGS gage";
   if (kind !== "models") return ITEM_KIND_LABEL[kind];
   const model = modelOf(item);
   return model ? `${model} calibration model` : ITEM_KIND_LABEL.models;

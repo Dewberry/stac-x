@@ -48,6 +48,18 @@ export class NotFound extends Error {
   }
 }
 
+/**
+ * Only S3 and the local disk are read. Anything else with a scheme
+ * (https://, gs://) would otherwise be taken for a local path and fail as
+ * "not found", which sends people looking in the wrong place.
+ */
+function assertReadable(uri: string) {
+  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(uri)?.[1].toLowerCase();
+  if (scheme && scheme !== "s3" && scheme !== "file") {
+    throw new Error(`${scheme}:// isn't read. Sources, and the files a catalog links to, have to be on S3 (s3://) or a local path`);
+  }
+}
+
 export function parseRef(uri: string): ObjectRef {
   const m = /^s3:\/\/([^/]+)\/?(.*)$/.exec(uri);
   if (m) return { kind: "s3", bucket: m[1], key: m[2], uri };
@@ -102,6 +114,7 @@ export const isJsonSource = (uri: string) => /\.json$/i.test(uri);
  * local folder, is listed; anything else is taken as one file.
  */
 export async function listSourceFiles(uri: string): Promise<string[]> {
+  assertReadable(uri);
   const ref = parseRef(uri);
   if (ref.kind === "s3") {
     if (!uri.endsWith("/")) return [uri];
@@ -131,6 +144,7 @@ export async function listSourceFiles(uri: string): Promise<string[]> {
 /* ------------------------------------------------------------------ head */
 
 export async function head(uri: string): Promise<ObjectHead | null> {
+  assertReadable(uri);
   const ref = parseRef(uri);
   if (ref.kind === "s3") {
     try {
@@ -153,6 +167,7 @@ function fileEtag(mtimeMs: number, size: number) {
 /* ------------------------------------------------------------------ read */
 
 export async function read(uri: string): Promise<{ bytes: Uint8Array; etag: string }> {
+  assertReadable(uri);
   const ref = parseRef(uri);
   if (ref.kind === "s3") {
     try {

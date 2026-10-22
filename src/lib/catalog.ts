@@ -4,7 +4,7 @@ import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { collectionName } from "./format";
-import { readItems } from "./parquet";
+import { NotStac, readItems } from "./parquet";
 import { collectionsOf, readCollectionJson, resolveHref } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsLooksConfigured, CATALOG_JSON, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
@@ -46,6 +46,8 @@ type SourceState = {
   history: Record<string, QcEvent[]>;
   checkedAt: number;
   error: string | null;
+  /** A parquet file under a listed prefix that turned out not to be stac-geoparquet, left out of the catalog. */
+  skipped?: boolean;
 };
 
 type CollectionDoc = Record<string, unknown> | null;
@@ -158,6 +160,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   const sourcesOut: Catalog["sources"] = [];
   for (const uri of uris) {
     const s = cache.sources.get(uri)!;
+    if (s.skipped) continue;
     sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(new Set(s.items.map((i) => i.collection))), error: s.error });
     if (s.error) errors.push(`${uri}: ${s.error}`);
     for (const item of s.items) {
@@ -238,9 +241,20 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
         state.etag = `${h.etag}|${read.parquet.etag}`;
       }
     } else if (h.etag !== state.etag || !state.embedded) {
-      const read = await readItems(uri);
-      state.items = read.items;
-      state.embedded = read.collections;
+      try {
+        const read = await readItems(uri);
+        state.items = read.items;
+        state.embedded = read.collections;
+        state.skipped = false;
+      } catch (e) {
+        if (!(e instanceof NotStac)) throw e;
+        // A data table beside the items, not an error. Its ETag is kept so
+        // it's read again only when it changes.
+        console.log(`stac-x: ${e.message}, so it's left out`);
+        state.items = [];
+        state.embedded = {};
+        state.skipped = true;
+      }
       state.etag = h.etag;
     }
     const { edits, etag } = sidecar;

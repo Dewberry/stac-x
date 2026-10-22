@@ -6,14 +6,21 @@ import { NextResponse, type NextRequest } from "next/server";
  * segment so every page reads its environment from the same param. A typed
  * /prod/... URL redirects to the unprefixed one, so each page has one address.
  *
- * The bare root is the exception. Production has no collections yet, so
- * opening the app at / sends you to Development, and Production's own home
- * page answers at /prod instead. Once the first collections are approved
- * through, drop both special cases and / is Production's home again.
+ * The bare root is the exception. It opens the environment STAC_HOME_ENV
+ * names (default Development, for a deployment whose Production is still
+ * empty): a redirect to that environment's prefix, or for Production its home
+ * page served in place. Production's home also answers at /prod, which is
+ * where its links point, so they work whichever environment / opens.
  *
  * Kept free of imports from src/lib: proxy runs apart from the render code.
  */
 const PREFIXED = new Set(["sandbox", "dev", "test"]);
+
+/** The environment the bare root opens, read per request so a container can set it at run time. */
+function homeEnv(): string {
+  const v = process.env.STAC_HOME_ENV?.trim().toLowerCase();
+  return v === "prod" || (v && PREFIXED.has(v)) ? v : "dev";
+}
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -21,9 +28,9 @@ export function proxy(req: NextRequest) {
 
   if (pathname === "/") {
     const url = req.nextUrl.clone();
-    url.pathname = "/dev";
+    url.pathname = `/${homeEnv()}`;
     url.search = search;
-    return NextResponse.redirect(url, 307);
+    return url.pathname === "/prod" ? NextResponse.rewrite(url) : NextResponse.redirect(url, 307);
   }
   if (pathname === "/prod") return NextResponse.next();
   if (first === "prod") {
