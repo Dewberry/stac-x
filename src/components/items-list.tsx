@@ -80,6 +80,15 @@ export function ItemsList({
   }, [rows, q, sort]);
 
   const all = rows.length;
+  // Names more than one row shares ("Dam", 905 times): those rows say their
+  // id in the rail instead, so they can be told apart. A name that already
+  // carries its id ("Storm event 1") is never repeated.
+  const repeated = useMemo(() => {
+    const seen = new Set<string>();
+    const twice = new Set<string>();
+    for (const r of rows) if (r.label && !r.hideId) (seen.has(r.label) ? twice : seen).add(r.label);
+    return twice;
+  }, [rows]);
   // Where every row is already in view, there's nothing to search for.
   const searchable = !compact || all > WINDOW;
   const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / PAGE));
@@ -170,7 +179,11 @@ export function ItemsList({
             {slice.map((r) => (
               <Link key={r.id} className="sx-item" {...rowProps(r)}>
                 {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
-                <span className="sx-item-name">{mark(r.label ?? r.id, q)}</span>
+                {r.label && !repeated.has(r.label) ? (
+                  <span className="sx-item-name">{mark(r.label, q)}</span>
+                ) : (
+                  <span className="sx-item-name ffx-id">{mark(r.id, q)}</span>
+                )}
                 {r.kind && (
                   <span className="sx-tag" data-tone="muted">
                     {r.kind}

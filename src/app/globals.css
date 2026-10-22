@@ -3604,8 +3604,9 @@ main:focus {
   background: none;
   box-shadow: none;
 }
-/* What opens under the row's head: the description, the QC line, the way
-   in, then the items. Everything starts at the head's left edge. */
+/* What opens under the row's head: the description, the facts, the QC
+   line, the way in, then the items. Everything starts at the head's left
+   edge. */
 .sx-row-more {
   display: grid;
   gap: 12px;
@@ -3627,16 +3628,43 @@ main:focus {
   gap: 12px;
 }
 .sx-pv-desc {
-  font-size: var(--ffx-t-small);
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 18px;
   color: var(--ffx-ink-sec);
 }
-/* The count as a figure, in the phone's sheet, with the QC line beside it. */
-.sx-pv-facts[data-figures] {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
+/* The collection's facts, two to a line; providers and keywords take the
+   whole line. Labels are small caps so the values carry the weight. */
+.sx-pv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 0;
+}
+.sx-pv-grid > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sx-pv-grid > div[data-wide] {
+  grid-column: 1 / -1;
+}
+.sx-pv-grid dt {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+}
+.sx-pv-grid dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+.sx-pv-grid .ffx-id {
+  font-size: 11px;
 }
 .sx-pv-figs b {
   display: block;
@@ -3656,11 +3684,17 @@ main:focus {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
 }
+/* The QC line, under a rule so it reads apart from the facts. */
+.sx-pv-facts {
+  padding-top: 12px;
+  border-top: 1px solid var(--ffx-rule);
+}
 .sx-pv-facts dl {
   display: grid;
   gap: 6px;
   margin: 0;
-  font-size: var(--ffx-t-small);
+  font-size: 13px;
+  line-height: 18px;
   color: var(--ffx-ink-mut);
 }
 .sx-pv-facts dl > div {
@@ -3672,8 +3706,10 @@ main:focus {
 .sx-pv-facts dd {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 7px;
   margin: 0;
+  font-weight: 500;
+  color: var(--ffx-ink);
 }
 .sx-pv-note {
   margin: 0;
@@ -3782,13 +3818,22 @@ button.sx-map-pill svg {
 .sx-pv-btns .ffx-btn {
   height: 32px;
 }
-/* The one action takes the whole row, so it's the loudest thing in it. */
+/* The one action takes the whole row, outlined in river blue as a way in
+   rather than a commit. */
 .sx-pv-go {
   flex: 1;
-  height: 2.25rem;
-  font-size: var(--ffx-t-micro);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  height: 36px;
+  border-color: var(--ffx-river);
+  border-radius: 8px;
+  background: var(--ffx-surface);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--ffx-active-text);
+}
+.sx-pv-go:hover {
+  border-color: var(--ffx-river);
+  background: color-mix(in srgb, var(--ffx-active) 8%, var(--ffx-surface));
 }
 
 /* The items inside the open row and the phone's sheet: a white block of
@@ -3822,9 +3867,9 @@ button.sx-map-pill svg {
 .sx-items-compact > .sx-item-block:first-child {
   margin-top: 0;
 }
-/* Five rows show before the block scrolls; the line under it says how many more. */
+/* Five 40px rows show before the block scrolls; the line under it says how many more. */
 .sx-item-list {
-  max-height: 12rem;
+  max-height: 204px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -3843,10 +3888,10 @@ button.sx-map-pill svg {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 14px 9px 16px;
+  padding: 11px 14px 10px 16px;
   border-top: 1px solid var(--ffx-n-150);
-  font-size: var(--ffx-t-base);
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 18px;
   color: var(--ffx-ink);
   text-decoration: none;
 }
@@ -3860,6 +3905,10 @@ button.sx-map-pill svg {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+/* An item named by its id, where the collection's items share one name. */
+.sx-item-name.ffx-id {
+  font-size: 11px;
 }
 .sx-item > svg {
   flex: none;

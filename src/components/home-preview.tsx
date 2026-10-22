@@ -7,7 +7,6 @@ import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
 import { ItemsList } from "./items-list";
-import { QcChip } from "./qc-chip";
 import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 
 /**
@@ -88,37 +87,102 @@ export function UnitGlyph({ unit }: { unit: HomeArea["unit"] }) {
   return null;
 }
 
-/** The description, the QC line and the last note; the count as a figure only where the row head doesn't carry it. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * A collection's extent as dates a person reads: "Aug 25 to 28, 2026",
+ * "Mar 27, 1980 to Dec 20, 2025", or "Jan 1, 2026 to now" when it's open
+ * at the end. In UTC, as the catalog writes them. Null with no extent.
+ */
+export function fmtSpan(t: HomeArea["temporal"]): string | null {
+  const at = (v: string | null | undefined) => {
+    const d = v ? new Date(v) : null;
+    return d && !Number.isNaN(d.getTime()) ? { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate() } : null;
+  };
+  const s = at(t?.[0]);
+  const e = at(t?.[1]);
+  const day = (p: { m: number; d: number }) => `${MONTHS[p.m]} ${p.d}`;
+  if (s && e) {
+    if (s.y !== e.y) return `${day(s)}, ${s.y} to ${day(e)}, ${e.y}`;
+    if (s.m !== e.m) return `${day(s)} to ${day(e)}, ${s.y}`;
+    return s.d === e.d ? `${day(s)}, ${s.y}` : `${day(s)} to ${e.d}, ${s.y}`;
+  }
+  if (s) return `${day(s)}, ${s.y} to now`;
+  if (e) return `Until ${day(e)}, ${e.y}`;
+  return null;
+}
+
+type Fact = { label: string; value: ReactNode; wide?: boolean };
+
+/**
+ * What the open row says about a collection besides its description, each
+ * only when the catalog has it. `brief` is the phone's sheet, whose header
+ * already carries the dates: just the version and the id.
+ */
+function factsOf(area: HomeArea, brief?: boolean): Fact[] {
+  const facts: Fact[] = [];
+  if (area.version)
+    facts.push({
+      label: "Version",
+      value: (
+        <>
+          <span className="ffx-id">{area.version}</span>
+          {area.earlier ? <> · {fmtNum(area.earlier)} earlier</> : null}
+        </>
+      ),
+    });
+  const dates = fmtSpan(area.temporal);
+  if (dates && !brief) facts.push({ label: "Dates", value: <span className="ffx-num">{dates}</span> });
+  facts.push({ label: "Id", value: <span className="ffx-id">{area.id}</span> });
+  if (brief) return facts;
+  if (area.license) facts.push({ label: "License", value: area.license });
+  const approved = area.qc?.date_approved;
+  if (approved) facts.push({ label: "Approved on", value: <span className="ffx-num">{fmtSpan([approved, approved])}</span> });
+  if (area.assetCount) facts.push({ label: "Assets", value: <span className="ffx-num">{fmtNum(area.assetCount)}</span> });
+  if (area.providers.length) facts.push({ label: "Providers", value: area.providers.join(", "), wide: true });
+  if (area.keywords.length) facts.push({ label: "Keywords", value: area.keywords.join(", "), wide: true });
+  return facts;
+}
+
+/**
+ * The description, the facts, the QC line and the last note. `figures` is
+ * the phone's sheet: the count as a figure on top, since there's no row
+ * head to carry it, and the brief facts.
+ */
 export function PreviewBody({ area, figures }: { area: HomeArea; figures?: boolean }) {
   const state = stateOf(area);
   const note = (state === "needs_revision" || state === "rejected") && area.qc?.note ? area.qc.note : null;
   const count = countOf(area);
+  const facts = factsOf(area, figures);
   return (
     <div className="sx-pv">
+      {figures && (
+        <div className="sx-pv-figs">
+          <b className="ffx-num">{count.n}</b>
+          <span>
+            <UnitGlyph unit={area.unit} />
+            {count.noun}
+          </span>
+        </div>
+      )}
       {area.blurb && <p className="sx-pv-desc">{area.blurb}</p>}
-      <div className="sx-pv-facts" data-figures={figures || undefined}>
-        {figures && (
-          <div className="sx-pv-figs">
-            <b className="ffx-num">{count.n}</b>
-            <span>{count.noun}</span>
+      <dl className="sx-pv-grid">
+        {facts.map((f) => (
+          <div key={f.label} data-wide={f.wide || undefined}>
+            <dt>{f.label}</dt>
+            <dd>{f.value}</dd>
           </div>
-        )}
+        ))}
+      </dl>
+      <div className="sx-pv-facts">
         <dl>
           <div>
             <dt>Quality control</dt>
             <dd>
-              <QcChip status={state} />
-              {area.qc?.date_approved && <span className="ffx-num">{area.qc.date_approved}</span>}
+              <QcMark state={state} />
+              {QC_LABEL[state]}
             </dd>
           </div>
-          {!figures && area.earlier ? (
-            <div>
-              <dt>Earlier versions</dt>
-              <dd>
-                <span className="text-ink ffx-num">{fmtNum(area.earlier)}</span>
-              </dd>
-            </div>
-          ) : null}
         </dl>
       </div>
       {note && (
@@ -135,8 +199,11 @@ export function PreviewBody({ area, figures }: { area: HomeArea; figures?: boole
 function WayIn({ area }: { area: HomeArea }) {
   return (
     <div className="sx-pv-btns">
-      <Link href={area.href} className="ffx-btn ffx-btn-primary sx-pv-go">
+      <Link href={area.href} className="ffx-btn sx-pv-go">
         Browse collection
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 8h10M9 4l4 4-4 4" />
+        </svg>
       </Link>
     </div>
   );

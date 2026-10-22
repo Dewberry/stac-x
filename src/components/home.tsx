@@ -80,6 +80,12 @@ export type HomeArea = {
   coverage: "whole" | "part" | "larger" | null;
   /** "1980–2025" when the extent spans more than one calendar year; null otherwise. */
   years: string | null;
+  license: string | null;
+  /** The providers' names. */
+  providers: string[];
+  keywords: string[];
+  /** How many assets the collection itself carries (not its items). */
+  assetCount: number;
   temporal: [string | null, string | null] | null;
   /** The collection's QC record; null when it has none or isn't published. */
   qc: QcEdit | null;
