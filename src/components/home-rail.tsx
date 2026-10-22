@@ -266,7 +266,10 @@ function AreaRow({
       >
         <span className="sx-row-main">
           <span className="sx-row-title">{area.name}</span>
-          <AreaSub area={area} open={open} previewing={previewing} />
+          <AreaSub area={area} open={open} />
+          {/* Over the end of the facts line, out of the flow, so the word
+              never wraps the line or changes the row's height. */}
+          {previewing && <span className="sx-row-previewing">previewing</span>}
         </span>
         <span className="sx-row-aside">
           <b className="sx-row-fig ffx-num">{count.n}</b>

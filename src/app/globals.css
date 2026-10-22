@@ -3503,6 +3503,7 @@ main:focus {
   outline-offset: -2px;
 }
 .sx-rail-item .sx-row-main {
+  position: relative;
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -3585,11 +3586,20 @@ main:focus {
     line-height: 20px;
   }
 }
-/* "previewing", at the end of the facts line of the row the map is drawing
-   over the selection. */
+/* "previewing", on the row the map is drawing over the selection. It sits
+   over the right end of the facts line, out of the flow, so it never wraps
+   the line or changes the row's height. A long line runs under a fade in
+   the preview row's own background. */
 .sx-row-previewing {
-  margin-left: 8px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--ffx-active-text);
+  background: linear-gradient(to right, transparent, var(--ffx-n-100) 16px);
+  pointer-events: none;
 }
 .sx-rail-item .sx-row:hover,
 .sx-rail-item[data-active="true"] .sx-row {

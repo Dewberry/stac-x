@@ -32,10 +32,9 @@ export const COVERAGE_LABEL: Record<NonNullable<HomeArea["coverage"]>, string> =
  * someone has decided it, the years it covers, where it is against the
  * area, and its version when there are earlier ones (an open row has that
  * in its facts instead). Each part shows only when it says something, so a
- * row can be just "Whole area". "previewing" goes last, for the row the map
- * is drawing over the selection.
+ * row can be just "Whole area".
  */
-export function AreaSub({ area, open, previewing }: { area: HomeArea; open?: boolean; previewing?: boolean }) {
+export function AreaSub({ area, open }: { area: HomeArea; open?: boolean }) {
   const state = stateOf(area);
   const parts: ReactNode[] = [];
   if (state !== "pending")
@@ -56,7 +55,6 @@ export function AreaSub({ area, open, previewing }: { area: HomeArea; open?: boo
         </Fragment>
       ))}
       {!open && area.version && area.earlier ? <span className="sx-tag">{versionName(area.version)}</span> : null}
-      {previewing && <span className="sx-row-previewing">previewing</span>}
     </span>
   );
 }
