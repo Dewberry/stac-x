@@ -119,6 +119,13 @@ export function resolveHref(href: string, base: string): string {
   const m = /^(s3|file):\/\/(.*)$/.exec(base);
   if (!m) return href;
   // The URL parser does the ../ arithmetic; any scheme with a path works.
-  const path = decodeURIComponent(new URL(href, `http://x/${m[2].replace(/^\/+/, "")}`).pathname);
+  const encoded = new URL(href, `http://x/${m[2].replace(/^\/+/, "")}`).pathname;
+  let path: string;
+  try {
+    path = decodeURIComponent(encoded);
+  } catch {
+    // A stray % in the href. Kept as written rather than failing the collection.
+    path = encoded;
+  }
   return m[1] === "file" ? `file://${path}` : `s3:/${path}`;
 }

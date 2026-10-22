@@ -166,6 +166,11 @@ collection.
   loaded, and the server log says why.
 - A parquet file with no `id` column (a data table an asset points at, say)
   is left out of the catalog rather than shown as a collection.
+- A file written from a pandas frame of items, with bbox, links, assets and
+  properties as JSON text and the geometry as WKB bytes with no `geo`
+  metadata, is read too. A geometry that still isn't valid is dropped from
+  its item, and a collection that can't be read at all is left out with a
+  note on the page, so one bad file doesn't take the catalog with it.
 - Promotion copies parquet files that sit directly in a source folder or
   prefix. A collection read through a catalog records its approval but isn't
   copied yet (see [Promotion](#promotion)).

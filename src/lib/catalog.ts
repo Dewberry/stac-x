@@ -170,13 +170,33 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     }
   }
 
-  const collections = await Promise.all(
-    Array.from(byCollection.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([id, items]) => describeCollection(cache, id, items, now)),
-  );
-  const series = groupVersions(collections);
-  for (const c of collections) c.series = series.get(c.id)!;
+  // One collection with metadata the code can't make sense of (a link
+  // that isn't an object, an href that won't decode) is left out, not the
+  // whole catalog. It falls back to being described from its items, and
+  // is dropped only when even that fails.
+  const collections: Collection[] = [];
+  for (const [id, items] of Array.from(byCollection.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+    try {
+      collections.push(await describeCollection(cache, id, items, now));
+    } catch (e) {
+      console.error(`stac-x: describing collection ${id} failed, so it's shown from its items:`, e);
+      try {
+        collections.push(derivedCollection(cache, id, items));
+      } catch (e2) {
+        errors.push(`${id}: ${message(e2)}`);
+        console.error(`stac-x: collection ${id} couldn't be read at all, so it's left out:`, e2);
+      }
+    }
+  }
+  try {
+    const series = groupVersions(collections);
+    for (const c of collections) c.series = series.get(c.id)!;
+  } catch (e) {
+    // Every collection stands alone rather than none showing.
+    errors.push(`grouping versions: ${message(e)}`);
+    console.error("stac-x: grouping collection versions failed, so each is shown on its own:", e);
+    for (const c of collections) c.series = lone(c.id);
+  }
 
   return { collections, sources: sourcesOut, errors, refreshedAt: new Date(now).toISOString() };
 }
@@ -277,22 +297,18 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
  * honest about being derived: fromDocument is false and the page says so.
  */
 async function describeCollection(cache: Cache, id: string, items: CatalogItem[], now: number): Promise<Collection> {
-  const docHref = items[0]?.links.find((l) => l.rel === "collection")?.href ?? null;
+  const docHref = docHrefOf(items);
   // A catalog's collection.json is itself a source, already read.
   const read = (docHref && cache.sources.get(docHref)?.embedded?.[id]) || (await collectionDoc(cache, docHref, now));
   const embeddedIn = read ? undefined : items.find((i) => cache.sources.get(i.source)?.embedded?.[id]);
   const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn.source)!.embedded[id] : null);
   // Relative asset hrefs are relative to the file the metadata came from.
   const docBase = read ? docHref : embeddedIn?.source ?? null;
+  if (!doc) return derivedCollection(cache, id, items);
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
-  const sources = Array.from(new Set(items.map((i) => i.source)));
-  const qc = qcFor(cache, id, sources);
-  const history = sources
-    .flatMap((uri) => cache.sources.get(uri)?.history[id] ?? [])
-    .sort((a, b) => b.at.localeCompare(a.at));
-
-  if (doc) {
+  const { sources, qc, history } = recordsOf(cache, id, items);
+  {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
     const docBbox = ext?.spatial?.bbox?.[0];
     const docInterval = ext?.temporal?.interval?.[0];
@@ -330,7 +346,11 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       items,
     };
   }
+}
 
+/** A collection described from its items alone, when there's no document or the document can't be used. */
+function derivedCollection(cache: Cache, id: string, items: CatalogItem[]): Collection {
+  const { sources, qc, history } = recordsOf(cache, id, items);
   return {
     id,
     title: collectionName(null, id),
@@ -339,8 +359,8 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     license: null,
     keywords: [],
     providers: [],
-    bbox,
-    temporal,
+    bbox: unionBbox(items),
+    temporal: temporalExtent(items),
     itemCount: items.length,
     sources,
     fromDocument: false,
@@ -349,13 +369,29 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     version: null,
     deprecated: false,
     experimental: false,
-    docHref,
+    docHref: docHrefOf(items),
     versionLinks: [],
     series: lone(id),
     qc,
     history,
     items,
   };
+}
+
+/** The collection document the items link to, if any. */
+function docHrefOf(items: CatalogItem[]): string | null {
+  const l = items[0]?.links.find((l) => l?.rel === "collection");
+  return typeof l?.href === "string" ? l.href : null;
+}
+
+/** The files a collection's items came from, and the QC record and history those files' sidecars hold for it. */
+function recordsOf(cache: Cache, id: string, items: CatalogItem[]) {
+  const sources = Array.from(new Set(items.map((i) => i.source)));
+  const qc = qcFor(cache, id, sources);
+  const history = sources
+    .flatMap((uri) => cache.sources.get(uri)?.history[id] ?? [])
+    .sort((a, b) => b.at.localeCompare(a.at));
+  return { sources, qc, history };
 }
 
 /** A placeholder until build() groups the versions. */

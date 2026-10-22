@@ -78,11 +78,23 @@ async function HomeData({ env }: { env: EnvKey }) {
   // draw the selected one. Biggest first, so a small model inside a big
   // one draws on top of it.
   const extentArea = (b: [number, number, number, number] | null) => (b ? (b[2] - b[0]) * (b[3] - b[1]) : 0);
+  // A collection whose items this page can't reduce to a footprint or a
+  // row (geometry of a kind the reader let through) is left off the page,
+  // and the notice says so, rather than the whole page going.
+  const failed = new Set<string>();
   const footprints = await Promise.all(
     [...latest]
       .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
       .map(async (c) => {
-        const o = overview(c.items, c.series.id, c.bbox);
+        let o: ReturnType<typeof overview>;
+        try {
+          o = overview(c.items, c.series.id, c.bbox);
+          rowsOf(c);
+        } catch (e) {
+          failed.add(c.id);
+          console.error(`stac-x: ${c.id} couldn't be drawn on the home page:`, e);
+          return { slug: c.series.id, shape: null, features: [] };
+        }
         // Each dot is named and dated the way the collection page names its
         // item, for the tooltip and the card a click on it opens.
         const rowOf = rowsOf(c);
@@ -142,6 +154,7 @@ async function HomeData({ env }: { env: EnvKey }) {
 
   const areas: HomeArea[] = [];
   for (const c of latest) {
+    if (failed.has(c.id)) continue;
     const bbox = c.bbox ?? unionBbox(c.items);
     areas.push({
       slug: c.series.id,
@@ -184,7 +197,11 @@ async function HomeData({ env }: { env: EnvKey }) {
       items={items}
       byState={byState}
       // Only shown when something is wrong. The details go to the server log.
-      notice={catalog.errors.length > 0 ? "Some collections couldn't be loaded and may be missing. Try again in a minute." : null}
+      notice={
+        catalog.errors.length > 0 || failed.size > 0
+          ? "Some collections couldn't be loaded and may be missing. Try again in a minute."
+          : null
+      }
       emptyText={EMPTY[env]}
     />
   );

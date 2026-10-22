@@ -164,6 +164,11 @@ function idFromHref(href: string, byId: Map<string, unknown>): string | null {
   const parts = href.split(/[?#]/)[0].split("/").filter(Boolean);
   let last = parts.pop() ?? "";
   if (last === "collection.json") last = parts.pop() ?? "";
-  last = decodeURIComponent(last.replace(/\.json$/i, ""));
+  last = last.replace(/\.json$/i, "");
+  try {
+    last = decodeURIComponent(last);
+  } catch {
+    // A stray % in the href. Matched as written, if at all.
+  }
   return byId.has(last) ? last : null;
 }

@@ -309,6 +309,8 @@ function parts(g: Geometry): Part[] {
       return g.coordinates.map((c) => ({ type: "Polygon", coordinates: c }));
     case "GeometryCollection":
       return g.geometries.flatMap(parts);
+    default:
+      return [];
   }
 }
 
