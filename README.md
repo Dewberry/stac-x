@@ -1,184 +1,186 @@
 # stac-x
 
-A STAC viewer for reviewing a catalog before it's published. It reads static
-STAC catalogs and stac-geoparquet files, from S3 or local folders, draws every
-collection on a map, and lets a reviewer record QC on each collection.
-Approving a collection copies its files into the next environment
-(Development to Test, Test to Production).
-
-It writes two things. QC decisions go to a JSON sidecar beside the
-collection's file (`gages.parquet` gets `gages.edits.json`), never into the
-parquet itself, and a promoted collection is copied byte for byte into the
-next environment's first source.
-
 ![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with its description, version, dates, license and asset count, its review state, a Browse collection button and the gages listed by name](docs/images/home.png)
 
-## Running it
+A STAC viewer for reviewing a catalog before it's published.
 
-Install [Node.js](https://nodejs.org) 20 or newer. On WSL, install Node
-inside the Linux distro rather than using the Windows install.
+- Reads static STAC catalogs and stac-geoparquet files, from S3 or local folders.
+- Draws every collection on a map.
+- Lets a reviewer mark each collection approved, needs revision or rejected.
+- Approving a collection copies its files into the next environment
+  (Development to Test, Test to Production).
 
-Install dependencies:
+It only ever writes two things:
 
-```bash
-npm install
-```
+- QC decisions, to a JSON sidecar beside the collection's file
+  (`gages.parquet` gets `gages.edits.json`). The parquet itself is never touched.
+- Promoted collections, copied byte for byte into the next environment's first source.
 
-Start the dev server:
+## Quick start
 
-```bash
-npm run dev
-```
+You need [Node.js](https://nodejs.org) 20 or newer. On WSL, install Node
+inside the Linux distro, not on Windows.
 
-Open http://localhost:3000, which lands in Development. Reading catalogs on
-S3 needs AWS credentials with access to their bucket. Without them the pages
-still load, empty, with a note that collections couldn't be loaded.
+1. Install dependencies:
 
-There's no identity provider yet. The sign-in page is a stand-in that opens
-Development whatever you type, and the account shown is a fixed role.
+   ```bash
+   npm install
+   ```
 
-For a demo, build for production and serve that instead, so pages don't
-compile on first click:
+2. Make a `.env` from the example, then point it at your catalogs (see
+   [Sources](#sources)):
 
-```bash
-npm run build
-```
+   ```bash
+   cp .env.example .env
+   ```
 
-```bash
-npm start
-```
+   In PowerShell, use `Copy-Item .env.example .env`.
 
-Lint and typecheck:
+3. Start the dev server:
 
-```bash
-npm run lint
-```
+   ```bash
+   npm run dev
+   ```
 
-```bash
-npm run typecheck
-```
+4. Open http://localhost:3000. It opens in Development.
 
-Check accessibility (WCAG 2.2 AA) against the running dev server. It runs
-axe on each kind of page in light and dark and checks the layout at 320px
-wide. Install its browser once first:
+Two things to know:
 
-```bash
-npx playwright install chromium
-```
+- Reading from S3 needs AWS credentials with access to the bucket. Without
+  them the pages still load, but empty, with a note that collections couldn't
+  be loaded.
+- There's no identity provider yet. The sign-in page opens Development
+  whatever you type, and the account shown is a fixed role.
 
-```bash
-npm run a11y
-```
+## Commands
 
-## Docker image
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build`, then `npm start` | Production build. Use it for demos so pages don't compile on first click |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript check |
+| `npm run a11y` | Accessibility check (WCAG 2.2 AA) against the running dev server: axe on each kind of page in light and dark, plus the layout at 320px wide. Run `npx playwright install chromium` once first |
 
-Every push to `main` builds the image and publishes it to GitHub's container
-registry as `ghcr.io/dewberry/stac-x:main` (see
-`.github/workflows/docker.yml`). Tagging a release `v1.2.3` also publishes
-`1.2.3`, `1.2` and `latest`. Each tag covers both linux/amd64 and linux/arm64,
-so the image runs natively on Intel and AMD machines, Apple Silicon Macs and
-ARM servers, and Docker pulls the right one on its own.
+## Configuration
 
-The published image is built to be served under `/stac`, since that's where
-Production lives (`https://ffrd.cloud.dewberryanalytics.com/stac`). Next bakes
-the path into the build, so it can't be changed when the container starts:
-pages, `_next` assets and API routes all answer under `/stac/...`, and the
-proxy in front should pass the path through as is, without stripping the
-prefix. To build for a different path, or for the root, set
-`NEXT_PUBLIC_BASE_PATH` as a build arg. Leave it out and the app answers at `/`.
+Settings live in `.env`. `.env.example` explains every variable, including
+optional ones not covered here.
 
-To run the app from a local build instead of the dev server:
+### Sources
 
-```bash
-docker build -t stac-x .
-docker run --rm -p 3000:3000 --env-file .env stac-x
-# or, to match Production
-docker build --build-arg NEXT_PUBLIC_BASE_PATH=/stac -t stac-x .
-```
+Each environment reads from its own variable:
 
-The container reads the same variables as `.env.example`. Local sources
-(`./data/prod` by default) live at `/app/data` inside the container and are
-lost when it stops, so mount the repo's `data` folder there to keep the
-collections promoted into Production and their QC edits, the same place the
-dev server writes them. Edits to collections read from S3 go to S3 sidecars
-either way:
+| Environment | Variable |
+| --- | --- |
+| Sandbox | `STAC_SOURCES_SANDBOX` |
+| Development | `STAC_SOURCES_DEV` |
+| Test | `STAC_SOURCES_TEST` |
+| Production | `STAC_SOURCES_PROD` |
 
-```bash
-docker run --rm -p 3000:3000 --env-file .env -v "$PWD/data:/app/data" stac-x
-```
+Each value is one or more of these, separated by commas:
 
-To run the published image, log in to ghcr.io first. The repo is private, so
-this needs a classic GitHub token with `read:packages`:
+- **A STAC catalog**, `catalog.json` or a versioned name like `catalog-v1.json`.
+  It's followed through its `child` links to its collections, and each
+  collection's items are the rows of the stac-geoparquet file it links to.
+- **An S3 prefix or local folder.** Every parquet file and `catalog.json` in it is read.
+- **A single parquet file**, on S3 or local.
 
-```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
-docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
-```
+Items are always GeoParquet. A collection that keeps one JSON file per item
+isn't read, and shows up as an error in the server log.
 
-It answers at `http://localhost:3000/stac`.
+There are no defaults in the code, so an environment left unset reads nothing
+and its pages load empty. The example file points Sandbox and Production at
+`./data/sandbox` and `./data/prod`, and Development and Test at placeholder
+S3 paths for you to replace.
 
-The image is a production build with no hot reload, so keep using `npm run dev`
-for day-to-day work and reach for the container to check what actually ships.
-
-## Environment variables
-
-Make a `.env` file from the example. In PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-In WSL:
-
-```bash
-cp .env.example .env
-```
-
-Set `STAC_SOURCES_SANDBOX`, `STAC_SOURCES_DEV`, `STAC_SOURCES_TEST` and
-`STAC_SOURCES_PROD` to where each environment's files live: a STAC `catalog.json`, an S3 prefix, one
-object, a local folder, or a local file, separated by commas. A prefix or
-folder is read for every parquet file and `catalog.json` in it. A catalog
-(`catalog.json`, or a versioned name like `catalog-v1.json`) is followed
-through its `child` links to its collections, and each collection's items are
-the rows of the stac-geoparquet file it links to. Every environment reads
-GeoParquet. A collection that only links to one JSON file per item isn't read
-and shows up as an error in the server log.
-
-There are no defaults in the code: an environment left unset reads nothing
-and its pages load empty. The example file points Sandbox at `./data/sandbox`,
-Development and Test at placeholder S3 catalogs to replace with your own, and
-Production at `./data/prod`.
-Sandbox sits outside promotion: approving a collection there records the
-decision and copies nothing, and nothing is promoted into it. Promotion copies
-parquet files that sit directly in a source folder. A collection read through
-a catalog can't be sent on yet: approving it records the decision, and the
-review sheet says the copy is coming soon.
 AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
-an instance role. `.env.example` explains each variable.
+an instance role.
 
-### The map's area
+### Promotion
 
-The home map can focus on one area, such as a state or a river basin. Set
-`STAC_MAP_AREA` to a GeoJSON file of its polygons and the map opens on it,
-outlines it, and dims everything outside. Collections that cover most of it
-say "Whole area" in the list. `STAC_MAP_AREA_NAME` is what the page calls it,
-in phrases like "Fit to the South Platte basin", so include "the" if it reads
-better. Without a name the file's `name` property is used.
+- Approving copies a collection's parquet file into the next environment.
+  That works for parquet files that sit directly in a source folder or prefix.
+- A collection read through a STAC catalog can't be copied yet. Approving it
+  records the decision, and the review sheet says the copy is coming soon.
+- Sandbox is outside promotion. Approving there records the decision and
+  copies nothing, and nothing is ever promoted into it.
+
+### Map area
+
+The home map can focus on one area, like a state or a river basin:
 
 ```bash
 STAC_MAP_AREA=./areas/south-platte.geojson
 STAC_MAP_AREA_NAME=the South Platte basin
 ```
 
-Without `STAC_MAP_AREA` the map opens on everything the catalog covers and
-draws no outline. A collection whose box is national or world-sized, far
-bigger than the rest, is left out of that view. Both are read when the server starts, so changing them
-needs a restart, not a rebuild.
+With an area set, the map opens on it, outlines it and dims everything
+outside, and collections that cover most of it say "Whole area" in the list.
 
-The polygons are sent to the browser with the page, so simplify them first.
-Around 10 to 50 KB is plenty for a state or a large basin. The Docker image
-includes the `areas` folder; mount your own over `/app/areas` to use a
-different file.
+- `STAC_MAP_AREA_NAME` is used in phrases like "Fit to the South Platte
+  basin", so include "the" if it reads better. If it's unset, the file's
+  `name` property is used.
+- The polygons are sent to the browser with the page, so simplify them first.
+  10 to 50 KB is plenty for a state or a large basin.
+- Both are read when the server starts. Changing them needs a restart, not a
+  rebuild.
+- Without an area, the map opens on everything the catalog covers and draws
+  no outline. Collections with a national or world-sized box are left out of
+  that view.
+
+## Docker
+
+Every push to `main` publishes `ghcr.io/dewberry/stac-x:main` for
+linux/amd64 and linux/arm64 (see `.github/workflows/docker.yml`). Tagging a
+release `v1.2.3` also publishes `1.2.3`, `1.2` and `latest`.
+
+The image is a production build with no hot reload. Use it to check what
+ships, and keep using `npm run dev` day to day.
+
+### Base path
+
+The published image is built to be served under `/stac`, where Production
+lives (`https://ffrd.cloud.dewberryanalytics.com/stac`).
+
+- Next bakes the path into the build, so it can't be changed when the
+  container starts.
+- Pages, `_next` assets and API routes all answer under `/stac/...`. The
+  proxy in front should pass the path through without stripping the prefix.
+- To build for another path, set `NEXT_PUBLIC_BASE_PATH` as a build arg.
+  Leave it out and the app answers at `/`.
+
+### Running it
+
+The published image needs a ghcr.io login first. The repo is private, so use
+a classic GitHub token with `read:packages`:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
+docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
+```
+
+It answers at http://localhost:3000/stac.
+
+To build and run your own instead:
+
+```bash
+docker build -t stac-x .
+# or, to match Production
+docker build --build-arg NEXT_PUBLIC_BASE_PATH=/stac -t stac-x .
+
+docker run --rm -p 3000:3000 --env-file .env -v "$PWD/data:/app/data" stac-x
+```
+
+The container reads the same variables as `.env.example`. A few things about
+its files:
+
+- Local sources live at `/app/data` and are lost when the container stops.
+  The `-v` above mounts the repo's `data` folder there, so promoted
+  collections and their QC edits are kept.
+- Edits to collections read from S3 go to S3 sidecars either way.
+- The image includes the `areas` folder. Mount your own over `/app/areas` to
+  use a different map area.
 
 ---
 
