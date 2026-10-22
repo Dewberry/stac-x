@@ -1198,10 +1198,13 @@
   gap: 0 0.5rem;
   min-width: 0;
 }
+/* A leaf sits under a node's key: the chevron's 16px box and the 6px after it. */
 .sx-json-row {
-  padding-left: 0.75rem;
+  padding-left: 22px;
 }
 .sx-json-node > summary {
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
   list-style: none;
   border-radius: 4px;
@@ -1211,20 +1214,6 @@
 }
 .sx-json-node > summary:hover {
   background: var(--ffx-surface-sunken);
-}
-.sx-json-node > summary::before {
-  content: "";
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-right: 0.25rem;
-  border-left: 4px solid var(--ffx-ink-dim);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform 100ms ease;
-}
-.sx-json-node[open] > summary::before {
-  transform: rotate(90deg);
 }
 .sx-json-kids {
   margin-left: 0.3rem;
@@ -1520,52 +1509,8 @@ a.sx-json-str {
 }
 
 /* ============================== assets ==============================
-   One bordered card per asset inside the Assets panel. */
-.sx-assets {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
-}
-.sx-asset {
-  border: 1px solid var(--ffx-rule);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.sx-asset > summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.375rem 0.5rem;
-  padding: 0.625rem 0.75rem;
-  cursor: pointer;
-  list-style: none;
-}
-.sx-asset > summary::-webkit-details-marker {
-  display: none;
-}
-.sx-asset > summary:hover {
-  background: var(--ffx-surface-sunken);
-}
-.sx-asset > summary::before {
-  content: "";
-  width: 0;
-  height: 0;
-  flex: none;
-  border-left: 5px solid var(--ffx-ink-dim);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform 110ms linear;
-}
-.sx-asset[open] > summary::before {
-  transform: rotate(90deg);
-}
-/* Name on the left, roles and format pushed to the right end of the row. */
-.sx-asset-name {
-  margin-right: auto;
-  font-weight: 600;
-  color: var(--ffx-ink);
-  overflow-wrap: anywhere;
-}
+   The open body of an asset row (components/assets.tsx); the rows and
+   groups themselves are under "Assets, grouped" further down. */
 .sx-asset-body {
   padding: 0 0.75rem 0.75rem;
   display: grid;
@@ -4409,19 +4354,44 @@ button.sx-map-pill svg {
   }
 }
 
-/* A chevron that turns a quarter when its row is open. */
+/* The one chevron (Chevron in components/icons.tsx) on everything that
+   folds: an asset group, an asset row, a node of the JSON tree, a structure
+   in a table cell, a metadata fold. Points right; turns down when its
+   holder is open. */
 .sx-chev {
-  width: 0;
-  height: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
   flex: none;
-  border-left: 5px solid var(--ffx-ink-dim);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
+  color: var(--ffx-ink-mut);
+}
+.sx-chev svg {
+  width: 12px;
+  height: 12px;
   transition: transform 110ms linear;
 }
-[aria-expanded="true"] > .sx-chev,
-details[open] > summary > .sx-chev {
+[aria-expanded="true"] > .sx-chev svg,
+details[open] > summary > .sx-chev svg {
   transform: rotate(90deg);
+}
+.sx-agroup-head .sx-chev {
+  color: var(--ffx-ink-sec);
+}
+button:hover > .sx-chev,
+summary:hover > .sx-chev {
+  color: var(--ffx-ink);
+}
+@media (pointer: coarse) {
+  .sx-chev {
+    width: 24px;
+    height: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-chev svg {
+    transition: none;
+  }
 }
 
 /* A text button that reads as a link. */
@@ -4486,7 +4456,7 @@ details[open] > summary > .sx-chev {
 }
 .sx-agroup-head {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.5rem;
   width: 100%;
@@ -4525,10 +4495,10 @@ details[open] > summary > .sx-chev {
 }
 .sx-arow > summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: 16px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.4rem 6px 0.4rem 30px;
+  padding: 0.4rem 6px;
   border-top: 1px solid var(--ffx-surface-sunken);
   list-style: none;
   cursor: pointer;
@@ -4546,23 +4516,6 @@ details[open] > summary > .sx-chev {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.sx-arow > summary {
-  position: relative;
-}
-.sx-arow > summary::before {
-  content: "";
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  margin-top: -4px;
-  border-left: 4px solid var(--ffx-ink-dim);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform 110ms linear;
-}
-.sx-arow[open] > summary::before {
-  transform: rotate(90deg);
 }
 .sx-arow-what {
   color: var(--ffx-ink-mut);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Chevron } from "./icons";
 import { fmtNum } from "@/lib/format";
 
 /**
@@ -82,6 +83,7 @@ function Entry({ k, value, depth, index }: { k: string; value: unknown; depth: n
     return (
       <details className="sx-json-node" open={depth < OPEN_DEPTH}>
         <summary>
+          <Chevron />
           {key} <span className="sx-json-badge">{whatsIn(value)}</span>
           {hint && <span className="sx-json-hint">{hint}</span>}
         </summary>

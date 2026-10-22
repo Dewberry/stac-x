@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useState, type ReactNode } from "react";
+import { Chevron } from "./icons";
 
 export type AssetRowData = {
   key: string;
@@ -61,7 +62,7 @@ export function AssetGroups({ groups }: { groups: AssetGroupData[] }) {
               aria-expanded={isOpen}
               onClick={() => setOpen({ ...open, [g.id]: !open[g.id] })}
             >
-              <span className="sx-chev" aria-hidden="true" />
+              <Chevron />
               <span className="sx-agroup-name">
                 <b>{g.label}</b> <span>{g.description}</span>
               </span>
@@ -79,6 +80,7 @@ export function AssetGroups({ groups }: { groups: AssetGroupData[] }) {
                 {rows.map((r) => (
                   <details key={r.key} className="sx-arow">
                     <summary>
+                      <Chevron />
                       <span className="sx-arow-file">{r.file}</span>
                       <span className="sx-arow-what">{r.what}</span>
                       <span className="sx-arow-size ffx-num">{r.size ?? ""}</span>

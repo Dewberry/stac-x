@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { Chevron } from "./icons";
 import { fmtDate, fmtNum, humanize, isIsoDate } from "@/lib/format";
 
 /**
@@ -109,7 +110,7 @@ function Folded({ title, summary, children }: { title: string; summary?: string;
   return (
     <div className="sx-meta-fold">
       <button type="button" className="sx-meta-fold-head" aria-expanded={open} onClick={toggle}>
-        <span className="sx-chev" aria-hidden="true" />
+        <Chevron />
         <span className="sx-meta-fold-title">{title}</span>
         {summary && <span className="sx-meta-fold-sum">{summary}</span>}
       </button>
