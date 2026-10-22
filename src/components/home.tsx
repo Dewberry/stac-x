@@ -74,6 +74,12 @@ export type HomeArea = {
   href: string;
   jsonHref: string;
   itemCount: number;
+  /** What the items are on the map: all points, any shapes, or no geometry at all. */
+  unit: "points" | "shapes" | "items";
+  /** Where the extent sits against the deployment's area; null when there's no area or no extent. */
+  coverage: "whole" | "part" | "larger" | null;
+  /** "1980–2025" when the extent spans more than one calendar year; null otherwise. */
+  years: string | null;
   temporal: [string | null, string | null] | null;
   /** The collection's QC record; null when it has none or isn't published. */
   qc: QcEdit | null;

@@ -33,6 +33,9 @@ const MEMBERS_MAX = 24;
 /** Share of the area a collection's extent has to cover to count as area-wide. */
 const WIDE = 0.7;
 
+/** How many times the area's box a collection's box has to be to count as larger than the area. */
+const LARGER = 3;
+
 /** What the rail says when an environment has nothing in it yet. */
 const EMPTY: Record<EnvKey, string> = {
   sandbox: "Collections show up here once they land in the Sandbox catalog.",
@@ -128,6 +131,15 @@ async function HomeData({ env }: { env: EnvKey }) {
     return names.size === 1 ? (names.values().next().value ?? null) : null;
   };
 
+  // Where a collection's extent sits against the area. A box several times
+  // the area's (a five-state storm domain, a national inventory) is larger
+  // than it, even though it covers all of it.
+  const coverageOf = (bbox: [number, number, number, number] | null): HomeArea["coverage"] => {
+    if (!area || !bbox) return null;
+    if (extentArea(bbox) >= LARGER * extentArea(area.bbox)) return "larger";
+    return areaShare(area, bbox) >= WIDE ? "whole" : "part";
+  };
+
   const areas: HomeArea[] = [];
   for (const c of latest) {
     const bbox = c.bbox ?? unionBbox(c.items);
@@ -146,6 +158,9 @@ async function HomeData({ env }: { env: EnvKey }) {
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
+      unit: unitOf(c),
+      coverage: coverageOf(bbox),
+      years: yearsOf(c.temporal),
       temporal: c.temporal,
       qc: c.qc,
       ...versionOf(c),
@@ -169,4 +184,27 @@ async function HomeData({ env }: { env: EnvKey }) {
       emptyText={EMPTY[env]}
     />
   );
+}
+
+/**
+ * What a collection's items are on the map, from their geometry: "points"
+ * when every item is a point, "shapes" when any is a line or polygon, and
+ * "items" when none has a geometry.
+ */
+function unitOf(c: Collection): HomeArea["unit"] {
+  const types = c.items.flatMap((i) => (i.geometry ? [i.geometry.type] : []));
+  if (!types.length) return "items";
+  return types.every((t) => t === "Point" || t === "MultiPoint") ? "points" : "shapes";
+}
+
+/**
+ * The years a collection covers, "1980–2025", when its extent runs across
+ * more than one calendar year. A shorter extent is usually when the data
+ * was processed, not what it covers (the gages' is seven minutes), so the
+ * rail leaves it out.
+ */
+function yearsOf([start, end]: [string | null, string | null]): string | null {
+  const a = start?.slice(0, 4);
+  const b = end?.slice(0, 4);
+  return a && b && a !== b ? `${a}–${b}` : null;
 }
