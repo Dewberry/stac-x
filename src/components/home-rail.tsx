@@ -18,26 +18,17 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * its review state, the way in and its items. Pointing at a row previews
  * its footprint on the map; Enter on a row opens the collection.
  *
- * The search box appears only past SEARCH_MIN collections: a list that's
- * all in view has nothing to search. While there is one, it matches items
- * as well as collections, a collection with matching items is open on
- * them, and the groups with nothing in them fold into one line.
+ * The search box matches collections by title and description, not their
+ * items. While it does, the groups with nothing in them fold into one line.
  */
 
 export type Group = { key: string; label: string; rows: HomeArea[] };
 
-/** Past this many collections the rail gets a search box. */
-export const SEARCH_MIN = 10;
-
 /** What the search found, while there is one. */
 export type Search = {
   q: string;
-  /** Collections matched by name. */
+  /** Collections matched by title or description, under the review filter. */
   collections: number;
-  /** Items matched by name or id, across every collection. */
-  items: number;
-  /** Some collections' items are still being fetched. */
-  pending: boolean;
   /** Some collections are out of the rail for not matching. */
   hidden: boolean;
 };
@@ -62,7 +53,6 @@ export function HomeRail({
   hovered,
   preview,
   rowsBySlug,
-  itemMatches,
   activeIds,
   onHover,
   onSelect,
@@ -89,8 +79,6 @@ export function HomeRail({
   /** The collection whose footprint the map is previewing, if not the selected one. */
   preview: string | null;
   rowsBySlug: Record<string, ItemRow[] | "error">;
-  /** The items the search matched, by collection. */
-  itemMatches: Map<string, ItemRow[]>;
   /** Item ids whose shape is under the cursor on the map, for the rows to light up. */
   activeIds: ReadonlySet<string>;
   onHover: (slug: string | null) => void;
@@ -99,7 +87,6 @@ export function HomeRail({
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
-  const searchable = areas.length > SEARCH_MIN;
 
   // Scroll the list so the open row's head is in view, below its sticky
   // group heading. Done by hand rather than scrollIntoView, which would
@@ -134,23 +121,22 @@ export function HomeRail({
             ))}
           </div>
         </div>
-        {searchable && (
+        {areas.length > 0 && (
           <label className="ffx-field">
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <circle cx="7" cy="7" r="4.5" />
               <path d="m10.5 10.5 3 3" strokeLinecap="round" />
             </svg>
-            <span className="sr-only">Search collections and items</span>
-            <input type="search" placeholder="Search collections and items" value={query} onChange={(e) => onQuery(e.target.value)} />
+            <span className="sr-only">Search collections</span>
+            <input type="search" placeholder="Search collections" value={query} onChange={(e) => onQuery(e.target.value)} />
           </label>
         )}
         {search && (
           <p className="sx-search-line" role="status">
-            <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "collection" : "collections"} ·{" "}
             <b>
-              <span className="ffx-num">{search.items}</span> {search.items === 1 ? "item" : "items"}
+              <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "collection matches" : "collections match"}
             </b>{" "}
-            match &ldquo;{search.q}&rdquo;{search.pending && <span className="sx-search-wait">, still looking</span>}
+            &ldquo;{search.q}&rdquo;
           </p>
         )}
         {/* The review states with their counts: the legend for the open
@@ -198,8 +184,7 @@ export function HomeRail({
             </div>
             <ul>
               {g.rows.map((a) => {
-                const found = search ? itemMatches.get(a.slug) : undefined;
-                const open = selected === a.slug || !!found;
+                const open = selected === a.slug;
                 return (
                   <AreaRow
                     key={a.slug}
@@ -210,9 +195,7 @@ export function HomeRail({
                     previewing={preview === a.slug}
                     open={open}
                     rows={open ? (rowsBySlug[a.slug] ?? null) : null}
-                    found={found ?? null}
-                    query={found ? search?.q ?? null : null}
-                    activeIds={selected === a.slug ? activeIds : undefined}
+                    activeIds={open ? activeIds : undefined}
                     onHover={onHover}
                     onSelect={onSelect}
                     onOpen={() => onOpen(a.href)}
@@ -224,7 +207,7 @@ export function HomeRail({
         ))}
         {search && search.hidden && (
           <li className="sx-rail-fold">
-            {groups.length ? "No other collections or items match." : "No collections or items match."}{" "}
+            {groups.length ? "No other collections match." : "No collections match."}{" "}
             <button type="button" onClick={() => onQuery("")}>
               Clear search
             </button>
@@ -243,8 +226,6 @@ function AreaRow({
   previewing,
   open,
   rows,
-  found,
-  query,
   activeIds,
   onHover,
   onSelect,
@@ -257,9 +238,6 @@ function AreaRow({
   previewing: boolean;
   open: boolean;
   rows: Rows;
-  /** The items the search matched in this collection, when it did. */
-  found: ItemRow[] | null;
-  query: string | null;
   activeIds?: ReadonlySet<string>;
   onHover: (slug: string | null) => void;
   onSelect: (slug: string) => void;
@@ -298,7 +276,7 @@ function AreaRow({
             word never moves the name or changes the row's height. */}
         {previewing && <span className="sx-row-previewing">previewing</span>}
       </button>
-      {open && <OpenRow env={env} area={area} rows={found ?? rows} total={area.itemCount} query={query} activeIds={activeIds} />}
+      {open && <OpenRow env={env} area={area} rows={rows} activeIds={activeIds} />}
     </li>
   );
 }

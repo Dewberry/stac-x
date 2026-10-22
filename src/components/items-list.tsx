@@ -47,38 +47,26 @@ export function ItemsList({
   env,
   collection,
   rows,
-  total,
   compact,
   fill,
-  query: outerQuery,
   openHref,
   activeIds,
 }: {
   env: EnvKey;
   collection: string;
   rows: ItemRow[];
-  /** How many items the collection has, when `rows` is already a filtered part of them. */
-  total?: number;
   /** The rail's form: name-only rows in a scrolling block, no pages. */
   compact?: boolean;
   /** In the phone's sheet: the block takes the room left, instead of a bounded height. */
   fill?: boolean;
-  /** A search from outside, to show in the box and mark in the names. */
-  query?: string | null;
   /** The collection's page, where the full table is. */
   openHref?: string;
   /** Items lit up from elsewhere (a shape under the cursor on the home map), besides the one pointed at here. */
   activeIds?: ReadonlySet<string>;
 }) {
-  const [query, setQuery] = useState(outerQuery ?? "");
+  const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("id");
   const [page, setPage] = useState(0);
-  // The rail's search carries into the box, so the list says what it's filtered on.
-  const [prevOuter, setPrevOuter] = useState(outerQuery);
-  if (outerQuery !== prevOuter) {
-    setPrevOuter(outerQuery);
-    setQuery(outerQuery ?? "");
-  }
   const q = useDeferredValue(query.trim().toLowerCase());
   // Shared with the page's map: pointing at a row lights up its shape.
   const { hovered, setHovered } = useItemHover();
@@ -91,9 +79,9 @@ export function ItemsList({
     return [...out].sort((a, b) => key(a).localeCompare(key(b), undefined, { numeric: true }));
   }, [rows, q, sort]);
 
-  const all = total ?? rows.length;
+  const all = rows.length;
   // Where every row is already in view, there's nothing to search for.
-  const searchable = !compact || all > WINDOW || !!outerQuery;
+  const searchable = !compact || all > WINDOW;
   const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / PAGE));
   const current = Math.min(page, pages - 1);
   const slice = compact ? filtered : filtered.slice(current * PAGE, current * PAGE + PAGE);

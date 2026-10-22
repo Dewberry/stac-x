@@ -110,16 +110,12 @@ function Items({
   env,
   area,
   rows,
-  total,
-  query,
   activeIds,
   fill,
 }: {
   env: EnvKey;
   area: HomeArea;
   rows: Rows;
-  total: number;
-  query: string | null;
   activeIds?: ReadonlySet<string>;
   fill?: boolean;
 }) {
@@ -135,7 +131,7 @@ function Items({
     );
   if (rows === "error") return <p className="sx-pv-cover">The items couldn&apos;t be loaded. Open the collection to see them.</p>;
   return (
-    <ItemsList env={env} collection={area.id} rows={rows} total={total} compact fill={fill} query={query} openHref={area.href} activeIds={activeIds} />
+    <ItemsList env={env} collection={area.id} rows={rows} compact fill={fill} openHref={area.href} activeIds={activeIds} />
   );
 }
 
@@ -144,24 +140,18 @@ export function OpenRow({
   env,
   area,
   rows,
-  total,
-  query,
   activeIds,
 }: {
   env: EnvKey;
   area: HomeArea;
   rows: Rows;
-  /** How many items the collection has, when `rows` is only the ones a search matched. */
-  total: number;
-  /** The search the rows were matched on, to mark in them. */
-  query: string | null;
   activeIds?: ReadonlySet<string>;
 }) {
   return (
     <div className="sx-row-more">
       <PreviewBody area={area} />
       <WayIn area={area} />
-      <Items env={env} area={area} rows={rows} total={total} query={query} activeIds={activeIds} />
+      <Items env={env} area={area} rows={rows} activeIds={activeIds} />
     </div>
   );
 }
@@ -179,14 +169,12 @@ export function HomePreview({
   env,
   area,
   rows,
-  query,
   activeIds,
   onClose,
 }: {
   env: EnvKey;
   area: HomeArea;
   rows: Rows;
-  query: string | null;
   activeIds?: ReadonlySet<string>;
   onClose: () => void;
 }) {
@@ -240,7 +228,7 @@ export function HomePreview({
         <PreviewBody area={area} figures />
         <WayIn area={area} />
       </div>
-      <Items env={env} area={area} rows={rows} total={area.itemCount} query={query} activeIds={activeIds} fill />
+      <Items env={env} area={area} rows={rows} activeIds={activeIds} fill />
     </section>
   );
 }

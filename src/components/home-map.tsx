@@ -310,8 +310,6 @@ export function HomeMap({
   onHoverKeys,
   ringIds,
   onHoverItem,
-  dimTo,
-  matchNote,
   onOpenItem,
 }: {
   areas: HomeArea[];
@@ -332,14 +330,10 @@ export function HomeMap({
   /** The shapes of the shown collection to outline: pointed at here or in the rail. */
   hoverKeys: string[];
   onHoverKeys: (keys: string[]) => void;
-  /** The shown collection's dots to ring: the one pointed at, here or in the rail, and a search's matches. */
+  /** The shown collection's dots to ring: the one pointed at, here or in the rail. */
   ringIds: string[];
   /** The one item under the cursor here, for the rail to light up. */
   onHoverItem: (id: string | null) => void;
-  /** While a search is on: the shown collection's items that match; the rest are dimmed. */
-  dimTo: string[] | null;
-  /** What to say about the dimming, beside the map's credits. */
-  matchNote: string | null;
   /** Opens the item's page, from a click on it. */
   onOpenItem: (id: string) => void;
 }) {
@@ -604,20 +598,6 @@ export function HomeMap({
     if (m?.getLayer(L.itemRing)) m.setFilter(L.itemRing, ringFilter(shown, ringIds));
   }, [shown, ringIds]);
 
-  // A search dims what it didn't match: the dots, and the shapes whose
-  // items it missed.
-  useEffect(() => {
-    const m = mapRef.current;
-    if (!m?.getLayer(L.items)) return;
-    const keys = dimTo && current?.members ? Array.from(new Set(current.members.filter((x) => dimTo.includes(x.id)).map((x) => x.key))) : null;
-    m.setPaintProperty(L.items, "circle-opacity", dimTo ? ["case", ["in", ["get", "id"], ["literal", dimTo]], 0.95, 0.3] : 0.85);
-    m.setPaintProperty(
-      L.itemFill,
-      "fill-opacity",
-      keys ? ["case", ["in", ["get", "key"], ["literal", keys]], tintOpacity(0.16), 0.05] : tintOpacity(0.16),
-    );
-  }, [dimTo, current]);
-
   useEffect(() => {
     const src = mapRef.current?.getSource(SRC_ITEMS) as GeoJSONSource | undefined;
     if (src) src.setData(items);
@@ -662,11 +642,6 @@ export function HomeMap({
               <Icon d={ICONS.fit} size={12} />
               Framed to {framedArea.name} · <b>Show {area ? area.name : "everything"}</b>
             </button>
-          )}
-          {matchNote && (
-            <span className="sx-map-pill" role="status">
-              {matchNote}
-            </span>
           )}
         </span>
         {dense?.steps && (

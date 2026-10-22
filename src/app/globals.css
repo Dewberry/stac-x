@@ -3045,7 +3045,7 @@ main:focus {
   background: var(--ffx-ink);
   color: var(--ffx-surface);
 }
-/* Under the search box: what the search found, collections and items. */
+/* Under the search box: how many collections the search found. */
 .sx-search-line {
   margin: -2px 0 0;
   font-size: var(--ffx-t-micro);
@@ -3054,9 +3054,6 @@ main:focus {
 .sx-search-line b {
   font-weight: 600;
   color: var(--ffx-ink);
-}
-.sx-search-wait {
-  font-style: italic;
 }
 /* The groups a search left empty, folded into one line at the end of the list. */
 .sx-rail-fold {

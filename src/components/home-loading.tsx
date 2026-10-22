@@ -26,8 +26,7 @@ export function HomeLoading() {
         </div>
         <aside className="sx-rail" aria-label="Collections">
           {/* The same head as the console's, inert, so it's there before the
-              rows are. No search box: that only appears with enough
-              collections, which isn't known yet. */}
+              rows are. */}
           <div className="sx-rail-head">
             <div className="sx-rail-title">
               <h2>Collections</h2>
@@ -41,6 +40,14 @@ export function HomeLoading() {
                 </button>
               </div>
             </div>
+            <label className="ffx-field">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="7" cy="7" r="4.5" />
+                <path d="m10.5 10.5 3 3" strokeLinecap="round" />
+              </svg>
+              <span className="sr-only">Search collections</span>
+              <input type="search" placeholder="Search collections" disabled />
+            </label>
           </div>
           <ul className="sx-rail-list sx-loading-rows" aria-hidden="true">
             {Array.from({ length: 6 }, (_, i) => (

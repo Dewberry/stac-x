@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection, MultiPolygon } from "geojson";
 import type { EnvKey } from "@/lib/env";
-import { AREA_KIND_GROUP, AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
+import { AREA_KIND_GROUP, type AreaKind } from "@/lib/kinds";
 import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
-import { HomeRail, SEARCH_MIN, type Group } from "./home-rail";
+import { HomeRail, type Group } from "./home-rail";
 import { ItemHoverContext } from "./item-hover";
 import type { ItemRow } from "./items-list";
 import { QC_LABEL, stateOf } from "./qc-mark";
@@ -21,9 +21,8 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * under the environment band. Nothing here says what stac-x is; the header
  * does that.
  *
- * The rail is the way in. Its search box, there once the catalog has more
- * collections than the rail shows at a glance, matches collections and
- * their items; the review states in its head are the legend for the marks
+ * The rail is the way in. Its search box matches collections by title and
+ * description; the review states in its head are the legend for the marks
  * and the review filter in one; the rows group by kind or by review state.
  * Selecting a collection opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
@@ -32,8 +31,7 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * Escape closes the row.
  *
  * The rail and the map are one view: pointing at an item on either side
- * lights it up on the other, and a search rings the items that match and
- * dims the rest.
+ * lights it up on the other.
  *
  * On a phone the page is a plain column: the map, then the rail with the
  * state buttons in its head, and a selection opens a sheet over the page
@@ -147,8 +145,6 @@ function regroup(v: GroupBy) {
 /** A collection's items as the rail lists them: null until fetched, "error" when they couldn't be. */
 export type Rows = ItemRow[] | "error" | null;
 
-const matches = (r: ItemRow, q: string) => r.id.toLowerCase().includes(q) || (r.label?.toLowerCase().includes(q) ?? false);
-
 export function HomeConsole({
   env,
   areas,
@@ -186,18 +182,14 @@ export function HomeConsole({
   // Whether the last selected collection is in the area, which outlines
   // the area more heavily.
   const [pickedInArea, setPickedInArea] = useState<boolean | null>(null);
-  // The search box only exists past SEARCH_MIN collections (home-rail.tsx),
-  // so with fewer the query stays empty and everything below it is inert.
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
-  const searching = q.length > 0 && areas.length > SEARCH_MIN;
+  const searching = q.length > 0;
 
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
   const current = selected ? (bySlug.get(selected) ?? null) : null;
 
-  // Each collection's items, fetched when it's first picked, or all of them
-  // once a search is on, since the search matches items too. Kept once
-  // fetched.
+  // Each collection's items, fetched when it's first picked and kept.
   const [rowsBySlug, setRowsBySlug] = useState<Record<string, ItemRow[] | "error">>({});
   const pending = useRef(new Set<string>());
   const load = useCallback(
@@ -216,33 +208,12 @@ export function HomeConsole({
   useEffect(() => {
     if (selected && !rowsBySlug[selected]) load(selected);
   }, [selected, rowsBySlug, load]);
-  useEffect(() => {
-    if (!searching) return;
-    for (const a of areas) if (!rowsBySlug[a.slug]) load(a.slug);
-  }, [searching, areas, rowsBySlug, load]);
 
-  // The items that match the search, by collection. A collection whose
-  // items match stays in the rail, open on those items.
-  const itemMatches = useMemo(() => {
-    const out = new Map<string, ItemRow[]>();
-    if (!searching) return out;
-    for (const a of areas) {
-      const rows = rowsBySlug[a.slug];
-      if (!rows || rows === "error") continue;
-      const hit = rows.filter((r) => matches(r, q));
-      if (hit.length) out.set(a.slug, hit);
-    }
-    return out;
-  }, [areas, rowsBySlug, q, searching]);
-  const itemMatchCount = useMemo(() => Array.from(itemMatches.values()).reduce((n, r) => n + r.length, 0), [itemMatches]);
-  const searchPending = searching && areas.some((a) => !rowsBySlug[a.slug]);
-
-  const nameMatch = useCallback((a: HomeArea) => `${a.name} ${a.slug} ${AREA_KIND_LABEL[a.kind]}`.toLowerCase().includes(q), [q]);
+  // The search matches a collection's title and description, not its items.
   const shown = useMemo(
-    () => areas.filter((a) => (!filter || stateOf(a) === filter) && (!searching || nameMatch(a) || itemMatches.has(a.slug))),
-    [areas, filter, searching, nameMatch, itemMatches],
+    () => areas.filter((a) => (!filter || stateOf(a) === filter) && (!searching || [a.name, a.blurb].some((t) => t?.toLowerCase().includes(q)))),
+    [areas, filter, searching, q],
   );
-  const nameMatchCount = searching ? shown.filter(nameMatch).length : 0;
   const groups = useMemo<Group[]>(() => {
     const list =
       groupBy === "kind"
@@ -250,16 +221,6 @@ export function HomeConsole({
         : REVIEW_GROUPS.map((s) => ({ key: s, label: QC_LABEL[s], rows: shown.filter((a) => stateOf(a) === s) }));
     return list.filter((g) => g.rows.length);
   }, [shown, groupBy]);
-
-  // A search that finds items selects the first collection they're in, so
-  // the map rings them, unless the selected collection has matches itself.
-  // Once per first match, so a pick made during the search stands.
-  const wanted = searching && itemMatches.size && !(selected && itemMatches.has(selected)) ? (itemMatches.keys().next().value ?? null) : null;
-  const [autoPicked, setAutoPicked] = useState<string | null>(null);
-  if (wanted && wanted !== autoPicked) {
-    setAutoPicked(wanted);
-    setSelected(wanted);
-  }
 
   // The collection pointed at, a beat after the pointer gets there, so
   // sweeping down the list doesn't flash every footprint on the way. The
@@ -304,20 +265,14 @@ export function HomeConsole({
 
   // What the map lights up. An item pointed at in the rows lights its shape
   // (a few shapes) or rings its dot (points); a shape pointed at on the map
-  // lights its rows. A search rings every matching item of the selected
-  // collection and dims the rest.
-  const matchIds = useMemo(
-    () => (current && searching ? (itemMatches.get(current.slug)?.map((r) => r.id) ?? null) : null),
-    [current, searching, itemMatches],
-  );
+  // lights its rows.
   const keyOf = useCallback((id: string) => current?.members?.find((m) => m.id === id)?.key, [current]);
   const keys = useMemo(() => {
-    const out = new Set<string>(hoveredItem ? [keyOf(hoveredItem) ?? ""] : hoverKeys);
-    for (const id of matchIds ?? []) out.add(keyOf(id) ?? "");
-    out.delete("");
-    return Array.from(out);
-  }, [hoveredItem, hoverKeys, matchIds, keyOf]);
-  const ringIds = useMemo(() => Array.from(new Set([...(hoveredItem ? [hoveredItem] : []), ...(matchIds ?? [])])), [hoveredItem, matchIds]);
+    if (!hoveredItem) return hoverKeys;
+    const key = keyOf(hoveredItem);
+    return key ? [key] : [];
+  }, [hoveredItem, hoverKeys, keyOf]);
+  const ringIds = useMemo(() => (hoveredItem ? [hoveredItem] : []), [hoveredItem]);
   const activeIds = useMemo(
     () => new Set(current?.members?.filter((m) => hoverKeys.includes(m.key)).map((m) => m.id) ?? []),
     [current, hoverKeys],
@@ -332,10 +287,6 @@ export function HomeConsole({
 
   const areaHighlight = pickedInArea ?? (hovered ? (bySlug.get(hovered)?.inArea ?? false) : false);
   const areaCovered = current?.drawn === "area" || previewArea?.drawn === "area";
-  const matchNote =
-    matchIds && current
-      ? `${matchIds.length} ${matchIds.length === 1 ? "item matches" : "items match"} · ${current.drawn === "points" ? "other points" : "the rest"} dimmed`
-      : null;
   const rows: Rows = current ? (rowsBySlug[current.slug] ?? null) : null;
 
   return (
@@ -356,8 +307,6 @@ export function HomeConsole({
               onHoverKeys={setHoverKeys}
               ringIds={ringIds}
               onHoverItem={setHoveredItem}
-              dimTo={matchIds}
-              matchNote={matchNote}
               onOpenItem={openItem}
             />
           </div>
@@ -365,8 +314,7 @@ export function HomeConsole({
             <HomePreview
               env={env}
               area={current}
-              rows={matchIds ? (itemMatches.get(current.slug) ?? rows) : rows}
-              query={matchIds ? q : null}
+              rows={rows}
               activeIds={activeIds}
               onClose={() => setSelected(null)}
             />
@@ -384,16 +332,11 @@ export function HomeConsole({
             onFilter={setFilter}
             query={query}
             onQuery={setQuery}
-            search={
-              searching
-                ? { q, collections: nameMatchCount, items: itemMatchCount, pending: searchPending, hidden: shown.length < areas.length }
-                : null
-            }
+            search={searching ? { q, collections: shown.length, hidden: shown.length < areas.length } : null}
             selected={selected}
             hovered={hovered}
             preview={preview}
             rowsBySlug={rowsBySlug}
-            itemMatches={itemMatches}
             activeIds={activeIds}
             onHover={setHovered}
             onSelect={(slug) => select(slug, true)}
