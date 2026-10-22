@@ -208,9 +208,10 @@ Nothing larger has been tried.
 
 ## Docker
 
-Every push to `main` publishes `ghcr.io/dewberry/stac-x:main` for
-linux/amd64 and linux/arm64 (see `.github/workflows/docker.yml`). Tagging a
-release `v1.2.3` also publishes `1.2.3`, `1.2` and `latest`.
+Every push to `main` publishes `ghcr.io/dewberry/stac-x:latest` for
+linux/amd64 and linux/arm64, plus a `sha-<short sha>` tag for that commit
+(see `.github/workflows/docker.yml`). Tagging a release `v1.2.3` also
+publishes `1.2.3` and `1.2`.
 
 The image is a production build with no hot reload. Use it to check what
 ships, and keep using `npm run dev` day to day.
@@ -235,7 +236,7 @@ GitHub token that has `read:packages`:
 
 ```bash
 echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
-docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:main
+docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:latest
 ```
 
 It answers at http://localhost:3000/stac.
