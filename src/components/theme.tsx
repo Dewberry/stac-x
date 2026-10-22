@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useSyncExternalStore } from "react";
+import { useLayoutEffect, useSyncExternalStore } from "react";
 
 /**
  * Theme handling, as in ffrd-x. The script runs before paint and sets
@@ -11,9 +11,26 @@ import { useSyncExternalStore } from "react";
  */
 const SCRIPT = `(function(){try{var t=localStorage.getItem("sx-theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t)}}catch(e){}})()`;
 
+/**
+ * The script only goes out in the server's HTML. Sometimes the browser
+ * builds the root layout itself instead of hydrating it (an item page that
+ * calls notFound() does this), and then React would warn about the <script>
+ * and never run it, and taking over <html> wipes the data-theme the server's
+ * script had set. So a mount that starts in the browser renders no script,
+ * and the layout effect puts the stored theme back before paint.
+ */
 export function ThemeScript() {
-  return <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
+  const fromServer = useSyncExternalStore(subscribeNever, notFromServer, isFromServer);
+  useLayoutEffect(() => {
+    const choice = readChoice();
+    if (choice !== "system") document.documentElement.setAttribute("data-theme", choice);
+  }, []);
+  return fromServer ? <script dangerouslySetInnerHTML={{ __html: SCRIPT }} /> : null;
 }
+
+const subscribeNever = () => () => {};
+const notFromServer = () => false;
+const isFromServer = () => true;
 
 type Choice = "system" | "light" | "dark";
 
@@ -52,16 +69,6 @@ function apply(next: Choice) {
   }
   listeners.forEach((l) => l());
   window.requestAnimationFrame(() => root.removeAttribute("data-theme-switching"));
-}
-
-/**
- * The stored theme as a data-theme value, for global-error. It renders its
- * own <html> as a client component, where ThemeScript's <script> wouldn't
- * run, so it sets the attribute through React instead.
- */
-export function useStoredTheme(): "light" | "dark" | undefined {
-  const choice = useSyncExternalStore(subscribe, readChoice, readServerChoice);
-  return choice === "system" ? undefined : choice;
 }
 
 const CHOICES: { value: Choice; label: string }[] = [

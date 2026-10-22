@@ -1,7 +1,7 @@
 "use client";
 
 import { ErrorCard } from "@/components/error-card";
-import { useStoredTheme } from "@/components/theme";
+import { ThemeScript } from "@/components/theme";
 import { withBase } from "@/lib/utils";
 import { fontVars } from "./fonts";
 import "./globals.css";
@@ -13,10 +13,10 @@ import "./globals.css";
  * browser error.
  */
 export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
-  const theme = useStoredTheme();
   return (
-    <html lang="en" className={`h-full ${fontVars}`} data-theme={theme} suppressHydrationWarning>
+    <html lang="en" className={`h-full ${fontVars}`} suppressHydrationWarning>
       <head>
+        <ThemeScript />
         <title>Something went wrong</title>
       </head>
       <body className="flex min-h-full flex-col">
