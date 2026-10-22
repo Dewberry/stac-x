@@ -689,6 +689,11 @@
   padding: 0 0.625rem;
   font-size: var(--ffx-t-micro);
 }
+/* An icon alone, as wide as it is tall; its name is in aria-label and title. */
+.ffx-btn-icon {
+  padding: 0;
+  aspect-ratio: 1;
+}
 @media (pointer: coarse) {
   .ffx-btn,
   .ffx-btn-sm {
@@ -1104,6 +1109,10 @@
   opacity: 1;
   translate: 0 0;
 }
+/* A document reads as a tree, which is narrow; a table is as wide as it can get. */
+.sx-dm[data-kind="json"] {
+  width: min(56rem, 100vw - 2rem);
+}
 @starting-style {
   .sx-dm[open] {
     opacity: 0;
@@ -1127,18 +1136,39 @@
   padding: 0.875rem 1.25rem 0.75rem;
   border-bottom: 1px solid var(--ffx-rule);
 }
+/* The title is the asset's or the document's; without one, the file name, in mono. */
 .sx-dm-title {
-  font-family: var(--ffx-mono);
-  font-size: var(--ffx-t-base);
-  font-weight: 500;
-  line-height: 1.3;
+  font-family: var(--ffx-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
   color: var(--ffx-ink);
   overflow-wrap: anywhere;
 }
+.sx-dm-title[data-mono] {
+  font-family: var(--ffx-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+/* The sub line: the format tag, the file name, then the stats, dotted apart. */
 .sx-dm-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
   margin: 0.2rem 0 0;
-  font-size: var(--ffx-t-micro);
+  font-size: 12px;
+  line-height: 16px;
   color: var(--ffx-ink-mut);
+}
+.sx-dm-sub .sx-tag {
+  align-self: center;
+}
+.sx-dm-file {
+  font-family: var(--ffx-mono);
+  font-size: 11.5px;
+  color: var(--ffx-ink-sec);
+  overflow-wrap: anywhere;
 }
 .sx-dm-acts {
   display: flex;
@@ -1172,7 +1202,8 @@
   padding: 0;
 }
 @media (max-width: 39.99rem) {
-  .sx-dm {
+  .sx-dm,
+  .sx-dm[data-kind="json"] {
     width: 100vw;
     height: 100dvh;
     max-height: 100dvh;
@@ -4572,7 +4603,6 @@ summary:hover > .sx-chev {
 }
 .sx-asset-acts .ffx-btn-icon {
   width: 26px;
-  padding: 0;
   color: var(--ffx-ink-sec);
 }
 @media (max-width: 39.99rem) {

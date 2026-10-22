@@ -5,6 +5,7 @@ import { PreviewButton } from "./data-modal";
 import { Grid, MetaTable } from "./meta-table";
 import { Icon, ICONS } from "./shell";
 import { cloudViewHref } from "@/lib/config";
+import { formatTag } from "@/lib/data-preview";
 import { fmtBytes, humanize, isImageType, isPreviewable, mediaLabel } from "@/lib/format";
 import type { StacAsset } from "@/lib/stac";
 import { assetHref, withBase } from "@/lib/utils";
@@ -192,6 +193,8 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
             <PreviewButton
               url={withBase(`/api/preview?href=${encodeURIComponent(a.href)}`)}
               file={file}
+              title={a.title && a.title !== file ? a.title : undefined}
+              format={formatTag(a.type, a.href)}
               actions={<AssetActions a={a} />}
             />
           ) : undefined,

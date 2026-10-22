@@ -16,19 +16,23 @@ const MORE = 100;
 /**
  * A button that opens a look inside a file in a dialog over the page: the
  * first rows of a parquet, CSV or row-shaped JSON file as a table, or any
- * other JSON as a tree. The dialog is wide, since a table is, and a table
- * loads a short first look (20 rows) with one step up to 100. That's a
- * look at the data, not a way to browse all of it: the file is the thing
- * to download for that.
+ * other JSON as a tree. The dialog is wide for a table and narrower for a
+ * tree, and a table loads a short first look (20 rows) with one step up
+ * to 100. That's a look at the data, not a way to browse all of it: the
+ * file is the thing to download for that.
  *
  * `url` is a preview route for the file (mode "preview", the default),
  * which gets a limit added, or a route that returns the JSON itself (mode
- * "json"), for the collection and item documents. `actions` go in the head
- * beside Close (Download, Copy URI, the raw JSON).
+ * "json"), for the collection and item documents. `title` heads the
+ * dialog (the asset's or the document's title; the file name stands in
+ * without one) and `format` is the tag beside the file name. `actions` go
+ * in the head beside Close (Download, Copy URI, the raw JSON).
  */
 export function PreviewButton({
   url,
   file,
+  title,
+  format,
   mode = "preview",
   actions,
   icon = ICONS.table,
@@ -37,6 +41,8 @@ export function PreviewButton({
 }: {
   url: string;
   file: string;
+  title?: string;
+  format?: string;
   mode?: "preview" | "json";
   actions?: ReactNode;
   icon?: string;
@@ -44,13 +50,14 @@ export function PreviewButton({
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const title = mode === "json" ? `Read ${file} here` : `Preview the first rows of ${file}`;
   return (
     <>
-      <button type="button" className={className} onClick={() => setOpen(true)} title={title}>
+      <button type="button" className={className} onClick={() => setOpen(true)} title={mode === "json" ? "Read it here" : "Preview the first rows"}>
         <Icon d={icon} size={12} /> {children}
       </button>
-      {open && <DataDialog url={url} file={file} mode={mode} actions={actions} onClose={() => setOpen(false)} />}
+      {open && (
+        <DataDialog url={url} file={file} title={title} format={format} mode={mode} actions={actions} onClose={() => setOpen(false)} />
+      )}
     </>
   );
 }
@@ -63,12 +70,16 @@ type State =
 function DataDialog({
   url,
   file,
+  title,
+  format,
   mode,
   actions,
   onClose,
 }: {
   url: string;
   file: string;
+  title?: string;
+  format?: string;
   mode: "preview" | "json";
   actions?: ReactNode;
   onClose: () => void;
@@ -112,11 +123,36 @@ function DataDialog({
   // With the count unknown (a CSV read from its head), a full page means there may be more.
   const more = table ? (table.totalRows === null ? shown >= limit : table.totalRows > shown) : false;
   const foot = table && (table.totalRows === null ? shown >= FIRST : table.totalRows > FIRST);
+  // The width follows what's shown; before that's known, what was asked for.
+  const kind = d?.kind ?? (mode === "json" ? "json" : "table");
+
+  // The sub line after the file name: the stats, each part dotted apart.
+  const stats: ReactNode[] = table
+    ? [
+        <>
+          First <span className="ffx-num">{fmtNum(shown)}</span>
+          {table.totalRows !== null && (
+            <>
+              {" "}
+              of <span className="ffx-num">{fmtNum(table.totalRows)}</span>
+            </>
+          )}{" "}
+          {shown === 1 && table.totalRows === 1 ? "row" : "rows"}
+        </>,
+        <>
+          <span className="ffx-num">{fmtNum(table.columns.length)}</span> columns
+        </>,
+        fmtBytes(table.byteLength),
+      ]
+    : doc
+      ? [describe(doc.value), fmtBytes(doc.byteLength)]
+      : [state.status === "error" ? "Couldn't read the file." : "Reading…"];
 
   return (
     <dialog
       ref={ref}
       className="sx-dm"
+      data-kind={kind}
       aria-labelledby="dm-h"
       onClose={onClose}
       onClick={(e) => {
@@ -126,31 +162,15 @@ function DataDialog({
     >
       <div className="sx-dm-head">
         <div className="min-w-0">
-          <h2 id="dm-h" className="sx-dm-title">
-            {file}
+          <h2 id="dm-h" className="sx-dm-title" data-mono={title ? undefined : ""}>
+            {title ?? file}
           </h2>
           <p className="sx-dm-sub">
-            {table ? (
-              <>
-                First <span className="ffx-num">{fmtNum(shown)}</span>
-                {table.totalRows !== null && (
-                  <>
-                    {" "}
-                    of <span className="ffx-num">{fmtNum(table.totalRows)}</span>
-                  </>
-                )}{" "}
-                {shown === 1 && table.totalRows === 1 ? "row" : "rows"} · <span className="ffx-num">{fmtNum(table.columns.length)}</span>{" "}
-                columns · {fmtBytes(table.byteLength)}
-              </>
-            ) : doc ? (
-              <>
-                {describe(doc.value)} · {fmtBytes(doc.byteLength)}
-              </>
-            ) : state.status === "error" ? (
-              "Couldn't read the file."
-            ) : (
-              "Reading…"
-            )}
+            {format && <span className="sx-tag">{format}</span>}
+            <span className="sx-dm-file">{file}</span>
+            {stats.map((s, i) => (
+              <span key={i}>· {s}</span>
+            ))}
           </p>
         </div>
         <div className="sx-dm-acts">

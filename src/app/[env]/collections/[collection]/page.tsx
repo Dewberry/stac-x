@@ -16,6 +16,7 @@ import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { dataFileOf } from "@/lib/data-file";
+import { formatTag } from "@/lib/data-preview";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
 import { assetHref, collectionJsonHref, itemHref } from "@/lib/utils";
@@ -121,14 +122,23 @@ export default async function CollectionPage({ params }: Props) {
               mode="json"
               url={collectionJsonHref(env, c.id)}
               file={`${c.id}.collection.json`}
+              title={c.title}
+              format="collection"
               icon={ICONS.json}
               actions={
                 <>
-                  <a href={collectionJsonHref(env, c.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
-                    <Icon d={ICONS.external} size={12} /> Raw
-                  </a>
                   <a href={`${collectionJsonHref(env, c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
                     <Icon d={ICONS.download} size={12} /> Download
+                  </a>
+                  <a
+                    href={collectionJsonHref(env, c.id)}
+                    className="ffx-btn ffx-btn-sm ffx-btn-icon"
+                    aria-label="Open the raw JSON in a new tab"
+                    title="Open the raw JSON in a new tab"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Icon d={ICONS.external} size={12} />
                   </a>
                 </>
               }
@@ -202,6 +212,7 @@ export default async function CollectionPage({ params }: Props) {
                   <PreviewButton
                     url={`${collectionJsonHref(env, c.id)}/data`}
                     file={baseName(source)}
+                    format={formatTag(null, source)}
                     actions={
                       <>
                         <a href={assetHref(source)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">

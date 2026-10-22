@@ -107,14 +107,23 @@ export default async function ItemPage({ params }: Props) {
               mode="json"
               url={itemJsonHref(env, c.id, item.id)}
               file={`${item.id}.json`}
+              title={title}
+              format="item"
               icon={ICONS.json}
               actions={
                 <>
-                  <a href={itemJsonHref(env, c.id, item.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
-                    <Icon d={ICONS.external} size={12} /> Raw
-                  </a>
                   <a href={`${itemJsonHref(env, c.id, item.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
                     <Icon d={ICONS.download} size={12} /> Download
+                  </a>
+                  <a
+                    href={itemJsonHref(env, c.id, item.id)}
+                    className="ffx-btn ffx-btn-sm ffx-btn-icon"
+                    aria-label="Open the raw JSON in a new tab"
+                    title="Open the raw JSON in a new tab"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Icon d={ICONS.external} size={12} />
                   </a>
                 </>
               }

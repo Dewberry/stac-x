@@ -6,6 +6,8 @@
  * any other JSON previews as a tree. No server imports here.
  */
 
+import { isCsvType, isParquetType } from "./format";
+
 /** What a column holds, in the words the table shows under its name. */
 export type ColumnKind =
   | "text"
@@ -37,6 +39,14 @@ export type JsonPreview = {
 };
 
 export type Preview = TablePreview | JsonPreview;
+
+/** The tag beside a file's name in the preview dialog: what kind of file it is. */
+export function formatTag(type: string | null | undefined, href: string): string {
+  if (isParquetType(type, href)) return "parquet";
+  if (isCsvType(type, href)) return "csv";
+  if (/geo\+json/i.test(type ?? "") || /\.geojson$/i.test(href.split("?")[0])) return "geojson";
+  return "json";
+}
 
 /** The columns worth reading first, in this order; a name column of any spelling goes second. */
 const FIRST = ["id", "title", "name", "label", "datetime", "start_datetime", "end_datetime"];
