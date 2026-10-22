@@ -13,13 +13,13 @@ import { fmtBytes, fmtNum } from "@/lib/format";
 const FIRST = 20;
 const MORE = 100;
 
-/** Whether a document last read as a tree or as text, kept for the session. */
+/** Whether a document last read as a tree or as text, kept across visits. */
 const VIEW_KEY = "stac-x:json-view";
 type View = "tree" | "text";
 
 function storedView(): View {
   try {
-    return sessionStorage.getItem(VIEW_KEY) === "text" ? "text" : "tree";
+    return localStorage.getItem(VIEW_KEY) === "text" ? "text" : "tree";
   } catch {
     return "tree";
   }
@@ -120,7 +120,7 @@ function DataDialog({
   function pickView(v: View) {
     setView(v);
     try {
-      sessionStorage.setItem(VIEW_KEY, v);
+      localStorage.setItem(VIEW_KEY, v);
     } catch {}
   }
 
