@@ -57,7 +57,8 @@ export function PreviewButton({
   format?: string;
   mode?: "preview" | "json";
   actions?: ReactNode;
-  icon?: string;
+  /** Null for a button of text alone. */
+  icon?: string | null;
   className?: string;
   children?: ReactNode;
 }) {
@@ -65,7 +66,7 @@ export function PreviewButton({
   return (
     <>
       <button type="button" className={className} onClick={() => setOpen(true)} title={mode === "json" ? "Read it here" : "Preview the first rows"}>
-        <Icon d={icon} size={12} /> {children}
+        {icon && <Icon d={icon} size={12} />} {children}
       </button>
       {open && (
         <DataDialog url={url} file={file} title={title} format={format} mode={mode} actions={actions} onClose={() => setOpen(false)} />

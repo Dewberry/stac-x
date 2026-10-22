@@ -1040,11 +1040,14 @@
 }
 .sx-dt td {
   height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
   max-width: 24rem;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
   font-size: 12.5px;
+  line-height: 16px;
 }
 .sx-dt .sx-dt-n {
   font-size: 11px;
@@ -1056,12 +1059,20 @@
 .sx-dt-drawer td {
   height: auto;
   max-width: none;
-  padding: 8px 20px 10px 56px;
+  padding: 0;
+  overflow: visible;
   background: var(--ffx-surface-sunken);
   border-bottom: 1px solid var(--ffx-rule);
   white-space: normal;
+}
+/* The drawer's content pins to the left as the table scrolls across and
+   lines up under the id column (the gutter, then the cell's padding). */
+.sx-dt-drawer-in {
   position: sticky;
   left: 0;
+  width: fit-content;
+  max-width: calc(100vw - 4rem);
+  padding: 8px 20px 10px calc(2.5rem + 0.625rem);
 }
 .sx-dt-drawer-label {
   font-size: 11px;
@@ -1203,6 +1214,11 @@
   justify-content: flex-end;
   align-items: center;
   gap: 0.5rem;
+}
+/* Close stands as tall as the small buttons beside it. */
+.sx-dm-acts .sx-sheet-btn {
+  width: 1.875rem;
+  height: 1.875rem;
 }
 .sx-dm-scroll {
   flex: 0 1 auto;
@@ -1449,7 +1465,7 @@ a.sx-json-str {
   align-items: center;
   gap: 0.625rem;
 }
-.sx-panel-acts .ffx-btn {
+.sx-panel-acts > .ffx-btn {
   height: 1.625rem;
   padding: 0 0.5rem;
 }
@@ -4652,7 +4668,7 @@ summary:hover > .sx-chev {
 .sx-arow-act {
   display: inline-flex;
 }
-.sx-arow-act .ffx-btn {
+.sx-arow-act > .ffx-btn {
   height: 1.5rem;
   padding: 0 0.5rem;
 }
@@ -4691,10 +4707,6 @@ summary:hover > .sx-chev {
   height: 26px;
   padding: 0 8px;
   font-size: 12px;
-}
-.sx-asset-acts .ffx-btn-icon {
-  width: 26px;
-  color: var(--ffx-ink-sec);
 }
 @media (max-width: 39.99rem) {
   .sx-asset-head {

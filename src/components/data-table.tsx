@@ -73,10 +73,12 @@ function Row({
       {drawer && (
         <tr className="sx-dt-drawer">
           <td colSpan={cols.length + 1}>
-            <div className="sx-dt-drawer-label">
-              {humanize(drawer)} · row {fmtNum(n + 1)}
+            <div className="sx-dt-drawer-in">
+              <div className="sx-dt-drawer-label">
+                {humanize(drawer)} · row {fmtNum(n + 1)}
+              </div>
+              <pre>{text.length > 4000 ? `${text.slice(0, 4000)}\n…` : text}</pre>
             </div>
-            <pre>{text.length > 4000 ? `${text.slice(0, 4000)}\n…` : text}</pre>
           </td>
         </tr>
       )}

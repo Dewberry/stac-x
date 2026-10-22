@@ -195,6 +195,7 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
               file={file}
               title={a.title && a.title !== file ? a.title : undefined}
               format={formatTag(a.type, a.href)}
+              icon={null}
               actions={<AssetActions a={a} />}
             />
           ) : undefined,
@@ -221,8 +222,8 @@ function AssetActions({ a }: { a: StacAsset }) {
 
 /**
  * The open row's header line: the title (or, without one, the description)
- * on the left and the actions on the right. Download is an icon; the copy
- * button says what it copies; Bucket View opens the file's folder.
+ * on the left and the actions on the right: Download, the copy button
+ * that says what it copies, and Bucket View, which opens the file's folder.
  */
 function AssetHead({ a }: { a: StacAsset }) {
   const s3 = a.href.startsWith("s3://");
@@ -232,16 +233,8 @@ function AssetHead({ a }: { a: StacAsset }) {
       {a.title && <div className="sx-asset-title">{a.title}</div>}
       {!a.title && a.description && <p className="text-small text-ink-sec">{a.description}</p>}
       <div className="sx-asset-acts">
-        <a
-          href={assetHref(a.href)}
-          className="ffx-btn ffx-btn-sm ffx-btn-icon"
-          aria-label="Download"
-          title="Download"
-          target="_blank"
-          rel="noreferrer"
-          download={s3 ? undefined : true}
-        >
-          <Icon d={ICONS.download} size={12} />
+        <a href={assetHref(a.href)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" download={s3 ? undefined : true}>
+          <Icon d={ICONS.download} size={12} /> Download
         </a>
         <CopyButton text={a.href} label={s3 ? "S3 URI" : "URL"} ariaLabel={s3 ? "Copy S3 URI" : "Copy URL"} />
         {cloudView ? (
