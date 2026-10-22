@@ -1,12 +1,13 @@
 import { AssetGroups, type AssetGroupData } from "./asset-groups";
-import { AssetPreview, Thumbnail } from "./asset-preview";
+import { Thumbnail } from "./asset-preview";
 import { CopyButton } from "./copy-button";
+import { PreviewButton } from "./data-modal";
 import { Grid, MetaTable } from "./meta-table";
 import { Icon, ICONS } from "./shell";
 import { cloudViewHref } from "@/lib/config";
-import { fmtBytes, humanize, isImageType, isParquetType, mediaLabel } from "@/lib/format";
+import { fmtBytes, humanize, isImageType, isPreviewable, mediaLabel } from "@/lib/format";
 import type { StacAsset } from "@/lib/stac";
-import { assetHref } from "@/lib/utils";
+import { assetHref, withBase } from "@/lib/utils";
 
 /**
  * The assets of an item, grouped by what they're for: model files, time
@@ -15,8 +16,9 @@ import { assetHref } from "@/lib/utils";
  * can't be scanned. A small set opens in full; a large one opens its first
  * group. Each asset is a row (file name, what it is, size) that opens to its
  * description, its image if it has one, its actions and whatever extra fields
- * it carries. An asset in S3 gets a Cloud View button, and a parquet asset
- * gets a preview button that pulls its first rows through the server.
+ * it carries. An asset in S3 gets a Cloud View button, and a parquet, CSV
+ * or JSON asset gets a Preview button on its row that opens a look inside
+ * it in a dialog (components/data-modal.tsx), read through the server.
  */
 const KNOWN = new Set(["href", "title", "description", "type", "roles"]);
 
@@ -185,6 +187,9 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
           what,
           size,
           search: `${key} ${file} ${a.title ?? ""} ${what} ${a.type ?? ""} ${formatOf(a, key)} ${(a.roles ?? []).join(" ")}`.toLowerCase(),
+          action: isPreviewable(a.type, a.href) ? (
+            <PreviewButton url={withBase(`/api/preview?href=${encodeURIComponent(a.href)}`)} file={file} actions={<AssetActions a={a} />} />
+          ) : undefined,
           body: <AssetBody k={key} a={a} />,
         };
       }),
@@ -193,9 +198,21 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
   return <AssetGroups groups={data} />;
 }
 
+/** Download and Copy, for the open row and for the head of the preview dialog. */
+function AssetActions({ a }: { a: StacAsset }) {
+  const s3 = a.href.startsWith("s3://");
+  return (
+    <>
+      <a href={assetHref(a.href)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" download={s3 ? undefined : true}>
+        <Icon d={ICONS.download} size={12} /> Download
+      </a>
+      <CopyButton text={a.href} label={s3 ? "Copy S3 URI" : "Copy URL"} />
+    </>
+  );
+}
+
 function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
   const image = isImageType(a.type, a.href);
-  const parquet = isParquetType(a.type, a.href);
   const extra = Object.entries(a).filter(([k]) => !KNOWN.has(k));
   // A list of like objects (file:values on the AMS asset) is a table in
   // its own right, not a value squeezed into a key/value row.
@@ -209,10 +226,7 @@ function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
       {a.description && <p className="text-small text-ink-sec">{a.description}</p>}
       {image && <Thumbnail src={assetHref(a.href)} alt={a.title || humanize(key)} />}
       <div className="flex flex-wrap gap-1.5">
-        <a href={assetHref(a.href)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" download={s3 ? undefined : true}>
-          <Icon d={ICONS.download} size={12} /> Download
-        </a>
-        <CopyButton text={a.href} label={s3 ? "Copy S3 URI" : "Copy URL"} />
+        <AssetActions a={a} />
         {cloudView ? (
           <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" title="Open this file's folder in Cloud View">
             <Icon d={ICONS.external} size={12} /> Bucket View
@@ -224,7 +238,6 @@ function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
             </button>
           )
         )}
-        {parquet && <AssetPreview href={a.href} />}
       </div>
       <div className="sx-asset-href">{a.href}</div>
       <div className="flex flex-wrap gap-1">

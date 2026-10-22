@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
+import { PreviewButton } from "@/components/data-modal";
 import { DataPanel } from "@/components/data-panel";
 import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
 import { ItemsList } from "@/components/items-list";
@@ -17,7 +18,7 @@ import { fmtNum, fmtRange } from "@/lib/format";
 import { dataFileOf } from "@/lib/data-file";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
-import { collectionJsonHref, itemHref } from "@/lib/utils";
+import { assetHref, collectionJsonHref, itemHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
@@ -116,9 +117,24 @@ export default async function CollectionPage({ params }: Props) {
         nav={c.series.versions.length > 1 ? <VersionMenu env={env} current={c.id} series={c.series} /> : undefined}
         actions={
           <>
-            <a href={collectionJsonHref(env, c.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
-              <Icon d={ICONS.json} size={12} /> JSON
-            </a>
+            <PreviewButton
+              mode="json"
+              url={collectionJsonHref(env, c.id)}
+              file={`${c.id}.collection.json`}
+              icon={ICONS.json}
+              actions={
+                <>
+                  <a href={collectionJsonHref(env, c.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
+                    <Icon d={ICONS.external} size={12} /> Raw
+                  </a>
+                  <a href={`${collectionJsonHref(env, c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
+                    <Icon d={ICONS.download} size={12} /> Download
+                  </a>
+                </>
+              }
+            >
+              JSON
+            </PreviewButton>
             <a href={`${collectionJsonHref(env, c.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
               <Icon d={ICONS.download} size={12} /> Download
             </a>
@@ -177,7 +193,29 @@ export default async function CollectionPage({ params }: Props) {
           </Panel>
           {/* The rows as the pipeline wrote them, under the items they are. */}
           {source && (
-            <Panel title="Data" note={baseName(source)} id="data">
+            <Panel
+              title="Data"
+              id="data"
+              actions={
+                <span className="sx-panel-acts">
+                  <span className="ffx-panel-note">{baseName(source)}</span>
+                  <PreviewButton
+                    url={`${collectionJsonHref(env, c.id)}/data`}
+                    file={baseName(source)}
+                    actions={
+                      <>
+                        <a href={assetHref(source)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
+                          <Icon d={ICONS.download} size={12} /> Download
+                        </a>
+                        <CopyButton text={source} label={source.startsWith("s3://") ? "Copy S3 URI" : "Copy URL"} />
+                      </>
+                    }
+                  >
+                    Open
+                  </PreviewButton>
+                </span>
+              }
+            >
               <DataPanel href={`${collectionJsonHref(env, c.id)}/data`} />
             </Panel>
           )}

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
+import { PreviewButton } from "@/components/data-modal";
 import { DataMap } from "@/components/map";
 import { MetadataPanel, type Entry } from "@/components/meta-table";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
@@ -102,14 +103,24 @@ export default async function ItemPage({ params }: Props) {
         }
         actions={
           <>
-            <a
-              href={itemJsonHref(env, c.id, item.id)}
-              className="ffx-btn ffx-btn-sm"
-              target="_blank"
-              rel="noreferrer"
+            <PreviewButton
+              mode="json"
+              url={itemJsonHref(env, c.id, item.id)}
+              file={`${item.id}.json`}
+              icon={ICONS.json}
+              actions={
+                <>
+                  <a href={itemJsonHref(env, c.id, item.id)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer">
+                    <Icon d={ICONS.external} size={12} /> Raw
+                  </a>
+                  <a href={`${itemJsonHref(env, c.id, item.id)}?download=1`} className="ffx-btn ffx-btn-sm" download>
+                    <Icon d={ICONS.download} size={12} /> Download
+                  </a>
+                </>
+              }
             >
-              <Icon d={ICONS.json} size={12} /> JSON
-            </a>
+              JSON
+            </PreviewButton>
             <a
               href={`${itemJsonHref(env, c.id, item.id)}?download=1`}
               className="ffx-btn ffx-btn-sm"

@@ -9,6 +9,8 @@ export type AssetRowData = {
   size: string | null;
   /** Lowercased name, title and format, for the filter. */
   search: string;
+  /** A button at the row's right that works without opening it (Preview, on a parquet asset). */
+  action?: ReactNode;
   body: ReactNode;
 };
 
@@ -80,6 +82,18 @@ export function AssetGroups({ groups }: { groups: AssetGroupData[] }) {
                       <span className="sx-arow-file">{r.file}</span>
                       <span className="sx-arow-what">{r.what}</span>
                       <span className="sx-arow-size ffx-num">{r.size ?? ""}</span>
+                      {r.action && (
+                        // A click here is the button's, not the row's: it mustn't open or close it.
+                        <span
+                          className="sx-arow-act"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                        >
+                          {r.action}
+                        </span>
+                      )}
                     </summary>
                     <div className="sx-asset-body">{r.body}</div>
                   </details>

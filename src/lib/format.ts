@@ -136,6 +136,19 @@ export function isParquetType(type: string | null | undefined, href?: string) {
   return Boolean((type && /parquet/i.test(type)) || (href && /\.(geo)?parquet$|\.pq$/i.test(href)));
 }
 
+export function isCsvType(type: string | null | undefined, href?: string) {
+  return Boolean((type && /csv|tab-separated/i.test(type)) || (href && /\.(csv|tsv)$/i.test(href.split("?")[0])));
+}
+
+export function isJsonType(type: string | null | undefined, href?: string) {
+  return Boolean((type && /json/i.test(type)) || (href && /\.(geo)?json$/i.test(href.split("?")[0])));
+}
+
+/** Whether the app can show the first rows (or the document) of an asset. */
+export function isPreviewable(type: string | null | undefined, href: string) {
+  return isParquetType(type, href) || isCsvType(type, href) || isJsonType(type, href);
+}
+
 /**
  * What to call an item in a list. STAC has a title property; the gage rows
  * have a station name. Fall through the likely candidates and give up to the

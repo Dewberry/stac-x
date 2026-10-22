@@ -1017,6 +1017,332 @@
   white-space: pre;
   color: var(--ffx-ink);
 }
+/* The rows table (components/data-table.tsx), in the Data panel and the
+   dialog. The header stays put as it scrolls down; the row gutter and the
+   first column (the id) stay put as it scrolls across, so a wide file can
+   be read against its ids. What a column holds sits under its name. */
+.sx-dt {
+  width: max-content;
+  min-width: 100%;
+}
+.sx-dt thead th {
+  vertical-align: bottom;
+}
+.sx-dt-name {
+  display: block;
+  color: var(--ffx-ink-sec);
+}
+.sx-dt-kind {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-tiny);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ffx-ink-dim);
+}
+.sx-dt td {
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sx-dt .sx-dt-empty {
+  color: var(--ffx-ink-dim);
+}
+.sx-dt .sx-dt-n,
+.sx-dt .sx-dt-n + th,
+.sx-dt .sx-dt-n + td {
+  position: sticky;
+  background: var(--ffx-surface);
+}
+.sx-dt .sx-dt-n {
+  left: 0;
+  z-index: 1;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  padding-right: 0.375rem;
+  text-align: right;
+  color: var(--ffx-ink-dim);
+}
+.sx-dt .sx-dt-n + th,
+.sx-dt .sx-dt-n + td {
+  left: 2.5rem;
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--ffx-grid);
+}
+.sx-dt thead .sx-dt-n,
+.sx-dt thead .sx-dt-n + th {
+  z-index: 2;
+}
+
+/* The data dialog (components/data-modal.tsx): a wide window over the page
+   for a file's first rows. The head and foot stay put while the table in
+   the middle scrolls both ways. On a phone it's the whole screen. */
+.sx-dm {
+  width: min(92rem, 100vw - 2rem);
+  max-width: none;
+  max-height: min(85dvh, 60rem);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ffx-radius-md);
+  background: var(--ffx-surface);
+  color: var(--ffx-ink);
+  box-shadow: var(--ffx-shadow-overlay);
+  overflow: hidden;
+  opacity: 0;
+  translate: 0 0.5rem;
+  transition:
+    opacity 160ms ease,
+    translate 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    display 160ms allow-discrete,
+    overlay 160ms allow-discrete;
+}
+.sx-dm[open] {
+  display: flex;
+  flex-direction: column;
+  opacity: 1;
+  translate: 0 0;
+}
+@starting-style {
+  .sx-dm[open] {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+.sx-dm::backdrop {
+  background: rgb(19 26 34 / 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-dm {
+    transition: none;
+  }
+}
+.sx-dm-head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-dm-title {
+  font-family: var(--ffx-mono);
+  font-size: var(--ffx-t-base);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+}
+.sx-dm-sub {
+  margin: 0.2rem 0 0;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-acts {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sx-dm-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.sx-dm-note {
+  margin: 0;
+  padding: 0.75rem 1.25rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1.25rem calc(0.625rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-dm-foot .sx-dm-note {
+  padding: 0;
+}
+@media (max-width: 39.99rem) {
+  .sx-dm {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .sx-dm-scroll {
+    flex: 1 1 auto;
+  }
+}
+/* A JSON document as a tree (components/json-tree.tsx): keys and values in
+   mono, counts and controls in the body face, nested levels on a guide. */
+.sx-json {
+  padding: 0.75rem 1.25rem 1rem;
+  font-size: var(--ffx-t-small);
+  line-height: 1.65;
+  color: var(--ffx-ink);
+}
+.sx-json-row,
+.sx-json-node > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  min-width: 0;
+}
+.sx-json-row {
+  padding-left: 0.75rem;
+}
+.sx-json-node > summary {
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+.sx-json-node > summary::-webkit-details-marker {
+  display: none;
+}
+.sx-json-node > summary:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-json-node > summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 0.25rem;
+  border-left: 4px solid var(--ffx-ink-dim);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 100ms ease;
+}
+.sx-json-node[open] > summary::before {
+  transform: rotate(90deg);
+}
+.sx-json-kids {
+  margin-left: 0.3rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--ffx-grid);
+}
+.sx-json-key,
+.sx-json-idx,
+.sx-json-str,
+.sx-json-num,
+.sx-json-lit,
+.sx-json-inline {
+  font-family: var(--ffx-mono);
+}
+.sx-json-key {
+  color: var(--ffx-ink-sec);
+}
+.sx-json-idx {
+  color: var(--ffx-ink-dim);
+}
+.sx-json-key::after,
+.sx-json-idx::after {
+  content: ":";
+  color: var(--ffx-ink-dim);
+}
+.sx-json-str,
+.sx-json-inline {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+a.sx-json-str {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+}
+.sx-json-inline {
+  color: var(--ffx-ink-sec);
+}
+.sx-json-lit {
+  color: var(--ffx-ink-mut);
+  font-style: italic;
+}
+.sx-json-badge {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+.sx-json-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-dim);
+}
+.sx-json-more {
+  margin: 0.125rem 0 0.25rem 0.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-active-text);
+  cursor: pointer;
+}
+
+/* The spinner (components/spinner.tsx): a ring with one blue arc. Loading
+   is the ring with a line beside it, centered in what's still empty. */
+.sx-spinner {
+  display: inline-block;
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--ffx-rule);
+  border-top-color: var(--ffx-river);
+  border-radius: 50%;
+  animation: sx-spin 0.8s linear infinite;
+}
+.sx-spinner-lg {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-width: 2.5px;
+}
+@keyframes sx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-spinner {
+    animation-duration: 2.4s;
+  }
+}
+.sx-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1.5rem 1rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-scroll .sx-loading {
+  padding: 3.5rem 1rem;
+}
+
+/* A panel head with a note and a button side by side. */
+.sx-panel-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.sx-panel-acts .ffx-btn {
+  height: 1.625rem;
+  padding: 0 0.5rem;
+}
+
 /* A panel linked to by its id lands under the sticky header. */
 .ffx-panel[id] {
   scroll-margin-top: calc(var(--ffx-header) + 0.75rem);
@@ -4059,7 +4385,7 @@ details[open] > summary > .sx-chev {
 }
 .sx-arow > summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.4rem 6px 0.4rem 30px;
@@ -4106,6 +4432,14 @@ details[open] > summary > .sx-chev {
   min-width: 3.5rem;
   text-align: right;
   color: var(--ffx-ink-sec);
+}
+/* The row's own button (Preview), short enough not to make the row taller. */
+.sx-arow-act {
+  display: inline-flex;
+}
+.sx-arow-act .ffx-btn {
+  height: 1.5rem;
+  padding: 0 0.5rem;
 }
 .sx-arow > .sx-asset-body {
   padding: 0.5rem 6px 0.875rem 30px;

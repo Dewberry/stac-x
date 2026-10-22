@@ -1,9 +1,10 @@
 import "server-only";
 
 import { parquetMetadataAsync, parquetReadObjects, parquetSchema, toJson } from "hyparquet";
-import type { AsyncBuffer, FileMetaData } from "hyparquet";
+import type { AsyncBuffer, FileMetaData, SchemaTree } from "hyparquet";
 import { compressors } from "hyparquet-compressors";
 import type { Geometry } from "geojson";
+import type { ColumnKind, TablePreview } from "./data-preview";
 import type { StacAsset, StacItem, StacLink } from "./stac";
 import { head, NotFound, read, readRange } from "./storage";
 
@@ -149,18 +150,12 @@ function dropNulls<T extends Record<string, unknown>>(o: T): T {
 
 /* ------------------------------------------------------- previews */
 
-export type Preview = {
-  columns: string[];
-  rows: Record<string, unknown>[];
-  totalRows: number;
-  byteLength: number;
-};
-
 /**
- * The first rows of any parquet file, for the data preview under an asset.
- * Reads by byte range so a large file costs only its footer and first pages.
+ * The first rows of any parquet file, for the data table on a collection
+ * page and the preview behind an asset row. Reads by byte range so a large
+ * file costs only its footer and first pages.
  */
-export async function previewParquet(uri: string, limit = 50): Promise<Preview> {
+export async function previewParquet(uri: string, limit = 50): Promise<TablePreview> {
   const h = await head(uri);
   if (!h) throw new NotFound(uri);
   const file: AsyncBuffer = {
@@ -170,6 +165,8 @@ export async function previewParquet(uri: string, limit = 50): Promise<Preview> 
   const metadata: FileMetaData = await parquetMetadataAsync(file);
   const schema = parquetSchema(metadata);
   const columns = schema.children.map((c) => c.element.name);
+  const geo = geometryColumns(metadata);
+  const kinds = Object.fromEntries(schema.children.map((c) => [c.element.name, geo.has(c.element.name) ? "geometry" : kindOf(c)]));
   const totalRows = Number(metadata.num_rows);
   const rows = await parquetReadObjects({
     file,
@@ -180,9 +177,76 @@ export async function previewParquet(uri: string, limit = 50): Promise<Preview> 
     rowEnd: Math.min(limit, totalRows),
   });
   return {
+    kind: "table",
     columns,
+    kinds,
     rows: rows.map((r) => toJson(plain(r)) as Record<string, unknown>),
     totalRows,
     byteLength: h.size,
   };
+}
+
+/** The columns the GeoParquet "geo" metadata names as geometry. */
+function geometryColumns(metadata: FileMetaData): Set<string> {
+  const raw = metadata.key_value_metadata?.find((kv) => kv.key === "geo")?.value;
+  if (!raw) return new Set();
+  try {
+    const geo = JSON.parse(raw) as { columns?: Record<string, unknown> };
+    return new Set(Object.keys(geo.columns ?? {}));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * What a column holds, in a word, from its schema: the logical type when
+ * the writer set one, the older converted type when it didn't, else the
+ * physical type. A column with children is a list, a map or a struct.
+ */
+function kindOf(tree: SchemaTree): ColumnKind {
+  const el = tree.element;
+  const logical = el.logical_type?.type;
+  const converted = el.converted_type;
+  if (tree.children.length) {
+    if (logical === "LIST" || converted === "LIST") return "list";
+    if (logical === "MAP" || converted === "MAP" || converted === "MAP_KEY_VALUE") return "map";
+    return "struct";
+  }
+  switch (logical) {
+    case "STRING":
+    case "ENUM":
+    case "JSON":
+    case "UUID":
+      return "text";
+    case "DATE":
+      return "date";
+    case "TIMESTAMP":
+      return "timestamp";
+    case "TIME":
+      return "time";
+    case "INTEGER":
+    case "DECIMAL":
+    case "FLOAT16":
+      return "number";
+  }
+  if (converted) {
+    if (converted === "UTF8" || converted === "ENUM" || converted === "JSON") return "text";
+    if (converted === "DATE") return "date";
+    if (converted.startsWith("TIMESTAMP")) return "timestamp";
+    if (converted.startsWith("TIME_")) return "time";
+    if (converted === "DECIMAL" || /^U?INT_/.test(converted)) return "number";
+  }
+  switch (el.type) {
+    case "BOOLEAN":
+      return "boolean";
+    case "INT32":
+    case "INT64":
+    case "FLOAT":
+    case "DOUBLE":
+      return "number";
+    case "INT96":
+      return "timestamp";
+    default:
+      return "binary";
+  }
 }
