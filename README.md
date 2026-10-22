@@ -30,9 +30,11 @@ Start the dev server:
 npm run dev
 ```
 
-Open http://localhost:3000, which lands in Development. Reading catalogs on
-S3 needs AWS credentials with access to their bucket. Without them the pages
-still load, empty, with a note that collections couldn't be loaded.
+Open http://localhost:3010, which lands in Development. The dev server has
+its own port so the browser doesn't mix up its installed app name and icon
+with another project's on localhost:3000. Reading catalogs on S3 needs AWS
+credentials with access to their bucket. Without them the pages still load,
+empty, with a note that collections couldn't be loaded.
 
 There's no identity provider yet. The sign-in page is a stand-in that opens
 Development whatever you type, and the account shown is a fixed role.

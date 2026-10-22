@@ -52,6 +52,9 @@ export function landingFolder(env: EnvKey): string {
 }
 
 export const catalogTitle = process.env.STAC_TITLE || "STAC";
+/** What the app does, for the page description and the web app manifest. */
+export const appDescription =
+  "Browse STAC collections held as STAC JSON and GeoParquet in S3, review them, and move them from Development to Test to Production.";
 export const catalogDescription =
   process.env.STAC_DESCRIPTION ||
   "Collections from the STAC catalog. Open a collection to browse its items and record QC.";

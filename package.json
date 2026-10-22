@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "node scripts/vendor-maplibre.mjs",
-    "dev": "next dev",
+    "dev": "next dev -p 3010",
     "prebuild": "node scripts/vendor-maplibre.mjs",
     "build": "next build",
     "start": "next start",
