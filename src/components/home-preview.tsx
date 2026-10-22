@@ -61,6 +61,36 @@ export function AreaSub({ area, open, previewing }: { area: HomeArea; open?: boo
   );
 }
 
+/**
+ * The line under the name in the phone's sheet: the review state once it's
+ * decided, where the collection is against the area, and its full dates,
+ * since the sheet has the room the rail row doesn't.
+ */
+function SheetSub({ area }: { area: HomeArea }) {
+  const state = stateOf(area);
+  const dates = fmtSpan(area.temporal);
+  const parts: ReactNode[] = [];
+  if (state !== "pending")
+    parts.push(
+      <span className="sx-row-qc" data-qc={state}>
+        <QcMark state={state} />
+        {QC_LABEL[state]}
+      </span>,
+    );
+  if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
+  if (dates) parts.push(<span className="ffx-num">{dates}</span>);
+  return (
+    <span className="sx-row-sub">
+      {parts.map((p, i) => (
+        <Fragment key={i}>
+          {i > 0 && " · "}
+          {p}
+        </Fragment>
+      ))}
+    </span>
+  );
+}
+
 const UNIT_ONE: Record<HomeArea["unit"], string> = { points: "point", shapes: "shape", items: "item" };
 
 /** How many items a collection has, as a figure and its noun: "450 points", "1 shape", "3 items". */
@@ -144,27 +174,13 @@ function factsOf(area: HomeArea, brief?: boolean): Fact[] {
   return facts;
 }
 
-/**
- * The description, the facts, the QC line and the last note. `figures` is
- * the phone's sheet: the count as a figure on top, since there's no row
- * head to carry it, and the brief facts.
- */
-export function PreviewBody({ area, figures }: { area: HomeArea; figures?: boolean }) {
+/** The description, the facts, the QC line and the last note. `brief` is the phone's sheet, with the short facts. */
+export function PreviewBody({ area, brief }: { area: HomeArea; brief?: boolean }) {
   const state = stateOf(area);
   const note = (state === "needs_revision" || state === "rejected") && area.qc?.note ? area.qc.note : null;
-  const count = countOf(area);
-  const facts = factsOf(area, figures);
+  const facts = factsOf(area, brief);
   return (
     <div className="sx-pv">
-      {figures && (
-        <div className="sx-pv-figs">
-          <b className="ffx-num">{count.n}</b>
-          <span>
-            <UnitGlyph unit={area.unit} />
-            {count.noun}
-          </span>
-        </div>
-      )}
       {area.blurb && <p className="sx-pv-desc">{area.blurb}</p>}
       <dl className="sx-pv-grid">
         {facts.map((f) => (
@@ -282,6 +298,7 @@ export function HomePreview({
   activeIds?: ReadonlySet<string>;
   onClose: () => void;
 }) {
+  const count = countOf(area);
   const [full, setFull] = useState(false);
   const drag = useRef<{ y: number; full: boolean; moved: boolean } | null>(null);
   // A new collection opens at the usual height.
@@ -320,7 +337,14 @@ export function HomePreview({
       <div className="sx-preview-top">
         <div className="sx-preview-head">
           <div className="sx-preview-title">{area.name}</div>
-          <AreaSub area={area} open />
+          <SheetSub area={area} />
+          <div className="sx-pv-figs">
+            <b className="ffx-num">{count.n}</b>
+            <span>
+              <UnitGlyph unit={area.unit} />
+              {count.noun}
+            </span>
+          </div>
         </div>
         <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
@@ -329,7 +353,7 @@ export function HomePreview({
         </button>
       </div>
       <div className="sx-preview-body">
-        <PreviewBody area={area} figures />
+        <PreviewBody area={area} brief />
         <WayIn area={area} />
       </div>
       <Items env={env} area={area} rows={rows} activeIds={activeIds} fill />
