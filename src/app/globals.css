@@ -4535,7 +4535,50 @@ summary:hover > .sx-chev {
   padding: 0 0.5rem;
 }
 .sx-arow > .sx-asset-body {
-  padding: 0.5rem 6px 0.875rem 30px;
+  padding: 4px 6px 14px 32px;
+}
+/* The open row's header line: title left, actions right. */
+.sx-asset-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sx-asset-head:has(> .sx-asset-acts:only-child) {
+  justify-content: flex-end;
+}
+.sx-asset-head > p {
+  margin: 0;
+  padding-top: 4px;
+}
+.sx-asset-title {
+  font-size: var(--ffx-t-small);
+  font-weight: 600;
+  line-height: 18px;
+  padding-top: 4px;
+  color: var(--ffx-ink);
+}
+.sx-asset-acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  flex: none;
+}
+.sx-asset-acts .ffx-btn {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.sx-asset-acts .ffx-btn-icon {
+  width: 26px;
+  padding: 0;
+  color: var(--ffx-ink-sec);
+}
+@media (max-width: 39.99rem) {
+  .sx-asset-head {
+    flex-wrap: wrap;
+  }
 }
 @media (max-width: 39.99rem) {
   .sx-agroup-name span,

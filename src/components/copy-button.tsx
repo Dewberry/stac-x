@@ -14,6 +14,8 @@ export function CopyButton({
   small = true,
   icon = ICONS.copy,
   currentUrl = false,
+  ariaLabel,
+  className = "",
 }: {
   text?: string;
   label?: string;
@@ -22,6 +24,9 @@ export function CopyButton({
   icon?: string;
   /** Copy the page's own URL, which only the browser knows. */
   currentUrl?: boolean;
+  /** The accessible name, when the label on the button is shorter ("S3 URI" for "Copy S3 URI"). */
+  ariaLabel?: string;
+  className?: string;
 }) {
   const [done, setDone] = useState(false);
   useEffect(() => {
@@ -41,7 +46,14 @@ export function CopyButton({
   }
 
   return (
-    <button type="button" onClick={copy} className={`ffx-btn ${small ? "ffx-btn-sm" : ""}`} aria-live="polite">
+    <button
+      type="button"
+      onClick={copy}
+      className={`ffx-btn ${small ? "ffx-btn-sm" : ""} ${className}`.trim()}
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      aria-live="polite"
+    >
       <Icon d={icon} size={small ? 12 : 14} />
       {done ? copiedLabel : label}
     </button>
