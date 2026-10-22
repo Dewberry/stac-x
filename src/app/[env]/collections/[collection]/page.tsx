@@ -103,7 +103,6 @@ export default async function CollectionPage({ params }: Props) {
         title={c.title}
         subtitle={
           <>
-            {c.title !== c.id && <span className="ffx-id">{c.id}</span>}
             {c.series.versions.length < 2 && c.version && <span>{versionName(c.version)}</span>}
             <span>
               <span className="ffx-num">{fmtNum(c.itemCount)}</span> items
