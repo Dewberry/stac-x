@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { EnvKey } from "@/lib/env";
-import { AREA_KIND_LABEL } from "@/lib/kinds";
 import { fmtNum, fmtYears } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
@@ -15,17 +14,16 @@ import { stateOf } from "./qc-mark";
  * What a selected collection shows: enough to decide whether to open it,
  * and its items. Its description, where its QC stands, the last reviewer's
  * note when it was sent back, the way in (Browse collection), then the items
- * by name with a search and a sort. The summary line (kind, dates,
+ * by name with a search and a sort. The summary line (dates, place,
  * version) sits above it, in the row on a wide screen and in the sheet's
  * header on a phone, so the body doesn't repeat it. On a wide screen this
  * opens inside the collection's row in the rail (OpenRow); on a phone it's
  * a sheet over the page (HomePreview).
  */
 
-/** The line under a collection's name: kind, dates, where it is, and its version chip when asked for. */
-export function AreaSub({ area, showKind, version }: { area: HomeArea; showKind: boolean; version?: boolean }) {
+/** The line under a collection's name: dates, where it is, and its version chip when asked for. */
+export function AreaSub({ area, version }: { area: HomeArea; version?: boolean }) {
   const meta = [
-    showKind ? AREA_KIND_LABEL[area.kind] : null,
     fmtYears(area.temporal) ?? "No dates",
     area.wide ? "Whole area" : area.place,
   ].filter(Boolean);
@@ -46,7 +44,8 @@ export function countOf(area: HomeArea): { n: string; noun: string } {
   const m = area.members;
   if (!m?.length) return { n: fmtNum(area.itemCount), noun: area.itemCount === 1 ? "item" : "items" };
   const shapes = new Set(m.map((x) => x.key)).size;
-  const noun = area.kind === "models" ? "model" : "shape";
+  // Members only say which model they are in a collection of models.
+  const noun = m.every((x) => x.kind) ? "model" : "shape";
   if (shapes === m.length) return { n: fmtNum(m.length), noun: `${noun}${m.length === 1 ? "" : "s"}` };
   return { n: fmtNum(m.length), noun: `items on ${fmtNum(shapes)} ${noun}${shapes === 1 ? "" : "s"}` };
 }
@@ -216,7 +215,7 @@ export function HomePreview({
       <div className="sx-preview-top">
         <div className="sx-preview-head">
           <div className="sx-preview-title">{area.name}</div>
-          <AreaSub area={area} showKind version />
+          <AreaSub area={area} version />
         </div>
         <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">

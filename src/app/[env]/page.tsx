@@ -6,7 +6,6 @@ import { HomeLoading } from "@/components/home-loading";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { itemRowsOf } from "@/lib/item-rows";
-import { guessKind } from "@/lib/kinds";
 import { areaCovered, areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { overview, polygonsOf } from "@/lib/overview";
 import { pageEnv } from "@/lib/page-env";
@@ -136,7 +135,6 @@ async function HomeData({ env }: { env: EnvKey }) {
       slug: c.series.id,
       id: c.id,
       name: c.title,
-      kind: guessKind(c),
       inArea: !!area && !!bbox && inArea(area, [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]),
       bbox,
       blurb: c.description ?? undefined,

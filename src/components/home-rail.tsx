@@ -22,7 +22,8 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * items. While it does, the groups with nothing in them fold into one line.
  */
 
-export type Group = { key: string; label: string; rows: HomeArea[] };
+/** One group of the rail's rows. Ungrouped, the rail is one group with no heading. */
+export type Group = { key: string; label: string | null; rows: HomeArea[] };
 
 /** What the search found, while there is one. */
 export type Search = {
@@ -112,13 +113,12 @@ export function HomeRail({
           <span className="sx-rail-count ffx-num">
             {shownCount} of {areas.length}
           </span>
+          {/* One toggle: pressed, the rows group by review state; not, they're one list by name. */}
           <div className="sx-group-switch" role="group" aria-label="Group by">
             <span className="sx-group-switch-l" aria-hidden="true">Group by</span>
-            {(["kind", "review"] as const).map((v) => (
-              <button key={v} type="button" aria-pressed={groupBy === v} onClick={() => onGroupBy(v)}>
-                {v === "kind" ? "Kind" : "Review"}
-              </button>
-            ))}
+            <button type="button" aria-pressed={groupBy === "review"} onClick={() => onGroupBy(groupBy === "review" ? "none" : "review")}>
+              Review
+            </button>
           </div>
         </div>
         {areas.length > 0 && (
@@ -178,10 +178,12 @@ export function HomeRail({
         {groups.length === 0 && !search && <li className="sx-empty">{areas.length ? "No collections match." : emptyText}</li>}
         {groups.map((g) => (
           <li key={g.key} className="sx-group">
-            <div className="sx-group-head">
-              <h3>{g.label}</h3>
-              <span className="ffx-num">{g.rows.length}</span>
-            </div>
+            {g.label && (
+              <div className="sx-group-head">
+                <h3>{g.label}</h3>
+                <span className="ffx-num">{g.rows.length}</span>
+              </div>
+            )}
             <ul>
               {g.rows.map((a) => {
                 const open = selected === a.slug;
@@ -190,7 +192,6 @@ export function HomeRail({
                     key={a.slug}
                     env={env}
                     area={a}
-                    showKind={groupBy === "review"}
                     active={(selected ?? hovered) === a.slug}
                     previewing={preview === a.slug}
                     open={open}
@@ -221,7 +222,6 @@ export function HomeRail({
 function AreaRow({
   env,
   area,
-  showKind,
   active,
   previewing,
   open,
@@ -233,7 +233,6 @@ function AreaRow({
 }: {
   env: EnvKey;
   area: HomeArea;
-  showKind: boolean;
   active: boolean;
   previewing: boolean;
   open: boolean;
@@ -262,7 +261,7 @@ function AreaRow({
       >
         <span className="sx-row-main">
           <span className="sx-row-title">{area.name}</span>
-          <AreaSub area={area} showKind={showKind} version={open} />
+          <AreaSub area={area} version={open} />
         </span>
         <span className="sx-row-aside">
           <span className="ffx-num">{fmtNum(area.itemCount)}</span>

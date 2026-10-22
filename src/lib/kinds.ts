@@ -1,7 +1,8 @@
 /**
- * What kind of thing a collection is: gages, a model, a storm catalog. The
- * landing page uses it for the label under each name and for the words on
- * the preview card. How a collection is drawn on the map doesn't depend on
+ * What kind of thing a collection is: gages, a model, a storm catalog. It's
+ * a guess from free text and can be wrong, so no page shows it as a label
+ * or groups by it. It only names untitled items ("Storm event 1", see
+ * lib/item-kinds.ts). How a collection is drawn on the map doesn't depend on
  * it; that comes from the shapes of its items (see lib/overview.ts), so a
  * kind nobody planned for still draws correctly.
  */
@@ -17,47 +18,6 @@ export type AreaKind =
   | "structures"
   | "terrain"
   | "other";
-
-export const AREA_KIND_LABEL: Record<AreaKind, string> = {
-  gages: "USGS gages",
-  hms: "HEC-HMS model",
-  ras: "HEC-RAS model",
-  ressim: "HEC-ResSim model",
-  models: "Calibration models",
-  storms: "Storm catalog",
-  dams: "Dam inventory",
-  structures: "Structure inventory",
-  terrain: "Terrain",
-  other: "Collection",
-};
-
-/** Group headings in the landing page rail, in the program's order. */
-export const AREA_KIND_GROUP: [AreaKind, string][] = [
-  ["gages", "USGS gages"],
-  ["hms", "HEC-HMS models"],
-  ["ras", "HEC-RAS models"],
-  ["ressim", "HEC-ResSim models"],
-  ["models", "Calibration models"],
-  ["storms", "Storm catalogs"],
-  ["dams", "Dam inventories"],
-  ["structures", "Structure inventories"],
-  ["terrain", "Terrain"],
-  ["other", "Other"],
-];
-
-/** What the collection's temporal extent means, for the preview card. */
-export const AREA_KIND_TIME: Record<AreaKind, string> = {
-  gages: "period of record",
-  hms: "time span",
-  ras: "time span",
-  ressim: "time span",
-  models: "time span",
-  storms: "storm dates",
-  dams: "inventory dates",
-  structures: "inventory dates",
-  terrain: "time span",
-  other: "time span",
-};
 
 /**
  * A best guess at the kind of a collection, from its id, title, keywords

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FeatureCollection, MultiPolygon } from "geojson";
 import type { EnvKey } from "@/lib/env";
-import { AREA_KIND_GROUP, type AreaKind } from "@/lib/kinds";
 import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
 import { itemHref } from "@/lib/utils";
@@ -23,7 +22,8 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  *
  * The rail is the way in. Its search box matches collections by title and
  * description; the review states in its head are the legend for the marks
- * and the review filter in one; the rows group by kind or by review state.
+ * and the review filter in one; the rows are one list by name, or grouped
+ * by review state.
  * Selecting a collection opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
@@ -51,7 +51,6 @@ export type HomeArea = {
   /** The latest version's collection id, for the item links. */
   id: string;
   name: string;
-  kind: AreaKind;
   /** The middle of its extent is in the deployment's area. */
   inArea: boolean;
   bbox: [number, number, number, number] | null;
@@ -101,7 +100,7 @@ export type Member = {
   end?: string | null;
 };
 
-export type GroupBy = "kind" | "review";
+export type GroupBy = "none" | "review";
 
 /** The order of the rail's review groups: what needs someone first. */
 const REVIEW_GROUPS: QcStatus[] = ["needs_revision", "rejected", "pending", "approved"];
@@ -112,16 +111,16 @@ const PREVIEW_DELAY = 120;
 
 /**
  * The rail's grouping, a per-viewer preference kept in localStorage. Read
- * through useSyncExternalStore so the server render (always by kind) and
+ * through useSyncExternalStore so the server render (never grouped) and
  * the browser's agree, and so a change in another tab carries over.
  */
 const GROUP_EVENT = "sx-home-group";
 // Kept here too, for when storage is blocked.
-let groupInMemory: GroupBy = "kind";
+let groupInMemory: GroupBy = "none";
 function readGroup(): GroupBy {
   try {
     const v = localStorage.getItem(GROUP_KEY);
-    return v === "review" || v === "kind" ? v : groupInMemory;
+    return v === "review" || v === "none" ? v : groupInMemory;
   } catch {
     return groupInMemory;
   }
@@ -178,7 +177,7 @@ export function HomeConsole({
   // The item under the cursor, in the rows or on the map, by id.
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [filter, setFilter] = useState<QcStatus | null>(null);
-  const groupBy = useSyncExternalStore(subscribeGroup, readGroup, (): GroupBy => "kind");
+  const groupBy = useSyncExternalStore(subscribeGroup, readGroup, (): GroupBy => "none");
   // Whether the last selected collection is in the area, which outlines
   // the area more heavily.
   const [pickedInArea, setPickedInArea] = useState<boolean | null>(null);
@@ -216,9 +215,9 @@ export function HomeConsole({
   );
   const groups = useMemo<Group[]>(() => {
     const list =
-      groupBy === "kind"
-        ? AREA_KIND_GROUP.map(([kind, label]) => ({ key: kind, label, rows: shown.filter((a) => a.kind === kind) }))
-        : REVIEW_GROUPS.map((s) => ({ key: s, label: QC_LABEL[s], rows: shown.filter((a) => stateOf(a) === s) }));
+      groupBy === "review"
+        ? REVIEW_GROUPS.map((s) => ({ key: s, label: QC_LABEL[s], rows: shown.filter((a) => stateOf(a) === s) }))
+        : [{ key: "all", label: null, rows: shown }];
     return list.filter((g) => g.rows.length);
   }, [shown, groupBy]);
 

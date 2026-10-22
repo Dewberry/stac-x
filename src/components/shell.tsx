@@ -131,7 +131,8 @@ export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
  * (with the page's facts beside it) on the left and at the right end the
  * navigation group followed by the source group. The breadcrumb is ours;
  * STAC Browser has Collection and Up buttons instead, which people found
- * less familiar. The kind of thing the page is about sits above the title.
+ * less familiar. A kicker above the title gives context the title lacks,
+ * such as the collection an untitled item belongs to.
  * Below 64rem the source group folds into one ⋯ pill so the actions stay on
  * one row.
  */

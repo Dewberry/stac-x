@@ -4302,18 +4302,15 @@ details[open] > summary > .sx-chev {
   width: 40px;
 }
 .sx-queue th:nth-child(3) {
-  width: 130px;
-}
-.sx-queue th:nth-child(4) {
   width: 60px;
 }
-.sx-queue th:nth-child(5) {
+.sx-queue th:nth-child(4) {
   width: 90px;
 }
-.sx-queue th:nth-child(6) {
+.sx-queue th:nth-child(5) {
   width: 150px;
 }
-.sx-queue th:nth-child(7) {
+.sx-queue th:nth-child(6) {
   width: 90px;
 }
 .sx-queue td {
@@ -4485,8 +4482,8 @@ details[open] > summary > .sx-chev {
   }
 }
 
-/* The review sheet: wider, a lighter scrim, the kind above the title, and a
-   foot that says what saving writes. */
+/* The review sheet: wider, a lighter scrim, and a foot that says what
+   saving writes. */
 .sx-sheet {
   width: min(35rem, 100vw);
   --sx-path-halo: var(--ffx-surface-raised);
@@ -4496,13 +4493,6 @@ details[open] > summary > .sx-chev {
 }
 .sx-sheet-head {
   padding: 1.25rem 1.375rem 1rem;
-}
-.sx-sheet-kicker {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ffx-ink-mut);
 }
 .sx-sheet-title {
   font-family: var(--ffx-display);

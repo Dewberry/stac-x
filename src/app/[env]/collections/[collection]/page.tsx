@@ -15,7 +15,6 @@ import { getCollection } from "@/lib/catalog";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { dataFileOf } from "@/lib/data-file";
-import { collectionKindLabel } from "@/lib/item-kinds";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
 import { collectionJsonHref, itemHref } from "@/lib/utils";
@@ -99,7 +98,6 @@ export default async function CollectionPage({ params }: Props) {
     <div className="sx-page">
       <PageHead
         crumbs={[homeCrumb(env), { label: c.title }]}
-        kicker={collectionKindLabel(c) ?? undefined}
         title={c.title}
         subtitle={
           <>

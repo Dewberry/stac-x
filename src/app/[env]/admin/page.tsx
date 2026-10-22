@@ -4,7 +4,6 @@ import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { homeCrumb, PageHead } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
 import { ENVS, PATH, nextEnv } from "@/lib/env";
-import { guessKind } from "@/lib/kinds";
 import { pageEnv } from "@/lib/page-env";
 import { canPromote } from "@/lib/promote";
 import { baseName } from "@/lib/storage";
@@ -50,7 +49,6 @@ export default async function AdminPage({ params, searchParams }: Props) {
     id: c.id,
     title: c.title,
     href: collectionHref(env, c.id),
-    kind: guessKind(c),
     version:
       c.series.versions.length > 1 || c.version
         ? versionName(c.series.versions.find((v) => v.id === c.id)?.label ?? c.version)

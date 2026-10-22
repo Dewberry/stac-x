@@ -647,7 +647,7 @@ export function HomeMap({
         {dense?.steps && (
           <span className="sx-map-key">
             <span className="sx-density-box">
-              <span>{dense.kind === "storms" ? "Storms" : "Items"} covering each spot</span>
+              <span>Items covering each spot</span>
               {dense.steps.map(([lo, hi], i) => (
                 <span key={i} className="sx-legend">
                   <i className="sx-legend-step" data-step={i + 1} aria-hidden="true" />

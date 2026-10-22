@@ -11,7 +11,6 @@ import { Caret, DecisionCards, HistoryRow, decisionCopy, type Decision } from ".
 import { saveQcAction } from "@/app/actions";
 import { envMeta, nextEnv, PATH, type EnvKey } from "@/lib/env";
 import { fmtAge, fmtAgo, fmtDate, fmtNum } from "@/lib/format";
-import { AREA_KIND_LABEL, type AreaKind } from "@/lib/kinds";
 import { qcMeta, type QcEdit, type QcEvent, type QcStatus } from "@/lib/stac";
 import { collectionHref, withBase } from "@/lib/utils";
 
@@ -42,7 +41,6 @@ export type QueueRow = {
   title: string;
   /** The collection page. */
   href: string;
-  kind: AreaKind;
   version: string | null;
   older: boolean;
   itemCount: number;
@@ -452,7 +450,6 @@ function QueueTable({
               />
             </th>
             <th scope="col">Collection</th>
-            <th scope="col">Kind</th>
             <th scope="col" className="ffx-r">
               Items
             </th>
@@ -495,7 +492,6 @@ function QueueTable({
                   )}
                 </span>
               </td>
-              <td>{AREA_KIND_LABEL[r.kind]}</td>
               <td className="ffx-r ffx-num">{fmtNum(r.itemCount)}</td>
               <td className="ffx-num" title={r.since ? fmtDate(r.since) : undefined}>
                 <Since row={r} now={now} />
@@ -559,7 +555,6 @@ function QueueCards({
             </Link>
             <span className="ffx-id sx-qcard-id">{r.id}</span>
             <span className="sx-qcard-facts">
-              <span>{AREA_KIND_LABEL[r.kind]}</span>
               <span className="ffx-num">{fmtNum(r.itemCount)} items</span>
               <Since row={r} now={now} />
             </span>
@@ -712,7 +707,6 @@ function ReviewSheet({
 }
 
 function SheetHead({
-  kicker,
   title,
   sub,
   nav,
@@ -720,7 +714,6 @@ function SheetHead({
   onClose,
   busy,
 }: {
-  kicker?: string;
   title: string;
   sub?: React.ReactNode;
   nav?: React.ReactNode;
@@ -732,7 +725,6 @@ function SheetHead({
   return (
     <div className="sx-sheet-head">
       <div className="min-w-0">
-        {kicker && <p className="sx-sheet-kicker">{kicker}</p>}
         <h2 id="sheet-h" className="sx-sheet-title">
           {title}
         </h2>
@@ -873,7 +865,6 @@ function OneReview({
   return (
     <form onSubmit={submit} className="sx-sheet-body">
       <SheetHead
-        kicker={AREA_KIND_LABEL[row.kind]}
         title={row.title}
         busy={busy}
         onClose={onClose}

@@ -1,11 +1,5 @@
 import { collectionName, itemLabel, tidyCaps } from "./format";
-import { AREA_KIND_LABEL, guessKind, type AreaKind } from "./kinds";
-
-/** The collection's kind, for the label above a collection page's title ("USGS gages", "Storm catalog"). */
-export function collectionKindLabel(c: CollectionLike): string | null {
-  const kind = guessKind(c);
-  return kind === "other" ? null : AREA_KIND_LABEL[kind];
-}
+import { guessKind, type AreaKind } from "./kinds";
 
 /**
  * What one item of a collection is, in the singular: a USGS gage, a storm

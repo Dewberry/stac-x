@@ -82,7 +82,7 @@ export default async function ItemPage({ params }: Props) {
     <div className="sx-page">
       <PageHead
         crumbs={[homeCrumb(env), { label: collectionLabel, href: collectionHref(env, c.id) }, { label: title }]}
-        kicker={unnamed ? c.title : kind}
+        kicker={unnamed ? c.title : undefined}
         title={title}
         subtitle={
           <>
