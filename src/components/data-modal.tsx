@@ -198,18 +198,31 @@ function DataDialog({
           <Loading>{mode === "json" ? "Reading the document…" : "Reading the first rows…"}</Loading>
         )}
       </div>
-      {foot && (
+      {foot && table && (
         <div className="sx-dm-foot">
           {more && limit < MORE ? (
-            <button type="button" className="ffx-btn ffx-btn-sm" onClick={() => setLimit(MORE)} disabled={fetching}>
-              {fetching ? (
-                <>
-                  <Spinner /> Reading…
-                </>
-              ) : (
-                `Show ${MORE} rows`
-              )}
-            </button>
+            <>
+              <button type="button" className="ffx-btn ffx-btn-sm" onClick={() => setLimit(MORE)} disabled={fetching}>
+                {fetching ? (
+                  <>
+                    <Spinner /> Reading…
+                  </>
+                ) : (
+                  `Show ${MORE} rows`
+                )}
+              </button>
+              <span className="sx-dm-note">
+                Rows <span className="ffx-num">{fmtNum(shown + 1)}</span> to{" "}
+                <span className="ffx-num">{fmtNum(table.totalRows === null ? MORE : Math.min(MORE, table.totalRows))}</span> are below.{" "}
+                {table.totalRows === null ? (
+                  "The file may have more."
+                ) : (
+                  <>
+                    The file has <span className="ffx-num">{fmtNum(table.totalRows)}</span>.
+                  </>
+                )}
+              </span>
+            </>
           ) : (
             <span className="sx-dm-note">{more ? "The rest is in the file. Download it to see every row." : "That's every row."}</span>
           )}

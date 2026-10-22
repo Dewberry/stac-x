@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
+import { Chevron } from "./icons";
 import { fmtDate, fmtNum, humanize, isIsoDate } from "@/lib/format";
 import { orderColumns, type ColumnKind, type TablePreview } from "@/lib/data-preview";
 
@@ -9,43 +10,81 @@ import { orderColumns, type ColumnKind, type TablePreview } from "@/lib/data-pre
  * a few of them, and the preview dialog behind an asset row shows more.
  * Both scroll inside whatever holds them; the header row and the first
  * column (usually the id) stay put so a wide table can be read across.
+ * Hovering a column's name says what it holds.
  *
- * Each column says what it holds under its name. Numbers sit right and are
- * formatted, timestamps read as dates, an empty cell is a dash, and a
- * structure in a cell is folded into what it holds, opening to its JSON on
- * request, since a page of nested JSON says nothing at a glance.
+ * Numbers sit right and are formatted, timestamps read as dates, an empty
+ * cell is a dash, and a structure in a cell is folded into what it holds
+ * ("4 fields", "Point"). One fold opens at a time, into a drawer row under
+ * its own row with the JSON, so the table keeps its shape around it.
  */
 export function DataTable({ data, limit }: { data: TablePreview; limit?: number }) {
-  const cols = orderColumns(data);
   const rows = limit ? data.rows.slice(0, limit) : data.rows;
+  const cols = orderColumns({ ...data, rows });
+  const [open, setOpen] = useState<{ row: number; col: string } | null>(null);
   return (
     <table className="ffx-table sx-dt">
       <thead>
         <tr>
           <th className="sx-dt-n" aria-label="Row" />
           {cols.map((c) => (
-            <th key={c} className={data.kinds[c] === "number" ? "ffx-r" : undefined}>
-              <span className="sx-dt-name">{humanize(c)}</span>
-              {data.kinds[c] && <span className="sx-dt-kind">{data.kinds[c]}</span>}
+            <th key={c} className={data.kinds[c] === "number" ? "ffx-r" : undefined} title={data.kinds[c]}>
+              {humanize(c)}
             </th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {rows.map((r, i) => (
-          <tr key={i}>
-            <td className="sx-dt-n ffx-num">{i + 1}</td>
-            {cols.map((c) => (
-              <Cell key={c} name={c} kind={data.kinds[c]} value={r[c]} />
-            ))}
-          </tr>
-        ))}
+        {rows.map((r, i) => {
+          const drawer = open?.row === i ? open.col : null;
+          return (
+            <Row key={i} n={i} cols={cols} row={r} kinds={data.kinds} drawer={drawer} onFold={(col) => setOpen(drawer === col ? null : { row: i, col })} />
+          );
+        })}
       </tbody>
     </table>
   );
 }
 
-function Cell({ name, kind, value }: { name: string; kind?: ColumnKind; value: unknown }) {
+function Row({
+  n,
+  cols,
+  row,
+  kinds,
+  drawer,
+  onFold,
+}: {
+  n: number;
+  cols: string[];
+  row: Record<string, unknown>;
+  kinds: Record<string, ColumnKind>;
+  drawer: string | null;
+  onFold: (col: string) => void;
+}) {
+  const value = drawer ? row[drawer] : null;
+  const text = value && typeof value === "object" ? JSON.stringify(value, null, 1) : "";
+  return (
+    <>
+      <tr>
+        <td className="sx-dt-n ffx-num">{n + 1}</td>
+        {cols.map((c) => (
+          <Cell key={c} name={c} kind={kinds[c]} value={row[c]} open={drawer === c} onFold={() => onFold(c)} />
+        ))}
+      </tr>
+      {drawer && (
+        <tr className="sx-dt-drawer">
+          <td colSpan={cols.length + 1}>
+            <div className="sx-dt-drawer-label">
+              {humanize(drawer)} · row {fmtNum(n + 1)}
+            </div>
+            <pre>{text.length > 4000 ? `${text.slice(0, 4000)}\n…` : text}</pre>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function Cell({ name, kind, value, open, onFold }: { name: string; kind?: ColumnKind; value: unknown; open: boolean; onFold: () => void }) {
   if (value === null || value === undefined || value === "") return <td className="sx-dt-empty">–</td>;
   if (typeof value === "number") return <td className="ffx-r ffx-num">{fmtNum(value, 4)}</td>;
   if (typeof value === "boolean") return <td className="ffx-num">{value ? "true" : "false"}</td>;
@@ -60,31 +99,20 @@ function Cell({ name, kind, value }: { name: string; kind?: ColumnKind; value: u
   }
   return (
     <td>
-      <Fold name={name} value={value} />
+      <button type="button" className="sx-fold" aria-expanded={open} onClick={onFold}>
+        <Chevron /> {whatsIn(name, value)}
+      </button>
     </td>
   );
 }
 
-/** A structure in a cell: what it holds, and its JSON on request. */
-function Fold({ name, value }: { name: string; value: object }) {
-  const [open, setOpen] = useState(false);
-  let what: ReactNode;
+/** What a structure in a cell holds: "4 fields", "3 items", "Point", "binary, 1,024 bytes". */
+function whatsIn(name: string, value: object): string {
   if (Array.isArray(value)) {
     const bytes = name === "geometry" && value.every((x) => typeof x === "number");
-    what = bytes ? `binary, ${fmtNum(value.length)} bytes` : `${fmtNum(value.length)} ${value.length === 1 ? "item" : "items"}`;
-  } else if ("type" in value && typeof value.type === "string" && "coordinates" in value) {
-    what = value.type;
-  } else {
-    const n = Object.keys(value).length;
-    what = `${fmtNum(n)} ${n === 1 ? "field" : "fields"}`;
+    return bytes ? `binary, ${fmtNum(value.length)} bytes` : `${fmtNum(value.length)} ${value.length === 1 ? "item" : "items"}`;
   }
-  const text = JSON.stringify(value, null, 1);
-  return (
-    <>
-      <button type="button" className="sx-fold" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        {"{…}"} {what}
-      </button>
-      {open && <pre className="sx-fold-body">{text.length > 4000 ? `${text.slice(0, 4000)}\n…` : text}</pre>}
-    </>
-  );
+  if ("type" in value && typeof value.type === "string" && "coordinates" in value) return value.type;
+  const n = Object.keys(value).length;
+  return `${fmtNum(n)} ${n === 1 ? "field" : "fields"}`;
 }

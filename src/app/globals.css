@@ -997,62 +997,88 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A structure folded in a table cell: the chevron and what it holds. */
 .sx-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -4px;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: var(--ffx-t-micro);
+  font-size: 12.5px;
   color: var(--ffx-ink-mut);
   cursor: pointer;
   white-space: nowrap;
 }
-.sx-fold:hover,
+.sx-fold:hover {
+  color: var(--ffx-ink);
+}
 .sx-fold[aria-expanded="true"] {
   color: var(--ffx-active-text);
+  font-weight: 500;
 }
-.sx-fold-body {
-  max-width: 24rem;
-  max-height: 12rem;
-  margin: 0.375rem 0 0;
-  overflow: auto;
-  font-family: var(--ffx-mono);
-  font-size: var(--ffx-t-tiny);
-  line-height: 1.4;
-  white-space: pre;
-  color: var(--ffx-ink);
+.sx-fold[aria-expanded="true"] > .sx-chev {
+  color: inherit;
 }
 /* The rows table (components/data-table.tsx), in the Data panel and the
    dialog. The header stays put as it scrolls down; the row gutter and the
    first column (the id) stay put as it scrolls across, so a wide file can
-   be read against its ids. What a column holds sits under its name. */
+   be read against its ids. An open fold's drawer row sits under its row
+   and stays in view as the table scrolls across. */
 .sx-dt {
   width: max-content;
   min-width: 100%;
 }
 .sx-dt thead th {
-  vertical-align: bottom;
-}
-.sx-dt-name {
-  display: block;
+  height: 36px;
+  vertical-align: middle;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--ffx-ink-sec);
 }
-.sx-dt-kind {
-  display: block;
-  margin-top: 0.1rem;
-  font-family: var(--ffx-mono);
-  font-size: var(--ffx-t-tiny);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: var(--ffx-ink-dim);
-}
 .sx-dt td {
+  height: 32px;
   max-width: 24rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: middle;
+  font-size: 12.5px;
+}
+.sx-dt .sx-dt-n {
+  font-size: 11px;
+  font-weight: 400;
 }
 .sx-dt .sx-dt-empty {
   color: var(--ffx-ink-dim);
+}
+.sx-dt-drawer td {
+  height: auto;
+  max-width: none;
+  padding: 8px 20px 10px 56px;
+  background: var(--ffx-surface-sunken);
+  border-bottom: 1px solid var(--ffx-rule);
+  white-space: normal;
+  position: sticky;
+  left: 0;
+}
+.sx-dt-drawer-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-mut);
+  margin-bottom: 4px;
+}
+.sx-dt-drawer pre {
+  margin: 0;
+  font-family: var(--ffx-mono);
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--ffx-ink);
+  max-height: 16rem;
+  overflow: auto;
 }
 .sx-dt .sx-dt-n,
 .sx-dt .sx-dt-n + th,

@@ -66,16 +66,24 @@ export function isFolded(p: TablePreview, column: string): boolean {
 /**
  * The columns in reading order: the ones that name a row (id, title, dates)
  * first, then the plain values, then the structures (the geometry, the
- * assets, the links) last, since a cell of nested JSON says nothing at a
- * glance and is better folded at the edge.
+ * assets, the links), since a cell of nested JSON says nothing at a glance
+ * and is better folded at the edge. After all that, any column that reads
+ * the same on every row shown (the collection id, the STAC version) goes
+ * last, in its old order: it says nothing about one row against another.
  */
 export function orderColumns(p: TablePreview): string[] {
   const rest = p.columns.filter((c) => !FIRST.includes(c));
   const named = rest.filter((c) => NAME.test(c) && !isFolded(p, c));
-  return [
+  const ordered = [
     ...FIRST.filter((c) => p.columns.includes(c)),
     ...named,
     ...rest.filter((c) => !named.includes(c) && !isFolded(p, c)),
     ...rest.filter((c) => isFolded(p, c)),
   ];
+  if (p.rows.length < 2) return ordered;
+  const constant = (c: string) => {
+    const first = JSON.stringify(p.rows[0][c] ?? null);
+    return p.rows.every((r) => JSON.stringify(r[c] ?? null) === first);
+  };
+  return [...ordered.filter((c) => !constant(c)), ...ordered.filter(constant)];
 }
