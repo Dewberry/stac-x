@@ -13,6 +13,7 @@ import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
+import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { dataFileOf } from "@/lib/data-file";
@@ -53,9 +54,12 @@ export default async function CollectionPage({ params }: Props) {
   // The file the items live in, for the Data panel.
   const source = dataFileOf(c);
 
+  // Geometry the reader couldn't make sense of means none of the file's
+  // geometry can be trusted: the map shows the country, empty, and says why.
+  const brokenGeometry = c.geometryErrors > 0;
   const geo: FeatureCollection = {
     type: "FeatureCollection",
-    features: c.items
+    features: (brokenGeometry ? [] : c.items)
       .filter((i) => i.geometry)
       .map((i) => ({
         type: "Feature",
@@ -174,13 +178,19 @@ export default async function CollectionPage({ params }: Props) {
               )}
             </Panel>
           )}
+          {brokenGeometry && (
+            <p className="sx-callout" role="status">
+              The geometry in this collection&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
+              The rest of the page shows what the file has.
+            </p>
+          )}
           <div className="sx-mapcard">
             <LinkedMap
               data={geo}
-              bbox={c.bbox}
+              bbox={brokenGeometry ? LOWER_48 : c.bbox}
               label={`Items of ${c.title}`}
-              hint={`${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
-              tip="Click one for a link to its page."
+              hint={brokenGeometry ? "Geometry couldn't be read." : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
+              tip={brokenGeometry ? undefined : "Click one for a link to its page."}
             />
           </div>
           {/* The collection's own files sit in the slot STAC Browser gives them

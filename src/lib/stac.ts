@@ -34,6 +34,8 @@ export type StacItem = {
   id: string;
   collection: string;
   geometry: Geometry | null;
+  /** Why the row's geometry couldn't be read, when it couldn't. Not in the STAC JSON. */
+  geometryError?: string;
   bbox: [number, number, number, number] | null;
   properties: Record<string, unknown>;
   links: StacLink[];
@@ -124,6 +126,11 @@ export type Collection = {
   qc: QcEdit | null;
   /** What happened to the collection in this environment, newest first. */
   history: QcEvent[];
+  /**
+   * How many items' geometry couldn't be read. Any at all means the file's
+   * geometry can't be trusted, so the pages draw none of it and say so.
+   */
+  geometryErrors: number;
   items: CatalogItem[];
 };
 
@@ -143,8 +150,8 @@ export const VERSION_SCHEMA = "https://stac-extensions.github.io/version/v1.2.0/
 
 /** The item as STAC JSON for the wire and the JSON view. */
 export function toStacJson(item: CatalogItem): StacItem {
-  const { source: _source, ...rest } = item;
-  void _source;
+  const { source: _source, geometryError: _err, ...rest } = item;
+  void _source; void _err;
   return rest;
 }
 

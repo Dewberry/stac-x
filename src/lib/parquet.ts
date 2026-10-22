@@ -128,13 +128,15 @@ function rowToItem(row: Record<string, unknown>, fallbackCollection: string, byt
   }
   const links = unpack(row.links);
   const extensions = unpack(row.stac_extensions);
+  const geometry = toGeometry(row.geometry);
   return {
     type: "Feature",
     stac_version: String(row.stac_version ?? "1.0.0"),
     stac_extensions: Array.isArray(extensions) ? extensions.filter((x): x is string => typeof x === "string") : [],
     id: String(row.id),
     collection: typeof row.collection === "string" && row.collection ? row.collection : fallbackCollection,
-    geometry: toGeometry(row.geometry),
+    geometry: geometry.value,
+    ...(geometry.error ? { geometryError: geometry.error } : {}),
     bbox: toBbox(unpack(row.bbox)),
     properties,
     links: Array.isArray(links)
@@ -161,25 +163,35 @@ const GEOMETRY_TYPES = new Set(["Point", "MultiPoint", "LineString", "MultiLineS
 
 /**
  * The row's geometry as GeoJSON: what hyparquet decoded, or WKB bytes the
- * file didn't label, or GeoJSON text. Anything else is no geometry.
+ * file didn't label, or GeoJSON text. A row with no geometry is fine; one
+ * whose geometry is there but can't be read says why, so the collection
+ * can say so on its page.
  */
-function toGeometry(v: unknown): Geometry | null {
+function toGeometry(v: unknown): { value: Geometry | null; error: string | null } {
+  if (v === null || v === undefined) return { value: null, error: null };
   if (v instanceof Uint8Array) {
     try {
       v = wkbToGeojson({ view: new DataView(v.buffer, v.byteOffset, v.byteLength), offset: 0 });
     } catch {
-      return null;
+      return { value: null, error: "the WKB couldn't be decoded" };
     }
   } else if (typeof v === "string") {
     v = unpack(v);
+    if (typeof v === "string") return { value: null, error: "it's text that isn't GeoJSON" };
   }
+  const value = asGeometry(v);
+  return value ? { value, error: null } : { value: null, error: "it isn't GeoJSON" };
+}
+
+/** A decoded value as GeoJSON geometry, or null when it isn't one. */
+function asGeometry(v: unknown): Geometry | null {
   if (!v || typeof v !== "object") return null;
   const g = v as { type?: unknown; coordinates?: unknown; geometries?: unknown };
   if (typeof g.type !== "string" || !GEOMETRY_TYPES.has(g.type)) return null;
   if (g.type === "GeometryCollection") {
     if (!Array.isArray(g.geometries)) return null;
-    const geometries = g.geometries.map(toGeometry).filter((x): x is Geometry => x !== null);
-    return { type: "GeometryCollection", geometries };
+    const geometries = g.geometries.map(asGeometry);
+    return geometries.every((x): x is Geometry => x !== null) ? { type: "GeometryCollection", geometries } : null;
   }
   return Array.isArray(g.coordinates) ? (plain(v) as Geometry) : null;
 }

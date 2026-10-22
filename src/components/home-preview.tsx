@@ -46,6 +46,7 @@ export function AreaSub({ area, open }: { area: HomeArea; open?: boolean }) {
     );
   if (area.years) parts.push(<span className="ffx-num">{area.years}</span>);
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
+  if (area.geometryError) parts.push("Geometry couldn't be read");
   return (
     <span className="sx-row-sub">
       {parts.map((p, i) => (
@@ -76,6 +77,7 @@ function SheetSub({ area }: { area: HomeArea }) {
       </span>,
     );
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
+  if (area.geometryError) parts.push("Geometry couldn't be read");
   if (dates) parts.push(<span className="ffx-num">{dates}</span>);
   return (
     <span className="sx-row-sub">

@@ -11,6 +11,7 @@ import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionNotice } from "@/components/version-notice";
 import { getCollection } from "@/lib/catalog";
+import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
 import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
@@ -56,9 +57,12 @@ export default async function ItemPage({ params }: Props) {
   // with its version when there's more than one to tell apart.
   const collectionLabel = version ? `${c.title}, ${versionName(version)}` : c.title;
 
+  // As on the collection page: a file whose geometry couldn't be read has
+  // none of it drawn, this item's included.
+  const brokenGeometry = c.geometryErrors > 0;
   const geo: FeatureCollection = {
     type: "FeatureCollection",
-    features: item.geometry
+    features: item.geometry && !brokenGeometry
       ? [{ type: "Feature", id: item.id, properties: { id: item.id, label: title }, geometry: item.geometry }]
       : [],
   };
@@ -70,7 +74,7 @@ export default async function ItemPage({ params }: Props) {
       : []),
     ...CORE.filter((k) => k in p && k !== "title" && k !== "description").map((k) => ({ key: k, value: p[k] })),
     ...(item.bbox ? [{ key: "bbox", value: item.bbox.map((n) => n.toFixed(5)).join(", "), label: "Bounding box" }] : []),
-    { key: "geometry_type", value: item.geometry?.type ?? null, label: "Geometry" },
+    { key: "geometry_type", value: brokenGeometry ? "Couldn't be read" : item.geometry?.type ?? null, label: "Geometry" },
   ];
   const rest: Entry[] = Object.entries(p)
     .filter(([k]) => !CORE.includes(k))
@@ -148,13 +152,18 @@ export default async function ItemPage({ params }: Props) {
           left; description, the parent collection and metadata on the right. */}
       <div className="sx-cols">
         <div className="sx-col">
+          {brokenGeometry && (
+            <p className="sx-callout" role="status">
+              The geometry in this collection&apos;s file couldn&apos;t be read, so the item isn&apos;t drawn on the map.
+            </p>
+          )}
           <div className="sx-mapcard">
             <DataMap
               data={geo}
-              bbox={item.bbox}
+              bbox={brokenGeometry ? LOWER_48 : item.bbox}
               selected={item.id}
               label={`Location of ${title}`}
-              hint={item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
+              hint={brokenGeometry ? "Geometry couldn't be read." : item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
             />
           </div>
           <Panel title="Assets" note={assetNote(item.assets)} id="assets">

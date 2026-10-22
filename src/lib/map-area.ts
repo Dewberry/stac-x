@@ -64,8 +64,8 @@ function bboxOf(pts: Position[]): Bbox {
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
 
-/** The lower 48, for a map with no area and nothing in the catalog to frame. */
-const LOWER_48: Bbox = [-124.8, 24.5, -66.9, 49.4];
+/** The lower 48, for a map with no area and nothing in the catalog to frame, or nothing it can trust. */
+export const LOWER_48: Bbox = [-124.8, 24.5, -66.9, 49.4];
 
 /** How many times the median collection's box one can be before it's left out of the frame. */
 const OUTSIZED = 50;

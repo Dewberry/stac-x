@@ -76,6 +76,8 @@ export type HomeArea = {
   itemCount: number;
   /** What the items are on the map: all points, any shapes, or no geometry at all. */
   unit: "points" | "shapes" | "items";
+  /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
+  geometryError?: boolean;
   /** Where the extent sits against the deployment's area; null when there's no area or no extent. */
   coverage: "whole" | "part" | "larger" | null;
   /** "1980–2025" when the extent spans more than one calendar year; null otherwise. */

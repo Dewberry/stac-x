@@ -307,7 +307,7 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
   if (!doc) return derivedCollection(cache, id, items);
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
-  const { sources, qc, history } = recordsOf(cache, id, items);
+  const { sources, qc, history, geometryErrors } = recordsOf(cache, id, items);
   {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
     const docBbox = ext?.spatial?.bbox?.[0];
@@ -343,6 +343,7 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       series: lone(id),
       qc,
       history,
+      geometryErrors,
       items,
     };
   }
@@ -350,7 +351,7 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
 
 /** A collection described from its items alone, when there's no document or the document can't be used. */
 function derivedCollection(cache: Cache, id: string, items: CatalogItem[]): Collection {
-  const { sources, qc, history } = recordsOf(cache, id, items);
+  const { sources, qc, history, geometryErrors } = recordsOf(cache, id, items);
   return {
     id,
     title: collectionName(null, id),
@@ -374,6 +375,7 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[]): Coll
     series: lone(id),
     qc,
     history,
+    geometryErrors,
     items,
   };
 }
@@ -391,7 +393,11 @@ function recordsOf(cache: Cache, id: string, items: CatalogItem[]) {
   const history = sources
     .flatMap((uri) => cache.sources.get(uri)?.history[id] ?? [])
     .sort((a, b) => b.at.localeCompare(a.at));
-  return { sources, qc, history };
+  const geometryErrors = items.filter((i) => i.geometryError).length;
+  if (geometryErrors) {
+    console.error(`stac-x: ${id}: ${geometryErrors} of ${items.length} items have geometry that couldn't be read (${items.find((i) => i.geometryError)!.geometryError}), so none of it is drawn`);
+  }
+  return { sources, qc, history, geometryErrors };
 }
 
 /** A placeholder until build() groups the versions. */

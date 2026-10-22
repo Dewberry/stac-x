@@ -86,6 +86,8 @@ async function HomeData({ env }: { env: EnvKey }) {
     [...latest]
       .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
       .map(async (c) => {
+        // Geometry the reader couldn't read means none of it is drawn.
+        if (c.geometryErrors > 0) return { slug: c.series.id, shape: null, features: [] };
         let o: ReturnType<typeof overview>;
         try {
           o = overview(c.items, c.series.id, c.bbox);
@@ -155,7 +157,10 @@ async function HomeData({ env }: { env: EnvKey }) {
   const areas: HomeArea[] = [];
   for (const c of latest) {
     if (failed.has(c.id)) continue;
-    const bbox = c.bbox ?? unionBbox(c.items);
+    // A collection whose geometry couldn't be read has no place on the map,
+    // not even an extent; its row says so.
+    const broken = c.geometryErrors > 0;
+    const bbox = broken ? null : c.bbox ?? unionBbox(c.items);
     areas.push({
       slug: c.series.id,
       id: c.id,
@@ -171,7 +176,8 @@ async function HomeData({ env }: { env: EnvKey }) {
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
-      unit: unitOf(c),
+      unit: broken ? "items" : unitOf(c),
+      geometryError: broken || undefined,
       coverage: coverageOf(bbox),
       years: yearsOf(c.temporal),
       license: c.license,
