@@ -30,12 +30,10 @@ export function HomeLoading() {
           <div className="sx-rail-head">
             <div className="sx-rail-title">
               <h2>Collections</h2>
-              <div className="sx-group-switch" role="group" aria-label="Group by">
-                <span className="sx-group-switch-l" aria-hidden="true">Group by</span>
-                <button type="button" aria-pressed="false" disabled>
-                  Review
-                </button>
-              </div>
+              <button type="button" className="sx-group-switch" aria-pressed="false" disabled>
+                <span className="sx-switch" aria-hidden="true" />
+                Group by review
+              </button>
             </div>
             <label className="ffx-field">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -45,6 +43,8 @@ export function HomeLoading() {
               <span className="sr-only">Search collections</span>
               <input type="search" placeholder="Search collections" disabled />
             </label>
+            {/* Where the review states go, so the rows don't jump when they arrive. */}
+            <div className="sx-loading-states" />
           </div>
           <ul className="sx-rail-list sx-loading-rows" aria-hidden="true">
             {Array.from({ length: 6 }, (_, i) => (

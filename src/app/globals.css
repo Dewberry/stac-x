@@ -3133,6 +3133,20 @@ main:focus {
   }
 }
 
+/* On a wide screen the states are a compact legend; on a phone they stay
+   touch-sized. */
+@media (min-width: 64rem) {
+  .sx-rail-states {
+    gap: 4px 12px;
+  }
+  .sx-state-btn {
+    min-height: 20px;
+    gap: 7px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+
 /* The review state as a mark: filled in the state's color, or a hollow ring
    for not reviewed. One rule for the pins, rows, buttons and legend. */
 .sx-qc-mark {
@@ -3290,7 +3304,7 @@ main:focus {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 16px 12px;
+  padding: 14px 16px 10px;
   border-bottom: 1px solid var(--ffx-rule);
 }
 .sx-rail-note {
@@ -3303,73 +3317,85 @@ main:focus {
 }
 .sx-rail-title {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
 .sx-rail-title h2 {
   font-family: var(--ffx-display);
   font-size: 18px;
+  line-height: 22px;
   font-weight: 600;
   letter-spacing: -0.015em;
 }
 .sx-rail-count {
-  font-size: var(--ffx-t-small);
+  font-size: 13px;
+  line-height: 18px;
   color: var(--ffx-ink-mut);
 }
-.sx-rail-title .sx-group-switch {
-  margin-left: auto;
-  align-self: center;
-}
 .sx-rail-head .ffx-field {
-  height: 44px;
+  height: 36px;
   padding-inline: 12px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 @media (min-width: 64rem) {
   .sx-rail-head .ffx-field {
-    height: 34px;
+    height: 32px;
   }
 }
+/* "Group by review": a small switch and its label, at the end of the title row. */
 .sx-group-switch {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-}
-.sx-group-switch-l {
-  margin-right: 0.375rem;
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
-}
-.sx-group-switch button {
-  height: 32px;
-  padding: 0 12px;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
   background: none;
   font: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--ffx-ink-mut);
   cursor: pointer;
 }
-/* On a phone the pills are bigger and the label goes. */
-@media (max-width: 63.99rem) {
-  .sx-group-switch-l {
-    display: none;
-  }
+.sx-group-switch:hover {
+  color: var(--ffx-ink-sec);
 }
-@media (min-width: 64rem) {
-  .sx-group-switch button {
-    height: 26px;
-    padding: 0 10px;
-    font-size: 12px;
-  }
+.sx-group-switch:disabled {
+  cursor: default;
 }
-.sx-group-switch button:hover {
-  background: var(--ffx-surface-sunken);
+.sx-switch {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--ffx-control-edge);
+  transition: background-color 120ms linear;
 }
-.sx-group-switch button[aria-pressed="true"] {
+.sx-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ffx-surface);
+  box-shadow: 0 1px 2px rgb(19 26 34 / 0.2);
+  transition: transform 120ms ease-out;
+}
+.sx-group-switch[aria-pressed="true"] .sx-switch {
   background: var(--ffx-ink);
-  color: var(--ffx-surface);
+}
+.sx-group-switch[aria-pressed="true"] .sx-switch::after {
+  transform: translateX(10px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-switch,
+  .sx-switch::after {
+    transition: none;
+  }
 }
 /* Under the search box: how many collections the search found. */
 .sx-search-line {
@@ -4132,6 +4158,9 @@ button.sx-map-pill svg {
 .sx-loading-rows s {
   height: 9px;
   width: calc(var(--w, 50%) * 0.6);
+}
+.sx-loading-states {
+  height: 44px;
 }
 @keyframes sx-shimmer {
   from {

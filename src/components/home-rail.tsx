@@ -110,16 +110,20 @@ export function HomeRail({
       <div className="sx-rail-head">
         <div className="sx-rail-title">
           <h2>Collections</h2>
+          {/* How many collections, and how many of them are showing while a filter or search hides some. */}
           <span className="sx-rail-count ffx-num">
-            {shownCount} of {areas.length}
+            {shownCount === areas.length ? fmtNum(areas.length) : `${fmtNum(shownCount)} of ${fmtNum(areas.length)}`}
           </span>
-          {/* One toggle: pressed, the rows group by review state; not, they're one list by name. */}
-          <div className="sx-group-switch" role="group" aria-label="Group by">
-            <span className="sx-group-switch-l" aria-hidden="true">Group by</span>
-            <button type="button" aria-pressed={groupBy === "review"} onClick={() => onGroupBy(groupBy === "review" ? "none" : "review")}>
-              Review
-            </button>
-          </div>
+          {/* On, the rows group by review state; off, they're one list by name. */}
+          <button
+            type="button"
+            className="sx-group-switch"
+            aria-pressed={groupBy === "review"}
+            onClick={() => onGroupBy(groupBy === "review" ? "none" : "review")}
+          >
+            <span className="sx-switch" aria-hidden="true" />
+            Group by review
+          </button>
         </div>
         {areas.length > 0 && (
           <label className="ffx-field">
