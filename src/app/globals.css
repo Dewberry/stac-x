@@ -3455,15 +3455,18 @@ main:focus {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-mut);
 }
+/* A row: the name over one line of facts, the count and its unit at the
+   right, and a rule under it so each row has an edge. */
 .sx-rail-item .sx-row {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 2px 12px;
-  padding: 8px 16px 10px;
+  column-gap: 12px;
+  padding: 10px 16px;
   width: 100%;
   border: 0;
+  border-bottom: 1px solid var(--ffx-rule);
   background: none;
   font: inherit;
   text-align: left;
@@ -3475,58 +3478,79 @@ main:focus {
 }
 .sx-rail-item .sx-row-main {
   display: grid;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
-/* The name is what's read, at medium weight; the open row's goes bold. */
 .sx-rail-item .sx-row-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 0.5rem;
   font-size: var(--ffx-t-base);
-  line-height: 1.4;
-  font-weight: 500;
-  color: var(--ffx-ink);
-}
-.sx-rail-item[data-open="true"] .sx-row-title {
+  line-height: 18px;
   font-weight: 600;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
 }
+/* One run of text, not the flex row .sx-row-sub is elsewhere, so the
+   spaces around each middle dot stay. */
 .sx-rail-item .sx-row-sub {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.5rem;
-  font-size: var(--ffx-t-micro);
-  line-height: 1.45;
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
   color: var(--ffx-ink-mut);
 }
 .sx-rail-item .sx-row-sub .sx-tag {
-  height: 1.125rem;
+  height: 1rem;
+  margin-left: 6px;
+  vertical-align: top;
+}
+/* A decided review state leads the line, in its own color. Not reviewed
+   shows nothing. */
+.sx-row-qc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.sx-row-qc[data-qc="approved"] {
+  color: var(--ffx-verified-text);
+}
+.sx-row-qc[data-qc="needs_revision"] {
+  color: var(--ffx-attn-text);
+}
+.sx-row-qc[data-qc="rejected"] {
+  color: var(--ffx-bad-text);
 }
 .sx-rail-item .sx-row-aside {
-  display: flex;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 48px;
+}
+.sx-row-fig {
+  font-family: var(--ffx-display);
+  font-size: 15px;
+  line-height: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ffx-ink);
+}
+.sx-row-unit {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: var(--ffx-t-small);
-  line-height: calc(var(--ffx-t-base) * 1.4);
-  font-weight: 400;
-  color: var(--ffx-ink-sec);
-}
-/* "previewing", at the right end of the second line of the row the map is
-   drawing over the selection. Absolute, so it takes no room from the name. */
-.sx-row-previewing {
-  position: absolute;
-  right: 16px;
-  bottom: 10px;
-  font-size: var(--ffx-t-micro);
-  line-height: 1.45;
-  font-weight: 400;
-  color: var(--ffx-active-text);
-}
-/* The caret that closes an open row, where the count was alone. */
-.sx-row-caret {
+  gap: 4px;
+  font-size: 11px;
+  line-height: 14px;
   color: var(--ffx-ink-mut);
+}
+.sx-row-unit svg {
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+/* "previewing", at the end of the facts line of the row the map is drawing
+   over the selection. */
+.sx-row-previewing {
+  margin-left: 8px;
+  color: var(--ffx-active-text);
 }
 .sx-rail-item .sx-row:hover,
 .sx-rail-item[data-active="true"] .sx-row {
@@ -3544,8 +3568,13 @@ main:focus {
   background: color-mix(in srgb, var(--ffx-active) 9%, var(--ffx-surface));
   box-shadow: inset 4px 0 0 var(--ffx-river);
 }
-/* An open row's item carries the background and the edge for both parts. */
+/* An open row's item carries the background and the edge for both parts,
+   and the rule moves from under its head to under the whole item. */
+.sx-rail-item[data-open="true"] {
+  border-bottom: 1px solid var(--ffx-rule);
+}
 .sx-rail-item[data-open="true"] .sx-row {
+  border-bottom: 0;
   background: none;
   box-shadow: none;
 }

@@ -5,7 +5,7 @@ import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import type { QcStatus } from "@/lib/stac";
 import type { GroupBy, HomeArea, Rows } from "./home";
-import { AreaSub, OpenRow } from "./home-preview";
+import { AreaSub, countOf, OpenRow, UnitGlyph } from "./home-preview";
 import type { ItemRow } from "./items-list";
 import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
 
@@ -242,6 +242,7 @@ function AreaRow({
   onSelect: (slug: string) => void;
   onOpen: () => void;
 }) {
+  const count = countOf(area);
   return (
     <li className="sx-rail-item" data-active={active} data-open={open} data-preview={previewing || undefined} data-slug={area.slug}>
       <button
@@ -261,19 +262,15 @@ function AreaRow({
       >
         <span className="sx-row-main">
           <span className="sx-row-title">{area.name}</span>
-          <AreaSub area={area} version={open} />
+          <AreaSub area={area} open={open} previewing={previewing} />
         </span>
         <span className="sx-row-aside">
-          <span className="ffx-num">{fmtNum(area.itemCount)}</span>
-          {open && (
-            <svg className="sx-row-caret" viewBox="0 0 16 16" width="10" height="10" fill="currentColor" aria-hidden="true">
-              <path d="M8 5 3 11h10z" />
-            </svg>
-          )}
+          <b className="sx-row-fig ffx-num">{count.n}</b>
+          <span className="sx-row-unit">
+            <UnitGlyph unit={area.unit} />
+            {count.noun}
+          </span>
         </span>
-        {/* Out of the row's flow, at the end of its second line, so the
-            word never moves the name or changes the row's height. */}
-        {previewing && <span className="sx-row-previewing">previewing</span>}
       </button>
       {open && <OpenRow env={env} area={area} rows={rows} activeIds={activeIds} />}
     </li>

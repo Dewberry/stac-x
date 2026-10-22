@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
-import { fmtNum, fmtYears } from "@/lib/format";
+import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
 import { ItemsList } from "./items-list";
 import { QcChip } from "./qc-chip";
-import { stateOf } from "./qc-mark";
+import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 
 /**
  * What a selected collection shows: enough to decide whether to open it,
@@ -21,34 +21,71 @@ import { stateOf } from "./qc-mark";
  * a sheet over the page (HomePreview).
  */
 
-/** The line under a collection's name: dates, where it is, and its version chip when asked for. */
-export function AreaSub({ area, version }: { area: HomeArea; version?: boolean }) {
-  const meta = [
-    fmtYears(area.temporal) ?? "No dates",
-    area.wide ? "Whole area" : area.place,
-  ].filter(Boolean);
+/** Where a collection's extent sits against the deployment's area. */
+export const COVERAGE_LABEL: Record<NonNullable<HomeArea["coverage"]>, string> = {
+  whole: "Whole area",
+  part: "Part of the area",
+  larger: "Larger than the area",
+};
+
+/**
+ * The line under a collection's name in the rail: its review state once
+ * someone has decided it, the years it covers, where it is against the
+ * area, and its version when there are earlier ones (an open row has that
+ * in its facts instead). Each part shows only when it says something, so a
+ * row can be just "Whole area". "previewing" goes last, for the row the map
+ * is drawing over the selection.
+ */
+export function AreaSub({ area, open, previewing }: { area: HomeArea; open?: boolean; previewing?: boolean }) {
+  const state = stateOf(area);
+  const parts: ReactNode[] = [];
+  if (state !== "pending")
+    parts.push(
+      <span className="sx-row-qc" data-qc={state}>
+        <QcMark state={state} />
+        {QC_LABEL[state]}
+      </span>,
+    );
+  if (area.years) parts.push(<span className="ffx-num">{area.years}</span>);
+  if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
   return (
     <span className="sx-row-sub">
-      <span className="ffx-num">{meta.join(" · ")}</span>
-      {version && area.version && <span className="sx-tag">{versionName(area.version)}</span>}
+      {parts.map((p, i) => (
+        <Fragment key={i}>
+          {i > 0 && " · "}
+          {p}
+        </Fragment>
+      ))}
+      {!open && area.version && area.earlier ? <span className="sx-tag">{versionName(area.version)}</span> : null}
+      {previewing && <span className="sx-row-previewing">previewing</span>}
     </span>
   );
 }
 
-/**
- * How many things a collection is, as a number and its noun: "2 models",
- * "5 shapes", "5 items on 2 shapes" when some share one, or "300 items" when
- * there's no member list.
- */
+const UNIT_ONE: Record<HomeArea["unit"], string> = { points: "point", shapes: "shape", items: "item" };
+
+/** How many items a collection has, as a figure and its noun: "450 points", "1 shape", "3 items". */
 export function countOf(area: HomeArea): { n: string; noun: string } {
-  const m = area.members;
-  if (!m?.length) return { n: fmtNum(area.itemCount), noun: area.itemCount === 1 ? "item" : "items" };
-  const shapes = new Set(m.map((x) => x.key)).size;
-  // Members only say which model they are in a collection of models, and
-  // not every model item says it, so one is enough.
-  const noun = m.some((x) => x.kind) ? "model" : "shape";
-  if (shapes === m.length) return { n: fmtNum(m.length), noun: `${noun}${m.length === 1 ? "" : "s"}` };
-  return { n: fmtNum(m.length), noun: `items on ${fmtNum(shapes)} ${noun}${shapes === 1 ? "" : "s"}` };
+  return { n: fmtNum(area.itemCount), noun: area.itemCount === 1 ? UNIT_ONE[area.unit] : area.unit };
+}
+
+/** A small picture of the unit beside it: three dots for points, an outline for shapes, nothing for items. */
+export function UnitGlyph({ unit }: { unit: HomeArea["unit"] }) {
+  if (unit === "points")
+    return (
+      <svg viewBox="0 0 10 10" width="10" height="10" fill="currentColor" aria-hidden="true">
+        <circle cx="2.5" cy="3" r="1.6" />
+        <circle cx="7.2" cy="2.4" r="1.6" />
+        <circle cx="4.8" cy="7.4" r="1.6" />
+      </svg>
+    );
+  if (unit === "shapes")
+    return (
+      <svg viewBox="0 0 10 10" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" aria-hidden="true">
+        <path d="M1.5 3.5 5 1.5l3.5 1.5-.5 5.5-5.5-.5z" />
+      </svg>
+    );
+  return null;
 }
 
 /** The description, the QC line and the last note; the count as a figure only where the row head doesn't carry it. */
@@ -216,7 +253,7 @@ export function HomePreview({
       <div className="sx-preview-top">
         <div className="sx-preview-head">
           <div className="sx-preview-title">{area.name}</div>
-          <AreaSub area={area} version />
+          <AreaSub area={area} open />
         </div>
         <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
