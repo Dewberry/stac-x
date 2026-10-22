@@ -264,9 +264,17 @@ export async function previewParquet(uri: string, limit = 50): Promise<TablePrev
   const metadata: FileMetaData = await parquetMetadataAsync(file);
   const schema = parquetSchema(metadata);
   const columns = schema.children.map((c) => c.element.name);
+  // The geometry columns: the ones the "geo" metadata names, the ones typed
+  // as geometry, and a bare "geometry" column whatever it holds.
   const geo = geometryColumns(metadata);
+  for (const c of schema.children) {
+    const lt = c.element.logical_type?.type;
+    if (lt === "GEOMETRY" || lt === "GEOGRAPHY" || c.element.name === "geometry") geo.add(c.element.name);
+  }
   const kinds = Object.fromEntries(schema.children.map((c) => [c.element.name, geo.has(c.element.name) ? "geometry" : kindOf(c)]));
   const totalRows = Number(metadata.num_rows);
+  // Bytes stay bytes (as readItems reads them), so an unlabeled WKB column
+  // can be named for what it is rather than shown as garbled text.
   const rows = await parquetReadObjects({
     file,
     metadata,
@@ -274,15 +282,42 @@ export async function previewParquet(uri: string, limit = 50): Promise<TablePrev
     rowFormat: "object",
     rowStart: 0,
     rowEnd: Math.min(limit, totalRows),
+    utf8: false,
   });
+  const bytesAsText = new Set(
+    schema.children
+      .filter((c) => c.element.type === "BYTE_ARRAY" && !c.element.logical_type && !c.element.converted_type && !geo.has(c.element.name))
+      .map((c) => c.element.name),
+  );
   return {
     kind: "table",
     columns,
     kinds,
-    rows: rows.map((r) => toJson(plain(r)) as Record<string, unknown>),
+    rows: rows.map((r) => {
+      const row = { ...(r as Record<string, unknown>) };
+      for (const k of bytesAsText) if (row[k] instanceof Uint8Array) row[k] = text(row[k] as Uint8Array);
+      for (const k of geo) row[k] = geometrySummary(row[k]);
+      return toJson(plain(row)) as Record<string, unknown>;
+    }),
     totalRows,
     byteLength: h.size,
   };
+}
+
+/**
+ * What a geometry cell of a preview says: the geometry's type ("Polygon"),
+ * or what the value is when it isn't one. Never the coordinates; a preview
+ * is for seeing the columns, and the map is for seeing where things are.
+ */
+export function geometrySummary(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Uint8Array) return toGeometry(v).value?.type ?? `binary, ${v.byteLength} bytes`;
+  if (typeof v === "string") return toGeometry(v).value?.type ?? "text";
+  if (typeof v === "object") {
+    const t = (v as { type?: unknown }).type;
+    return typeof t === "string" ? t : "geometry";
+  }
+  return String(v);
 }
 
 /** The columns the GeoParquet "geo" metadata names as geometry. */

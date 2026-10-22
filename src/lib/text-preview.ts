@@ -3,6 +3,7 @@ import "server-only";
 import type { ColumnKind, JsonPreview, Preview, TablePreview } from "./data-preview";
 import { isIsoDate } from "./format";
 import { head, NotFound, read, readRange } from "./storage";
+import { geometrySummary } from "./parquet";
 
 /**
  * Previews of the text files an item carries: CSV and JSON. A CSV is read
@@ -65,7 +66,8 @@ export function jsonPreview(value: unknown, byteLength: number, limit: number): 
       const rows = features.slice(0, limit).map((f) => ({
         id: f.id ?? null,
         ...(isRecord(f.properties) ? f.properties : {}),
-        geometry: f.geometry ?? null,
+        // Named, never its coordinates (lib/parquet.ts).
+        geometry: geometrySummary(f.geometry),
         bbox: f.bbox ?? null,
       }));
       const columns = unionKeys(rows);

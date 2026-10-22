@@ -164,7 +164,22 @@ export function areaCovered(area: MapArea, polys: Position[][][]): boolean {
   if (!polys.length) return false;
   const pts = samplesOf(area);
   if (!pts.length) return false;
-  return pts.filter(([x, y]) => inPolys(polys, x, y)).length / pts.length >= 0.98;
+  // Each polygon's box first: a few hundred model boundaries scattered over
+  // the basin can't cover it, and ray casting every sample against every
+  // ring of every one took seconds per page.
+  const boxes = polys.map((rings) => bboxOf(rings[0]));
+  const [aw, as, ae, an] = area.bbox;
+  if (Math.min(...boxes.map((b) => b[0])) > aw || Math.min(...boxes.map((b) => b[1])) > as) return false;
+  if (Math.max(...boxes.map((b) => b[2])) < ae || Math.max(...boxes.map((b) => b[3])) < an) return false;
+  let hits = 0;
+  for (const [x, y] of pts) {
+    const near = polys.filter((_, i) => {
+      const [w, s, e, n] = boxes[i];
+      return x >= w && x <= e && y >= s && y <= n;
+    });
+    if (near.length && inPolys(near, x, y)) hits++;
+  }
+  return hits / pts.length >= 0.98;
 }
 
 export type AreaOutline = { d: string; viewBox: string };

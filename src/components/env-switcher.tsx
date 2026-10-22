@@ -169,15 +169,19 @@ function MobileMenu({ env, ...account }: Account & { env: EnvKey }) {
   );
 }
 
+/**
+ * Each environment's entry opens its landing page, wherever the viewer is.
+ * A collection open in Test needn't exist in Development, and the home
+ * page is where its collections are listed.
+ */
 function EnvItems({ env }: { env: EnvKey }) {
-  const { rest } = splitEnv(usePathname());
   return (
     <>
       <DropdownMenu.Label className="px-2.5 pb-1.5 pt-1 text-micro text-ink-mut">Environment</DropdownMenu.Label>
       <DropdownMenu.RadioGroup value={env}>
         {ENVS.map((e) => (
           <DropdownMenu.RadioItem key={e.key} value={e.key} asChild>
-            <Link href={withEnv(e.key, rest)} className="ffx-menu-item ffx-env-item" aria-current={e.key === env ? "true" : undefined}>
+            <Link href={withEnv(e.key, "/")} className="ffx-menu-item ffx-env-item" aria-current={e.key === env ? "true" : undefined}>
               <span className="ffx-env-dot" data-env={e.key} aria-hidden="true" />
               <span>
                 <span className="ffx-env-name">{e.label}</span>

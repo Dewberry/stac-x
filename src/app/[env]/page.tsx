@@ -5,9 +5,9 @@ import type { ItemRow } from "@/components/items-list";
 import { HomeLoading } from "@/components/home-loading";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
+import { footprintBytes, footprintOf, INLINE_MAX, type Footprint } from "@/lib/footprint";
 import { itemRowsOf } from "@/lib/item-rows";
-import { areaCovered, areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
-import { overview, polygonsOf } from "@/lib/overview";
+import { areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { QC_STATUSES, type Collection, type QcStatus } from "@/lib/stac";
 import { collectionHref, collectionJsonHref } from "@/lib/utils";
@@ -74,49 +74,30 @@ async function HomeData({ env }: { env: EnvKey }) {
     earlier: c.series.versions.findIndex((v) => v.id === c.id),
   });
 
-  // One footprint per collection, tagged with its series id so the map can
-  // draw the selected one. Biggest first, so a small model inside a big
-  // one draws on top of it.
+  // One footprint per collection (lib/footprint.ts). Biggest first, so a
+  // small model inside a big one draws on top of it.
   const extentArea = (b: [number, number, number, number] | null) => (b ? (b[2] - b[0]) * (b[3] - b[1]) : 0);
   // A collection whose items this page can't reduce to a footprint or a
   // row (geometry of a kind the reader let through) is left off the page,
   // and the notice says so, rather than the whole page going.
   const failed = new Set<string>();
-  const footprints = await Promise.all(
-    [...latest]
-      .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
-      .map(async (c) => {
-        // Geometry the reader couldn't read means none of it is drawn.
-        if (c.geometryErrors > 0) return { slug: c.series.id, shape: null, features: [] };
-        let o: ReturnType<typeof overview>;
-        try {
-          o = overview(c.items, c.series.id, c.bbox);
-          rowsOf(c);
-        } catch (e) {
-          failed.add(c.id);
-          console.error(`stac-x: ${c.id} couldn't be drawn on the home page:`, e);
-          return { slug: c.series.id, shape: null, features: [] };
-        }
-        // Each dot is named and dated the way the collection page names its
-        // item, for the tooltip and the card a click on it opens.
-        const rowOf = rowsOf(c);
-        for (const f of o.features) {
-          const row = f.properties?.role === "point" ? rowOf.get(f.properties.id) : undefined;
-          if (row) Object.assign(f.properties!, { label: row.label, hideId: row.hideId, kind: row.kind, start: row.start, end: row.end });
-        }
-        // Shapes that contain the whole area (a national inventory's extent
-        // box) would tint the whole map, so such a collection is drawn as
-        // the area itself; the map lights the area up for it.
-        const polys =
-          o.shape === "areas"
-            ? polygonsOf(c.items)
-            : o.shape === "extent"
-              ? o.features.flatMap((f) => (f.geometry.type === "Polygon" ? [f.geometry.coordinates] : []))
-              : [];
-        if (area && areaCovered(area, polys)) return { slug: c.series.id, shape: "area" as const, features: [] };
-        return { slug: c.series.id, ...o };
-      }),
-  );
+  // The heavy ones keep their shape here but their features stay on the
+  // server, fetched when the collection is picked.
+  const lazy = new Set<string>();
+  const footprints: Footprint[] = [...latest]
+    .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
+    .map((c) => {
+      try {
+        const f = footprintOf(c, area);
+        if (footprintBytes(f) <= INLINE_MAX) return f;
+        lazy.add(c.id);
+        return { ...f, features: [] };
+      } catch (e) {
+        failed.add(c.id);
+        console.error(`stac-x: ${c.id} couldn't be drawn on the home page:`, e);
+        return { slug: c.series.id, shape: null, features: [] };
+      }
+    });
   const drawn = new Map(footprints.map((f) => [f.slug, f]));
   const items: FeatureCollection = { type: "FeatureCollection", features: footprints.flatMap((f) => f.features) };
 
@@ -178,6 +159,7 @@ async function HomeData({ env }: { env: EnvKey }) {
       itemCount: c.itemCount,
       unit: broken ? "items" : unitOf(c),
       geometryError: broken || undefined,
+      lazy: lazy.has(c.id) || undefined,
       coverage: coverageOf(bbox),
       years: yearsOf(c.temporal),
       license: c.license,

@@ -3,7 +3,7 @@
 import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { FeatureCollection, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, MultiPolygon } from "geojson";
 import { envMeta, type EnvKey } from "@/lib/env";
 import type { Tint } from "@/lib/overview";
 import type { QcEdit, QcStatus } from "@/lib/stac";
@@ -78,6 +78,8 @@ export type HomeArea = {
   unit: "points" | "shapes" | "items";
   /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
   geometryError?: boolean;
+  /** The footprint was too heavy to send with the page; it's fetched from the footprint route when picked. */
+  lazy?: boolean;
   /** Where the extent sits against the deployment's area; null when there's no area or no extent. */
   coverage: "whole" | "part" | "larger" | null;
   /** "1980–2025" when the extent spans more than one calendar year; null otherwise. */
@@ -245,6 +247,33 @@ export function HomeConsole({
   const preview = pointed && pointed !== selected ? pointed : null;
   const previewArea = preview ? (bySlug.get(preview) ?? null) : null;
 
+  // Footprints too heavy to send with the page, fetched the first time
+  // their collection is picked or pointed at, and kept. One that can't be
+  // fetched is kept empty, so the map draws nothing for it rather than
+  // asking again on every hover.
+  const [footprints, setFootprints] = useState<Record<string, Feature[]>>({});
+  const fetching = useRef(new Set<string>());
+  const loadFootprint = useCallback(
+    (slug: string) => {
+      const a = bySlug.get(slug);
+      if (!a?.lazy || fetching.current.has(slug)) return;
+      fetching.current.add(slug);
+      fetch(`${a.jsonHref}/footprint`)
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
+        .then((data: { features: Feature[] }) => setFootprints((prev) => ({ ...prev, [slug]: data.features })))
+        .catch(() => setFootprints((prev) => ({ ...prev, [slug]: [] })))
+        .finally(() => fetching.current.delete(slug));
+    },
+    [bySlug],
+  );
+  useEffect(() => {
+    for (const slug of [selected, preview]) if (slug && !footprints[slug]) loadFootprint(slug);
+  }, [selected, preview, footprints, loadFootprint]);
+  const mapItems = useMemo<FeatureCollection>(() => {
+    const fetched = Object.values(footprints).flat();
+    return fetched.length ? { type: "FeatureCollection", features: [...items.features, ...fetched] } : items;
+  }, [items, footprints]);
+
   // On a phone the sheet opens over the list where it was tapped, and the
   // page stays put, so closing it leaves the reader in the same place.
   const select = useCallback(
@@ -316,7 +345,7 @@ export function HomeConsole({
           <div className="sx-console-map">
             <HomeMap
               areas={areas}
-              items={items}
+              items={mapItems}
               area={area}
               frame={frame}
               shown={selected}
