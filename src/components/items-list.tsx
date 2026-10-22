@@ -137,7 +137,7 @@ export function ItemsList({
     <div className={compact ? "sx-items-compact" : undefined} data-fill={fill || undefined}>
       {searchable && (
       <div className="ffx-toolbar">
-        <label className="ffx-field min-w-0 flex-1 sm:max-w-xs">
+        <label className="ffx-field min-w-0 flex-[1_1_12rem] sm:max-w-xs">
           <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
             <circle cx="7" cy="7" r="4.5" />
             <path d="m10.5 10.5 3 3" strokeLinecap="round" />
@@ -153,9 +153,14 @@ export function ItemsList({
             }}
           />
         </label>
+        {!compact && filtered.length !== rows.length && (
+          <span className="text-micro text-ink-mut ffx-num" aria-hidden="true">
+            {filtered.length} of {rows.length}
+          </span>
+        )}
         {/* The rail's rows show names alone, so there's nothing there to sort by eye; the collection page keeps the sort. */}
         {!compact && (
-          <label className="ffx-field ffx-field-select">
+          <label className="ffx-field ffx-field-select ml-auto">
             <span className="ffx-field-label">Sort</span>
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
               <option value="id">Id</option>
@@ -163,11 +168,6 @@ export function ItemsList({
               <option value="start">Start date</option>
             </select>
           </label>
-        )}
-        {!compact && filtered.length !== rows.length && (
-          <span className="ml-auto text-micro text-ink-mut ffx-num" aria-hidden="true">
-            {filtered.length} of {rows.length}
-          </span>
         )}
         <span className="sr-only" role="status">
           {filtered.length !== rows.length ? `${filtered.length} of ${rows.length} items` : ""}
