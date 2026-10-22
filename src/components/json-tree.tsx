@@ -1,22 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Chevron } from "./icons";
 import { fmtNum } from "@/lib/format";
 
 /**
  * A JSON document as a tree you can read: one line per field, the nested
  * ones folding with a count of what's inside ("12 fields", "3 items") so a
- * collection's links and assets don't bury its title. The top levels start
- * open; a short array of plain values sits on one line, since a bbox or a
- * pair of coordinates reads better that way than as four rows. A long
- * array shows its first hundred and offers the rest.
+ * collection's links and assets don't bury its title. The top two levels
+ * start open; a short array of plain values sits on one line, since a bbox
+ * or a pair of coordinates reads better that way than as four rows. A long
+ * array shows its first hundred and offers the rest. JsonText is the same
+ * document as text, for reading it the way the file reads.
  */
 const OPEN_DEPTH = 1;
 const SHOW = 100;
 
 export function JsonTree({ value }: { value: unknown }) {
   return <div className="sx-json">{isComposite(value) ? <Kids value={value} depth={0} /> : <Leaf value={value} />}</div>;
+}
+
+/**
+ * Open every node of the tree under `root`, or close every one but the
+ * top level, which is where the document's own fields are.
+ */
+export function setTreeOpen(root: HTMLElement, open: boolean) {
+  const top = root.querySelector(".sx-json");
+  for (const node of root.querySelectorAll<HTMLDetailsElement>("details.sx-json-node")) {
+    node.open = open || node.parentElement === top;
+  }
+}
+
+/** The document as indented text, the way JSON.stringify(value, null, 2) writes it, with its parts colored. */
+export function JsonText({ value }: { value: unknown }) {
+  return <pre className="sx-json-text">{text(value, 0)}</pre>;
+}
+
+function text(v: unknown, depth: number): ReactNode {
+  if (!isComposite(v)) return <Prim value={v} />;
+  const pad = "  ".repeat(depth);
+  const inner = "  ".repeat(depth + 1);
+  if (Array.isArray(v)) {
+    if (!v.length) return "[]";
+    return (
+      <>
+        {"[\n"}
+        {v.map((x, i) => (
+          <Fragment key={i}>
+            {inner}
+            {text(x, depth + 1)}
+            {i < v.length - 1 ? ",\n" : "\n"}
+          </Fragment>
+        ))}
+        {pad}]
+      </>
+    );
+  }
+  const entries = Object.entries(v).filter(([, x]) => x !== undefined);
+  if (!entries.length) return "{}";
+  return (
+    <>
+      {"{\n"}
+      {entries.map(([k, x], i) => (
+        <Fragment key={k}>
+          {inner}
+          <span className="sx-json-tkey">{JSON.stringify(k)}</span>
+          {": "}
+          {text(x, depth + 1)}
+          {i < entries.length - 1 ? ",\n" : "\n"}
+        </Fragment>
+      ))}
+      {pad}
+      {"}"}
+    </>
+  );
+}
+
+/** A value in the text view, written as JSON: a URL is a link, a literal is muted. */
+function Prim({ value }: { value: unknown }) {
+  if (typeof value === "string") {
+    if (/^https?:\/\/\S+$/.test(value)) {
+      return (
+        <span className="sx-json-str">
+          &quot;
+          <a href={value} target="_blank" rel="noreferrer">
+            {value}
+          </a>
+          &quot;
+        </span>
+      );
+    }
+    return <span className="sx-json-str">{JSON.stringify(value)}</span>;
+  }
+  if (typeof value === "number") return <span className="sx-json-num">{JSON.stringify(value)}</span>;
+  return <span className="sx-json-lit">{value === undefined ? "null" : String(value)}</span>;
 }
 
 function isComposite(v: unknown): v is object {

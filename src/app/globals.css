@@ -1227,6 +1227,49 @@
 .sx-dm-foot .sx-dm-note {
   padding: 0;
 }
+/* Expand all · Collapse all, at the foot's right. */
+.sx-dm-foot-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-dim);
+}
+.sx-dm-foot-acts .sx-linkbtn {
+  font-size: var(--ffx-t-micro);
+}
+/* Tree | Text: two pressed-state buttons in one bordered pill. */
+.sx-seg {
+  display: inline-flex;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--ffx-rule);
+  border-radius: 999px;
+  background: var(--ffx-surface);
+}
+.sx-seg button {
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ffx-ink-mut);
+  cursor: pointer;
+}
+.sx-seg button:hover {
+  color: var(--ffx-ink);
+}
+.sx-seg button[aria-pressed="true"] {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
+}
+.sx-seg button:focus-visible {
+  outline: 2px solid var(--ffx-river);
+  outline-offset: -2px;
+}
 @media (max-width: 39.99rem) {
   .sx-dm,
   .sx-dm[data-kind="json"] {
@@ -1244,7 +1287,7 @@
 .sx-json {
   padding: 0.75rem 1.25rem 1rem;
   font-size: var(--ffx-t-small);
-  line-height: 1.65;
+  line-height: 22px;
   color: var(--ffx-ink);
 }
 .sx-json-row,
@@ -1272,10 +1315,11 @@
 .sx-json-node > summary:hover {
   background: var(--ffx-surface-sunken);
 }
+/* Children sit on a guide line under the middle of the parent's chevron. */
 .sx-json-kids {
-  margin-left: 0.3rem;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--ffx-grid);
+  margin-left: 7px;
+  padding-left: 16px;
+  border-left: 1px solid var(--ffx-rule);
 }
 .sx-json-key,
 .sx-json-idx,
@@ -1327,7 +1371,7 @@ a.sx-json-str {
   color: var(--ffx-ink-dim);
 }
 .sx-json-more {
-  margin: 0.125rem 0 0.25rem 0.75rem;
+  margin: 0.125rem 0 0.25rem 22px;
   padding: 0;
   border: 0;
   background: none;
@@ -1335,6 +1379,27 @@ a.sx-json-str {
   font-size: var(--ffx-t-micro);
   color: var(--ffx-active-text);
   cursor: pointer;
+}
+/* The same document as text (JsonText): keys secondary, strings ink,
+   literals muted, URLs as links. */
+.sx-json-text {
+  margin: 0;
+  padding: 0.75rem 1.25rem 1rem;
+  font-family: var(--ffx-mono);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--ffx-ink);
+  white-space: pre;
+  tab-size: 2;
+}
+.sx-json-tkey {
+  color: var(--ffx-ink-sec);
+}
+.sx-json-text .sx-json-str a {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
 }
 
 /* The spinner (components/spinner.tsx): a ring with one blue arc. Loading

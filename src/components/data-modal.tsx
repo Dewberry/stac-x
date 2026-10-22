@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CopyButton } from "./copy-button";
 import { DataTable } from "./data-table";
 import { Icon, ICONS } from "./icons";
-import { JsonTree } from "./json-tree";
+import { JsonText, JsonTree, setTreeOpen } from "./json-tree";
 import { Loading, Spinner } from "./spinner";
 import type { Preview } from "@/lib/data-preview";
 import { fmtBytes, fmtNum } from "@/lib/format";
@@ -12,6 +12,18 @@ import { fmtBytes, fmtNum } from "@/lib/format";
 /** Rows on open, and rows after "Show more". The routes cap at the latter. */
 const FIRST = 20;
 const MORE = 100;
+
+/** Whether a document last read as a tree or as text, kept for the session. */
+const VIEW_KEY = "stac-x:json-view";
+type View = "tree" | "text";
+
+function storedView(): View {
+  try {
+    return sessionStorage.getItem(VIEW_KEY) === "text" ? "text" : "tree";
+  } catch {
+    return "tree";
+  }
+}
 
 /**
  * A button that opens a look inside a file in a dialog over the page: the
@@ -85,8 +97,18 @@ function DataDialog({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [limit, setLimit] = useState(FIRST);
   const [state, setState] = useState<State>({ status: "loading" });
+  // The dialog only ever mounts after a click, so the session store is there to read.
+  const [view, setView] = useState<View>(storedView);
+
+  function pickView(v: View) {
+    setView(v);
+    try {
+      sessionStorage.setItem(VIEW_KEY, v);
+    } catch {}
+  }
 
   useEffect(() => {
     ref.current?.showModal();
@@ -174,6 +196,16 @@ function DataDialog({
           </p>
         </div>
         <div className="sx-dm-acts">
+          {doc && (
+            <div className="sx-seg" role="group" aria-label="View as">
+              <button type="button" aria-pressed={view === "tree"} onClick={() => pickView("tree")}>
+                Tree
+              </button>
+              <button type="button" aria-pressed={view === "text"} onClick={() => pickView("text")}>
+                Text
+              </button>
+            </div>
+          )}
           {doc && <CopyButton text={JSON.stringify(doc.value, null, 2)} label="Copy JSON" />}
           {actions}
           <button type="button" className="sx-sheet-btn" aria-label="Close" onClick={() => ref.current?.close()}>
@@ -183,7 +215,7 @@ function DataDialog({
           </button>
         </div>
       </div>
-      <div className="sx-dm-scroll">
+      <div className="sx-dm-scroll" ref={scrollRef}>
         {state.status === "error" ? (
           <p className="sx-dm-note sx-form-error">Couldn&apos;t read the file: {state.error}</p>
         ) : table ? (
@@ -193,11 +225,29 @@ function DataDialog({
             <DataTable data={table} />
           )
         ) : doc ? (
-          <JsonTree value={doc.value} />
+          view === "text" ? (
+            <JsonText value={doc.value} />
+          ) : (
+            <JsonTree value={doc.value} />
+          )
         ) : (
           <Loading>{mode === "json" ? "Reading the document…" : "Reading the first rows…"}</Loading>
         )}
       </div>
+      {doc && view === "tree" && (
+        <div className="sx-dm-foot">
+          <span className="sx-dm-note">Top two levels open</span>
+          <span className="sx-dm-foot-acts">
+            <button type="button" className="sx-linkbtn" onClick={() => scrollRef.current && setTreeOpen(scrollRef.current, true)}>
+              Expand all
+            </button>
+            <span aria-hidden="true">·</span>
+            <button type="button" className="sx-linkbtn" onClick={() => scrollRef.current && setTreeOpen(scrollRef.current, false)}>
+              Collapse all
+            </button>
+          </span>
+        </div>
+      )}
       {foot && table && (
         <div className="sx-dm-foot">
           {more && limit < MORE ? (
