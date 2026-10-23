@@ -12,7 +12,8 @@ import { NotFound, parseRef, readJson } from "./storage";
  * through any sub-catalogs, to collections, whatever their files are called
  * (collection-v1.0.json is fine). Each collection is one source, and its
  * items are the rows of the stac-geoparquet file it links to, as `items` or
- * `alternate`. Every environment reads its catalog this way.
+ * `alternate`. Without an items link, the collection is loaded with no
+ * items, keeping its metadata and collection assets.
  *
  * A collection that links to one JSON file per item isn't read. Fetching
  * thousands of small files from S3 is what made the old Development catalog
@@ -31,8 +32,8 @@ const PARQUET_LINK = (l: StacLink) =>
 export type JsonStac = {
   items: StacItem[];
   collections: Record<string, Record<string, unknown>>;
-  /** The parquet file the items were read from, and its ETag at the time. */
-  parquet: { uri: string; etag: string };
+  /** The items file and its ETag, or null for a metadata-only collection. */
+  parquet: { uri: string; etag: string } | null;
 };
 
 /**
@@ -84,11 +85,10 @@ export async function readCollectionJson(uri: string): Promise<JsonStac> {
   const links = Array.isArray(doc.links) ? (doc.links as StacLink[]) : [];
   const parquet = links.find(PARQUET_LINK);
   if (!parquet) {
-    throw new Error(
-      links.some((l) => l?.rel === "item")
-        ? "links to its items as JSON files, which aren't read. Link it to a stac-geoparquet file."
-        : "doesn't link to a stac-geoparquet file",
-    );
+    if (links.some((l) => l?.rel === "item" || l?.rel === "items")) {
+      throw new Error("links to items outside a stac-geoparquet file, which aren't read. Link it to a stac-geoparquet file.");
+    }
+    return { items: [], collections: { [id]: doc }, parquet: null };
   }
   // The file is this collection's, whatever its rows say: the rows carry
   // the ids they had before they were packaged (or none), and their

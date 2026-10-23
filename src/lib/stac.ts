@@ -104,7 +104,7 @@ export type Collection = {
   bbox: [number, number, number, number] | null;
   temporal: [string | null, string | null];
   itemCount: number;
-  /** Parquet files that contributed rows to this collection. */
+  /** Parquet or collection JSON sources, including those with no items. */
   sources: string[];
   /** True when collection.json was read from the bucket; false when derived. */
   fromDocument: boolean;

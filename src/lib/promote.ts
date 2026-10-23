@@ -45,10 +45,11 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
 
   const catalog = await getCatalog(env);
   for (const uri of c.sources) {
-    const total = catalog.sources.find((s) => s.uri === uri)?.itemCount ?? 0;
+    const source = catalog.sources.find((s) => s.uri === uri);
+    const total = source?.itemCount ?? 0;
     const mine = c.items.filter((i) => i.source === uri).length;
-    if (mine !== total) {
-      throw new Error(`${baseName(uri)} also holds items of other collections, so it can't be promoted on its own.`);
+    if (mine !== total || source?.collections.some((id) => id !== c.id)) {
+      throw new Error(`${baseName(uri)} also holds other collections, so it can't be promoted on its own.`);
     }
   }
 

@@ -89,6 +89,11 @@ Each value is one or more of these, separated by commas:
 Items are always GeoParquet. A collection that keeps one JSON file per item
 isn't read, and shows up as an error in the server log.
 
+Collections without an items link are shown with zero items, using their
+metadata, extent and collection assets. A linked GeoParquet file with zero
+rows works too. Missing or unreadable linked files still report an error;
+they aren't treated as intentionally empty collections.
+
 There are no defaults in the code, so an environment left unset reads nothing
 and its pages load empty. The example file points Sandbox and Production at
 `./data/sandbox` and `./data/prod`, and Development and Test at placeholder

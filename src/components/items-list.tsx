@@ -90,7 +90,7 @@ export function ItemsList({
     return twice;
   }, [rows]);
   // Where every row is already in view, there's nothing to search for.
-  const searchable = !compact || all > WINDOW;
+  const searchable = all > 0 && (!compact || all > WINDOW);
   const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / PAGE));
   const current = Math.min(page, pages - 1);
   const slice = compact ? filtered : filtered.slice(current * PAGE, current * PAGE + PAGE);
@@ -175,7 +175,7 @@ export function ItemsList({
       </div>
       )}
       {slice.length === 0 ? (
-        <p className="sx-empty">No items match.</p>
+        <p className="sx-empty">{all === 0 ? "This collection has no items." : "No items match."}</p>
       ) : compact ? (
         <div className="sx-item-block" data-more={more || undefined}>
           <div ref={blockRef} className="sx-item-list" onScroll={onScroll}>

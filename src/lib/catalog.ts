@@ -157,11 +157,23 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   }
 
   const byCollection = new Map<string, CatalogItem[]>();
+  const collectionSources = new Map<string, string[]>();
   const sourcesOut: Catalog["sources"] = [];
   for (const uri of uris) {
     const s = cache.sources.get(uri)!;
     if (s.skipped) continue;
-    sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(new Set(s.items.map((i) => i.collection))), error: s.error });
+    // Documents name real collections even when there are no item rows.
+    const ids = new Set([
+      ...s.items.map((i) => i.collection),
+      ...Object.entries(s.embedded).filter(([id, doc]) => doc.type === "Collection" && doc.id === id).map(([id]) => id),
+    ]);
+    sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(ids), error: s.error });
+    for (const id of ids) {
+      if (!byCollection.has(id)) byCollection.set(id, []);
+      const sources = collectionSources.get(id) ?? [];
+      sources.push(uri);
+      collectionSources.set(id, sources);
+    }
     if (s.error) errors.push(`${uri}: ${s.error}`);
     for (const item of s.items) {
       const list = byCollection.get(item.collection) ?? [];
@@ -176,12 +188,13 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   // is dropped only when even that fails.
   const collections: Collection[] = [];
   for (const [id, items] of Array.from(byCollection.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+    const sources = collectionSources.get(id)!;
     try {
-      collections.push(await describeCollection(cache, id, items, now));
+      collections.push(await describeCollection(cache, id, items, sources, now));
     } catch (e) {
       console.error(`stac-x: describing collection ${id} failed, so it's shown from its items:`, e);
       try {
-        collections.push(derivedCollection(cache, id, items));
+        collections.push(derivedCollection(cache, id, items, sources));
       } catch (e2) {
         errors.push(`${id}: ${message(e2)}`);
         console.error(`stac-x: collection ${id} couldn't be read at all, so it's left out:`, e2);
@@ -257,8 +270,8 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
         const read = await readCollectionJson(uri);
         state.items = read.items;
         state.embedded = read.collections;
-        state.parquet = read.parquet.uri;
-        state.etag = `${h.etag}|${read.parquet.etag}`;
+        state.parquet = read.parquet?.uri ?? null;
+        state.etag = `${h.etag}|${read.parquet?.etag ?? ""}`;
       }
     } else if (h.etag !== state.etag || !state.embedded) {
       try {
@@ -296,18 +309,18 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
  * metadata, and is derived from the items otherwise. The derived form is
  * honest about being derived: fromDocument is false and the page says so.
  */
-async function describeCollection(cache: Cache, id: string, items: CatalogItem[], now: number): Promise<Collection> {
-  const docHref = docHrefOf(items);
+async function describeCollection(cache: Cache, id: string, items: CatalogItem[], sources: string[], now: number): Promise<Collection> {
+  const docHref = docHrefOf(items) ?? sources.find((uri) => isJsonSource(uri) && cache.sources.get(uri)?.embedded[id]) ?? null;
   // A catalog's collection.json is itself a source, already read.
   const read = (docHref && cache.sources.get(docHref)?.embedded?.[id]) || (await collectionDoc(cache, docHref, now));
-  const embeddedIn = read ? undefined : items.find((i) => cache.sources.get(i.source)?.embedded?.[id]);
-  const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn.source)!.embedded[id] : null);
+  const embeddedIn = read ? undefined : sources.find((uri) => cache.sources.get(uri)?.embedded?.[id]);
+  const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn)!.embedded[id] : null);
   // Relative asset hrefs are relative to the file the metadata came from.
-  const docBase = read ? docHref : embeddedIn?.source ?? null;
-  if (!doc) return derivedCollection(cache, id, items);
+  const docBase = read ? docHref : embeddedIn ?? null;
+  if (!doc) return derivedCollection(cache, id, items, sources);
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
-  const { sources, qc, history, geometryErrors } = recordsOf(cache, id, items);
+  const { qc, history, geometryErrors } = recordsOf(cache, id, items, sources);
   {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
     const docBbox = ext?.spatial?.bbox?.[0];
@@ -350,8 +363,8 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
 }
 
 /** A collection described from its items alone, when there's no document or the document can't be used. */
-function derivedCollection(cache: Cache, id: string, items: CatalogItem[]): Collection {
-  const { sources, qc, history, geometryErrors } = recordsOf(cache, id, items);
+function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sources: string[]): Collection {
+  const { qc, history, geometryErrors } = recordsOf(cache, id, items, sources);
   return {
     id,
     title: collectionName(null, id),
@@ -386,9 +399,8 @@ function docHrefOf(items: CatalogItem[]): string | null {
   return typeof l?.href === "string" ? l.href : null;
 }
 
-/** The files a collection's items came from, and the QC record and history those files' sidecars hold for it. */
-function recordsOf(cache: Cache, id: string, items: CatalogItem[]) {
-  const sources = Array.from(new Set(items.map((i) => i.source)));
+/** QC and history from the collection's sources, including documents without items. */
+function recordsOf(cache: Cache, id: string, items: CatalogItem[], sources: string[]) {
   const qc = qcFor(cache, id, sources);
   const history = sources
     .flatMap((uri) => cache.sources.get(uri)?.history[id] ?? [])
