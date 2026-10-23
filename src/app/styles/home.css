@@ -827,6 +827,22 @@ button.sx-map-pill svg {
 /* The items inside the open row and the phone's sheet: a white block of
    name-only rows, flush with the row's edges, scrolling inside the rail
    under a fade, with a line under it saying how many more are below. */
+.sx-child-heading {
+  margin: 0;
+  font-size: var(--ffx-t-small);
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-child-collections .sx-item-list > li + li {
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-child-count {
+  display: grid;
+  gap: 2px;
+  flex: none;
+  text-align: right;
+  font-size: var(--ffx-t-micro);
+}
 .sx-items-compact .ffx-toolbar {
   padding: 0;
   gap: 8px;

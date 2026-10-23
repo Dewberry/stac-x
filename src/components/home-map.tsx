@@ -348,6 +348,9 @@ export function HomeMap({
   // the one pointed at over it.
   const drawn = [shown, preview].filter((s): s is string => !!s);
   const current = areas.find((a) => a.slug === shown) ?? null;
+  // A metadata-only parent has no footprint to frame. Bring its hovered
+  // child into view instead, then restore the parent's frame on leave.
+  const fitSlug = current && !current.drawn && preview ? preview : shown;
   const dense = areas.find((a) => drawn.includes(a.slug) && a.drawn === "density") ?? null;
   const [basemapDown, setBasemapDown] = useState(false);
   // The members under the cursor, named beside it. Kept with the slug they
@@ -360,7 +363,7 @@ export function HomeMap({
   const tip = tipState?.slug === shown && !(card && sameIds(card.hits, tipState.rows)) ? tipState : null;
   // The collection the map is framed to, when that's narrower than the area.
   const [framed, setFramed] = useState<string | null>(null);
-  const framedArea = framed && framed === shown ? (areas.find((a) => a.slug === framed) ?? null) : null;
+  const framedArea = framed && framed === fitSlug ? (areas.find((a) => a.slug === framed) ?? null) : null;
   // Latest props for the one-time setup below. Written in an effect, never
   // during render.
   const areasRef = useRef(areas);
@@ -580,12 +583,12 @@ export function HomeMap({
       movedByHand.current = false;
       return;
     }
-    const a = shown ? areasRef.current.find((x) => x.slug === shown) : null;
+    const a = fitSlug ? areasRef.current.find((x) => x.slug === fitSlug) : null;
     if (!a || !a.bbox || a.wide || a.drawn === "area" || !a.drawn) return fitFrameRef.current();
     const [w, s, e, n] = a.bbox;
     framingRef.current = a.slug;
     m.fitBounds([[w, s], [e, n]], { ...fitPadding(), maxZoom: FIT_MAX_ZOOM, duration: 400 });
-  }, [shown]);
+  }, [fitSlug]);
 
   // The list is built each render; only a change in what's drawn matters.
   const drawnKey = drawn.join("|");

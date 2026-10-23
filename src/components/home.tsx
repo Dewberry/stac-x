@@ -233,6 +233,11 @@ export function HomeConsole({
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
+  const childCollections = useMemo(() => activeSelected
+    ? areas.filter((child) => child.slug !== activeSelected && child.parentSlugs.includes(activeSelected))
+    : [], [areas, activeSelected]);
+  // An open parent's children can be previewed without becoming top-level rows.
+  const previewableIds = useMemo(() => new Set([...shownIds, ...childCollections.map((child) => child.slug)]), [shownIds, childCollections]);
   const activeHovered = hovered && shownIds.has(hovered) ? hovered : null;
   const byState = useMemo(() => {
     const counts = Object.fromEntries(QC_STATUSES.map((s) => [s.value, 0])) as Record<QcStatus, number>;
@@ -258,7 +263,7 @@ export function HomeConsole({
     const t = setTimeout(() => setPointed(hovered), PREVIEW_DELAY);
     return () => clearTimeout(t);
   }, [hovered]);
-  const preview = pointed && shownIds.has(pointed) && pointed !== activeSelected ? pointed : null;
+  const preview = pointed && previewableIds.has(pointed) && pointed !== activeSelected ? pointed : null;
   const previewArea = preview ? (bySlug.get(preview) ?? null) : null;
 
   // Footprints too heavy to send with the page, fetched the first time
@@ -281,12 +286,19 @@ export function HomeConsole({
     [bySlug],
   );
   useEffect(() => {
-    for (const slug of [activeSelected, preview]) if (slug && !footprints[slug]) loadFootprint(slug);
-  }, [activeSelected, preview, footprints, loadFootprint]);
+    // Warm direct children's heavy footprints on expansion, before hover.
+    // Inline footprints are already available; neither path loads item assets.
+    for (const slug of [activeSelected, preview, ...childCollections.map((child) => child.slug)]) {
+      if (slug && !footprints[slug]) loadFootprint(slug);
+    }
+  }, [activeSelected, preview, childCollections, footprints, loadFootprint]);
+  const mapAreas = useMemo(() => previewArea && !shownIds.has(previewArea.slug)
+    ? [...shown, previewArea]
+    : shown, [shown, shownIds, previewArea]);
   const mapItems = useMemo<FeatureCollection>(() => {
     const fetched = Object.values(footprints).flat();
-    return { type: "FeatureCollection", features: [...items.features, ...fetched].filter((f) => shownIds.has(f.properties?.slug)) };
-  }, [items, footprints, shownIds]);
+    return { type: "FeatureCollection", features: [...items.features, ...fetched].filter((f) => shownIds.has(f.properties?.slug) || f.properties?.slug === preview) };
+  }, [items, footprints, shownIds, preview]);
 
   // Search/filter controls keep focus while the open row or mobile sheet
   // disappears. Clear selection rather than reviving it on a later search.
@@ -305,6 +317,8 @@ export function HomeConsole({
     (slug: string | null) => {
       const next = slug && slug === selected ? null : slug;
       setSelected(next);
+      setHovered(null);
+      setPointed(null);
       setHoverKeys([]);
       setHoveredItem(null);
       const a = next ? bySlug.get(next) : null;
@@ -323,6 +337,8 @@ export function HomeConsole({
     const at = document.activeElement;
     if (item?.contains(at) || sheet?.contains(at)) item?.querySelector<HTMLElement>(".sx-row")?.focus({ preventScroll: true });
     setSelected(null);
+    setHovered(null);
+    setPointed(null);
   }, [selected]);
 
   // Escape closes the open row from anywhere on the page.
@@ -366,10 +382,20 @@ export function HomeConsole({
       <div className="sx-home">
         {/* The page has no visible title (the header names the app), but a screen reader's outline needs one. */}
         <h1 className="sr-only">Collections in {envMeta(env).label}</h1>
+        <p className="sr-only" role="status">
+          {previewArea ? !previewArea.drawn
+            ? `No map preview available for ${previewArea.name}.`
+            : previewArea.lazy && !footprints[previewArea.slug]
+              ? `Loading map preview for ${previewArea.name}.`
+              : previewArea.lazy && !footprints[previewArea.slug]?.length
+                ? `Map preview couldn't be loaded for ${previewArea.name}.`
+                : `Previewing ${previewArea.name} on the map.`
+            : ""}
+        </p>
         <div className="sx-console">
           <div className="sx-console-map">
             <HomeMap
-              areas={shown}
+              areas={mapAreas}
               items={mapItems}
               area={area}
               frame={frame}
@@ -388,6 +414,9 @@ export function HomeConsole({
             <HomePreview
               env={env}
               area={current}
+              childCollections={childCollections}
+              preview={preview}
+              onHover={setHovered}
               rows={rows}
               activeIds={activeIds}
               onClose={close}

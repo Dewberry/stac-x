@@ -216,9 +216,11 @@ export function HomeRail({
                     key={a.slug}
                     env={env}
                     area={a}
+                    childCollections={open ? areas.filter((child) => child.slug !== a.slug && child.parentSlugs.includes(a.slug)) : []}
                     parentPaths={parentPaths[a.slug] ?? []}
                     active={(selected ?? hovered) === a.slug}
                     previewing={preview === a.slug}
+                    preview={preview}
                     open={open}
                     rows={open ? (rowsBySlug[a.slug] ?? null) : null}
                     activeIds={open ? activeIds : undefined}
@@ -252,9 +254,11 @@ export function HomeRail({
 function AreaRow({
   env,
   area,
+  childCollections,
   parentPaths,
   active,
   previewing,
+  preview,
   open,
   rows,
   activeIds,
@@ -263,9 +267,11 @@ function AreaRow({
 }: {
   env: EnvKey;
   area: HomeArea;
+  childCollections: HomeArea[];
   parentPaths: string[];
   active: boolean;
   previewing: boolean;
+  preview: string | null;
   open: boolean;
   rows: Rows;
   activeIds?: ReadonlySet<string>;
@@ -315,7 +321,7 @@ function AreaRow({
           )}
         </span>
       </button>
-      {open && <OpenRow env={env} area={area} rows={rows} activeIds={activeIds} />}
+      {open && <OpenRow env={env} area={area} childCollections={childCollections} preview={preview} onHover={onHover} rows={rows} activeIds={activeIds} />}
     </li>
   );
 }

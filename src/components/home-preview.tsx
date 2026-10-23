@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
@@ -11,7 +11,7 @@ import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 
 /**
  * What a selected collection shows: enough to decide whether to open it,
- * and its items. Its description, where its QC stands, the last reviewer's
+ * and its child collections and items. Its description, where its QC stands, the last reviewer's
  * note when it was sent back, the way in (Browse collection), then the items
  * by name with a search and a sort. The summary line (dates, place,
  * version) sits above it, in the row on a wide screen and in the sheet's
@@ -252,15 +252,59 @@ function Items({
   );
 }
 
+/** Direct children preload on expansion and preview on hover or keyboard focus. */
+function ChildCollections({ collections, preview, onHover }: {
+  collections: HomeArea[];
+  preview: string | null;
+  onHover: (slug: string | null) => void;
+}) {
+  const heading = useId();
+  if (!collections.length) return null;
+  return (
+    <section className="sx-items-compact sx-child-collections" aria-labelledby={heading}>
+      <h3 id={heading} className="sx-child-heading">Child collections <span className="ffx-num">({fmtNum(collections.length)})</span></h3>
+      <div className="sx-item-block">
+        <ul className="sx-item-list">
+          {collections.map((child) => (
+            <li key={child.slug}>
+              <Link
+                href={child.href}
+                className="sx-item"
+                data-active={preview === child.slug || undefined}
+                onMouseEnter={() => onHover(child.slug)}
+                onMouseLeave={() => onHover(null)}
+                onFocus={() => onHover(child.slug)}
+                onBlur={() => onHover(null)}
+              >
+                <span className="sx-item-name">{child.name}</span>
+                <span className="sx-child-count text-ink-mut">
+                  <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
+                  {child.childCollectionCount > 0 && <span><span className="ffx-num">{fmtNum(child.childCollectionCount)}</span> {child.childCollectionCount === 1 ? "collection" : "collections"}</span>}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 /** The open row in the rail, under its head. */
 export function OpenRow({
   env,
   area,
+  childCollections,
+  preview,
+  onHover,
   rows,
   activeIds,
 }: {
   env: EnvKey;
   area: HomeArea;
+  childCollections: HomeArea[];
+  preview: string | null;
+  onHover: (slug: string | null) => void;
   rows: Rows;
   activeIds?: ReadonlySet<string>;
 }) {
@@ -268,7 +312,8 @@ export function OpenRow({
     <div className="sx-row-more">
       <PreviewBody area={area} />
       <WayIn area={area} />
-      <Items env={env} area={area} rows={rows} activeIds={activeIds} />
+      <ChildCollections collections={childCollections} preview={preview} onHover={onHover} />
+      {(area.itemCount > 0 || !childCollections.length) && <Items env={env} area={area} rows={rows} activeIds={activeIds} />}
     </div>
   );
 }
@@ -285,12 +330,18 @@ const DRAG = 40;
 export function HomePreview({
   env,
   area,
+  childCollections,
+  preview,
+  onHover,
   rows,
   activeIds,
   onClose,
 }: {
   env: EnvKey;
   area: HomeArea;
+  childCollections: HomeArea[];
+  preview: string | null;
+  onHover: (slug: string | null) => void;
   rows: Rows;
   activeIds?: ReadonlySet<string>;
   onClose: () => void;
@@ -365,7 +416,8 @@ export function HomePreview({
         <PreviewBody area={area} brief />
         <WayIn area={area} />
       </div>
-      <Items env={env} area={area} rows={rows} activeIds={activeIds} fill />
+      <ChildCollections collections={childCollections} preview={preview} onHover={onHover} />
+      {(area.itemCount > 0 || !childCollections.length) && <Items env={env} area={area} rows={rows} activeIds={activeIds} fill />}
     </section>
   );
 }
