@@ -94,6 +94,15 @@ metadata, extent and collection assets. A linked GeoParquet file with zero
 rows works too. Missing or unreadable linked files still report an error;
 they aren't treated as intentionally empty collections.
 
+The home page lists top-level collections by default. Child collections stay
+accessible from their parent's page and through search. Search matches titles
+and descriptions at every level; a matching parent also includes all its
+descendants. Child results show their parent paths, and shared children appear
+only once. Review counts and map selection follow this scope, with no roll-up
+of descendant items into parents. Loaded children whose parents couldn't be
+loaded stay at the top level. Rootless cyclic branches also stay visible rather
+than disappearing because of invalid hierarchy links.
+
 There are no defaults in the code, so an environment left unset reads nothing
 and its pages load empty. The example file points Sandbox and Production at
 `./data/sandbox` and `./data/prod`, and Development and Test at placeholder

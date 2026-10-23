@@ -464,8 +464,13 @@
   color: var(--ffx-ink);
   overflow-wrap: anywhere;
 }
+.sx-row-parent {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  overflow-wrap: anywhere;
+}
 /* One run of text, not the flex row .sx-row-sub is elsewhere, so the
-   spaces around each middle dot stay. */
+  spaces around each middle dot stay. */
 .sx-rail-item .sx-row-sub {
   display: block;
   font-size: 12px;
@@ -495,14 +500,17 @@
 .sx-row-qc[data-qc="rejected"] {
   color: var(--ffx-bad-text);
 }
-/* The count, with the preview eye's slot to its left, over the unit. */
+/* Item and child collection counts, each over its unit, with the preview eye at left. */
 .sx-rail-item .sx-row-aside {
-  display: grid;
-  grid-template-columns: 14px auto;
-  align-items: center;
-  justify-items: end;
-  gap: 2px 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   min-width: 48px;
+}
+.sx-row-count {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
 }
 .sx-row-eye {
   display: flex;
@@ -511,9 +519,6 @@
 }
 .sx-row-eye[data-on] {
   visibility: visible;
-}
-.sx-rail-item .sx-row-unit {
-  grid-column: 1 / -1;
 }
 .sx-row-fig {
   font-family: var(--ffx-display);

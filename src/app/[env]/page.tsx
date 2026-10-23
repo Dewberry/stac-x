@@ -5,11 +5,12 @@ import type { ItemRow } from "@/components/items-list";
 import { HomeLoading } from "@/components/home-loading";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
+import { collectionParents, hierarchyOf } from "@/lib/collection-hierarchy";
 import { footprintBytes, footprintOf, INLINE_MAX, type Footprint } from "@/lib/footprint";
 import { itemRowsOf } from "@/lib/item-rows";
 import { areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
-import { QC_STATUSES, type Collection, type QcStatus } from "@/lib/stac";
+import type { Collection } from "@/lib/stac";
 import { collectionHref, collectionJsonHref } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -157,6 +158,8 @@ async function HomeData({ env }: { env: EnvKey }) {
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
+      childCollectionCount: c.childCollectionCount,
+      parentSlugs: [],
       unit: broken ? "items" : unitOf(c),
       geometryError: broken || undefined,
       lazy: lazy.has(c.id) || undefined,
@@ -173,17 +176,19 @@ async function HomeData({ env }: { env: EnvKey }) {
   }
   areas.sort((a, b) => a.name.localeCompare(b.name));
 
-  const byState = Object.fromEntries(QC_STATUSES.map((s) => [s.value, 0])) as Record<QcStatus, number>;
-  for (const a of areas) byState[a.qc?.qc ?? "pending"]++;
+  // Keep descendants available to search, but frame the initial map around
+  // top-level collections only. A failed parent leaves its children visible.
+  const parents = collectionParents(catalog.collections, new Set(areas.map((a) => a.id)));
+  for (const a of areas) a.parentSlugs = parents.get(a.slug) ?? [];
+  const { roots } = hierarchyOf(areas);
 
   return (
     <HomeConsole
       env={env}
       areas={areas}
       area={area && { name: area.name, geometry: area.geometry }}
-      frame={mapFrame(area, areas.map((a) => a.bbox))}
+      frame={mapFrame(area, areas.filter((a) => roots.has(a.slug)).map((a) => a.bbox))}
       items={items}
-      byState={byState}
       // Only shown when something is wrong. The details go to the server log.
       notice={
         catalog.errors.length > 0 || failed.size > 0

@@ -6,7 +6,8 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, us
 import type { Feature, FeatureCollection, MultiPolygon } from "geojson";
 import { envMeta, type EnvKey } from "@/lib/env";
 import type { Tint } from "@/lib/overview";
-import type { QcEdit, QcStatus } from "@/lib/stac";
+import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
+import { hierarchyOf, searchCollections } from "@/lib/collection-hierarchy";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
 import { HomeRail, type Group } from "./home-rail";
@@ -20,8 +21,9 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * under the environment band. Nothing here says what stac-x is; the header
  * does that.
  *
- * The rail is the way in. Its search box matches collections by title and
- * description; the review states in its head are the legend for the marks
+ * The rail shows top-level collections until searched. Search matches title
+ * and description at every level, including descendants of matching parents;
+ * the review states in its head are the legend for the marks
  * and the review filter in one; the rows are one list by name, or grouped
  * by review state.
  * Selecting a collection opens its row in place, with enough to decide
@@ -74,6 +76,10 @@ export type HomeArea = {
   href: string;
   jsonHref: string;
   itemCount: number;
+  /** Loaded direct child collections, shown beside the item count. */
+  childCollectionCount: number;
+  /** Loaded parent series, used to hide descendants until searched for. */
+  parentSlugs: string[];
   /** What the items are on the map: all points, any shapes, or no geometry at all. */
   unit: "points" | "shapes" | "items";
   /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
@@ -165,7 +171,6 @@ export function HomeConsole({
   area,
   frame,
   items,
-  byState,
   emptyText,
   notice,
 }: {
@@ -176,8 +181,6 @@ export function HomeConsole({
   /** Where the map opens, west, south, east, north. */
   frame: [number, number, number, number];
   items: FeatureCollection;
-  /** How many collections are in each review state. */
-  byState: Record<QcStatus, number>;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
   /** A problem loading the catalog, shown at the top of the list. */
@@ -201,7 +204,6 @@ export function HomeConsole({
   const searching = q.length > 0;
 
   const bySlug = useMemo(() => new Map(areas.map((a) => [a.slug, a])), [areas]);
-  const current = selected ? (bySlug.get(selected) ?? null) : null;
 
   // Each collection's items, fetched when it's first picked and kept.
   const [rowsBySlug, setRowsBySlug] = useState<Record<string, ItemRow[] | "error">>({});
@@ -223,11 +225,23 @@ export function HomeConsole({
     if (selected && !rowsBySlug[selected]) load(selected);
   }, [selected, rowsBySlug, load]);
 
-  // The search matches a collection's title and description, not its items.
-  const shown = useMemo(
-    () => areas.filter((a) => (!filter || stateOf(a) === filter) && (!searching || [a.name, a.blurb].some((t) => t?.toLowerCase().includes(q)))),
-    [areas, filter, searching, q],
-  );
+  const hierarchy = useMemo(() => hierarchyOf(areas), [areas]);
+  // Search all levels; a matching parent brings its descendants along.
+  // Review facets count this scope before applying the selected QC state.
+  const scope = useMemo(() => searchCollections(areas, q, hierarchy), [areas, q, hierarchy]);
+  const shown = useMemo(() => scope.filter((a) => !filter || stateOf(a) === filter), [scope, filter]);
+  const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
+  const activeSelected = selected && shownIds.has(selected) ? selected : null;
+  const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
+  const activeHovered = hovered && shownIds.has(hovered) ? hovered : null;
+  const byState = useMemo(() => {
+    const counts = Object.fromEntries(QC_STATUSES.map((s) => [s.value, 0])) as Record<QcStatus, number>;
+    for (const a of scope) counts[stateOf(a)]++;
+    return counts;
+  }, [scope]);
+  const parentPaths = useMemo(() => searching
+    ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.parentPaths(a.slug)]))
+    : {}, [hierarchy, searching, shown]);
   const groups = useMemo<Group[]>(() => {
     const list =
       groupBy === "review"
@@ -244,7 +258,7 @@ export function HomeConsole({
     const t = setTimeout(() => setPointed(hovered), PREVIEW_DELAY);
     return () => clearTimeout(t);
   }, [hovered]);
-  const preview = pointed && pointed !== selected ? pointed : null;
+  const preview = pointed && shownIds.has(pointed) && pointed !== activeSelected ? pointed : null;
   const previewArea = preview ? (bySlug.get(preview) ?? null) : null;
 
   // Footprints too heavy to send with the page, fetched the first time
@@ -267,12 +281,23 @@ export function HomeConsole({
     [bySlug],
   );
   useEffect(() => {
-    for (const slug of [selected, preview]) if (slug && !footprints[slug]) loadFootprint(slug);
-  }, [selected, preview, footprints, loadFootprint]);
+    for (const slug of [activeSelected, preview]) if (slug && !footprints[slug]) loadFootprint(slug);
+  }, [activeSelected, preview, footprints, loadFootprint]);
   const mapItems = useMemo<FeatureCollection>(() => {
     const fetched = Object.values(footprints).flat();
-    return fetched.length ? { type: "FeatureCollection", features: [...items.features, ...fetched] } : items;
-  }, [items, footprints]);
+    return { type: "FeatureCollection", features: [...items.features, ...fetched].filter((f) => shownIds.has(f.properties?.slug)) };
+  }, [items, footprints, shownIds]);
+
+  // Search/filter controls keep focus while the open row or mobile sheet
+  // disappears. Clear selection rather than reviving it on a later search.
+  const resetSelection = () => {
+    setSelected(null);
+    setHovered(null);
+    setPointed(null);
+    setPickedInArea(null);
+    setHoverKeys([]);
+    setHoveredItem(null);
+  };
 
   // On a phone the sheet opens over the list where it was tapped, and the
   // page stays put, so closing it leaves the reader in the same place.
@@ -332,7 +357,7 @@ export function HomeConsole({
     [router, env, current],
   );
 
-  const areaHighlight = pickedInArea ?? (hovered ? (bySlug.get(hovered)?.inArea ?? false) : false);
+  const areaHighlight = (current ? pickedInArea : null) ?? (activeHovered ? (bySlug.get(activeHovered)?.inArea ?? false) : false);
   const areaCovered = current?.drawn === "area" || previewArea?.drawn === "area";
   const rows: Rows = current ? (rowsBySlug[current.slug] ?? null) : null;
 
@@ -344,11 +369,11 @@ export function HomeConsole({
         <div className="sx-console">
           <div className="sx-console-map">
             <HomeMap
-              areas={areas}
+              areas={shown}
               items={mapItems}
               area={area}
               frame={frame}
-              shown={selected}
+              shown={activeSelected}
               preview={preview}
               areaHighlight={areaHighlight}
               areaCovered={areaCovered}
@@ -371,6 +396,8 @@ export function HomeConsole({
           <HomeRail
             env={env}
             areas={areas}
+            scopeCount={scope.length}
+            parentPaths={parentPaths}
             groups={groups}
             byState={byState}
             notice={notice}
@@ -378,12 +405,12 @@ export function HomeConsole({
             groupBy={groupBy}
             onGroupBy={regroup}
             filter={filter}
-            onFilter={setFilter}
+            onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}
-            onQuery={setQuery}
+            onQuery={(value) => { resetSelection(); setQuery(value); }}
             search={searching ? { q, collections: shown.length, hidden: shown.length < areas.length } : null}
-            selected={selected}
-            hovered={hovered}
+            selected={activeSelected}
+            hovered={activeHovered}
             preview={preview}
             rowsBySlug={rowsBySlug}
             activeIds={activeIds}

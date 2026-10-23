@@ -47,8 +47,10 @@ export function fmtBytes(n: number): string {
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
 
-/** station_nm to "Station nm", drain_area_va to "Drain area va", file:values to "File values". */
+/** Friendly field labels, preserving extension namespaces in capitals: ffrd:foobar to "FFRD: Foobar". */
 export function humanize(key: string): string {
+  const namespace = /^([a-z][a-z0-9_-]*):(.+)$/i.exec(key);
+  if (namespace) return `${namespace[1].toUpperCase()}: ${humanize(namespace[2])}`;
   const known: Record<string, string> = {
     datetime: "Date and time",
     start_datetime: "Start",
@@ -68,7 +70,6 @@ export function humanize(key: string): string {
   };
   if (known[key]) return known[key];
   const words = key
-    .replace(/^[a-z]+:/, "")
     .split(/[_\-.\s]+/)
     .filter(Boolean)
     .map((w) => ACRONYMS[w.toLowerCase()] ?? w);
@@ -98,6 +99,7 @@ const ACRONYMS: Record<string, string> = {
   "1d": "1D",
   "2d": "2D",
   aorc: "AORC",
+  ffrd: "FFRD",
   fema: "FEMA",
   hec: "HEC",
   nid: "NID",

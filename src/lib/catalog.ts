@@ -201,6 +201,8 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
       }
     }
   }
+  // Count the same loaded children the collection page can link to.
+  for (const c of collections) c.childCollectionCount = childCollectionsOf(c, collections).length;
   try {
     const series = groupVersions(collections);
     for (const c of collections) c.series = series.get(c.id)!;
@@ -343,6 +345,10 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       bbox: docBbox && docBbox.length >= 4 ? [docBbox[0], docBbox[1], docBbox[2], docBbox[3]] : bbox,
       temporal: docInterval ? [docInterval[0] ?? null, docInterval[1] ?? null] : temporal,
       itemCount: items.length,
+      childCollectionCount: 0,
+      childCollectionHrefs: Array.isArray(links) && docBase
+        ? (links as StacLink[]).filter((l) => l?.rel === "child" && typeof l.href === "string").map((l) => resolveHref(l.href, docBase))
+        : [],
       sources,
       fromDocument: true,
       assets: docAssets(assets, docBase),
@@ -377,6 +383,8 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
     bbox: unionBbox(items),
     temporal: temporalExtent(items),
     itemCount: items.length,
+    childCollectionCount: 0,
+    childCollectionHrefs: [],
     sources,
     fromDocument: false,
     assets: {},
@@ -392,6 +400,15 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
     geometryErrors,
     items,
   };
+}
+
+/** Loaded direct children, not descendants, missing documents, or self-links. */
+export function childCollectionsOf(parent: Collection, collections: Collection[]): Collection[] {
+  // The fallback handles catalogs cached before this field existed during hot reload.
+  const hrefs = new Set(parent.childCollectionHrefs ?? []);
+  return collections
+    .filter((c) => c.id !== parent.id && c.docHref !== null && hrefs.has(c.docHref))
+    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /** The collection document the items link to, if any. */

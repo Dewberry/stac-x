@@ -104,6 +104,10 @@ export type Collection = {
   bbox: [number, number, number, number] | null;
   temporal: [string | null, string | null];
   itemCount: number;
+  /** Distinct loaded collections linked directly as children, not all descendants. */
+  childCollectionCount: number;
+  /** Resolved child document hrefs, for matching loaded collections to navigation links. */
+  childCollectionHrefs: string[];
   /** Parquet or collection JSON sources, including those with no items. */
   sources: string[];
   /** True when collection.json was read from the bucket; false when derived. */

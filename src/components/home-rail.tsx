@@ -21,7 +21,8 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * collection's page.
  *
  * The search box matches collections by title and description, not their
- * items. While it does, the groups with nothing in them fold into one line.
+ * items, and includes descendants of matching parents. Child results show
+ * their parent paths. Empty groups fold into one line.
  */
 
 /** One group of the rail's rows. Ungrouped, the rail is one group with no heading. */
@@ -30,7 +31,7 @@ export type Group = { key: string; label: string | null; rows: HomeArea[] };
 /** What the search found, while there is one. */
 export type Search = {
   q: string;
-  /** Collections matched by title or description, under the review filter. */
+  /** Matches and their descendants, under the review filter. */
   collections: number;
   /** Some collections are out of the rail for not matching. */
   hidden: boolean;
@@ -41,6 +42,8 @@ const WIDE_SCREEN = "(min-width: 64rem)";
 export function HomeRail({
   env,
   areas,
+  scopeCount,
+  parentPaths,
   groups,
   byState,
   notice,
@@ -62,6 +65,9 @@ export function HomeRail({
 }: {
   env: EnvKey;
   areas: HomeArea[];
+  /** Root count by default; matching collections and descendants during search. */
+  scopeCount: number;
+  parentPaths: Record<string, string[]>;
   groups: Group[];
   /** How many collections are in each review state. */
   byState: Record<QcStatus, number>;
@@ -112,7 +118,7 @@ export function HomeRail({
           <h2>Collections</h2>
           {/* How many collections, and how many of them are showing while a filter or search hides some. */}
           <span className="sx-rail-count ffx-num">
-            {shownCount === areas.length ? fmtNum(areas.length) : `${fmtNum(shownCount)} of ${fmtNum(areas.length)}`}
+            {shownCount === scopeCount ? fmtNum(scopeCount) : `${fmtNum(shownCount)} of ${fmtNum(scopeCount)}`}
           </span>
           {/* On, the rows group by review state; off, they're one list by name. */}
           <button
@@ -138,15 +144,16 @@ export function HomeRail({
         {/* Said once the search or filter changes. The lines below show the
             same, but a status region that mounts with its text is often missed. */}
         <p className="sr-only" role="status">
-          {search ? `${search.collections} ${search.collections === 1 ? "collection matches" : "collections match"}` : ""}
+          {search ? `${search.collections} ${search.collections === 1 ? "collection found" : "collections found"}, including descendants of matching parents.` : ""}
           {filter ? ` Showing ${QC_LABEL[filter]} only` : ""}
         </p>
         {search && (
           <p className="sx-search-line" aria-hidden="true">
             <b>
-              <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "collection matches" : "collections match"}
+              <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "collection found" : "collections found"}
             </b>{" "}
             &ldquo;{search.q}&rdquo;
+            <span className="block">Includes descendants of matching parents.</span>
           </p>
         )}
         {/* The review states with their counts: the legend for the open
@@ -209,6 +216,7 @@ export function HomeRail({
                     key={a.slug}
                     env={env}
                     area={a}
+                    parentPaths={parentPaths[a.slug] ?? []}
                     active={(selected ?? hovered) === a.slug}
                     previewing={preview === a.slug}
                     open={open}
@@ -244,6 +252,7 @@ export function HomeRail({
 function AreaRow({
   env,
   area,
+  parentPaths,
   active,
   previewing,
   open,
@@ -254,6 +263,7 @@ function AreaRow({
 }: {
   env: EnvKey;
   area: HomeArea;
+  parentPaths: string[];
   active: boolean;
   previewing: boolean;
   open: boolean;
@@ -277,6 +287,7 @@ function AreaRow({
       >
         <span className="sx-row-main">
           <span className="sx-row-title">{area.name}</span>
+          {parentPaths.map((path) => <span key={path} className="sx-row-parent">Under {path}</span>)}
           <AreaSub area={area} open={open} />
         </span>
         <span className="sx-row-aside">
@@ -289,11 +300,19 @@ function AreaRow({
             </svg>
             {previewing && <span className="sr-only">Previewing on the map</span>}
           </span>
-          <b className="sx-row-fig ffx-num">{count.n}</b>
-          <span className="sx-row-unit">
-            <UnitGlyph unit={area.unit} />
-            {count.noun}
+          <span className="sx-row-count">
+            <b className="sx-row-fig ffx-num">{count.n}</b>
+            <span className="sx-row-unit">
+              <UnitGlyph unit={area.unit} />
+              {count.noun}
+            </span>
           </span>
+          {area.childCollectionCount > 0 && (
+            <span className="sx-row-count">
+              <b className="sx-row-fig ffx-num">{fmtNum(area.childCollectionCount)}</b>
+              <span className="sx-row-unit">{area.childCollectionCount === 1 ? "collection" : "collections"}</span>
+            </span>
+          )}
         </span>
       </button>
       {open && <OpenRow env={env} area={area} rows={rows} activeIds={activeIds} />}

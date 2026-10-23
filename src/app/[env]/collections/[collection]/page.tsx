@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
@@ -12,7 +13,7 @@ import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
-import { getCollection } from "@/lib/catalog";
+import { childCollectionsOf, getCatalog, getCollection } from "@/lib/catalog";
 import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
@@ -20,7 +21,7 @@ import { dataFileOf } from "@/lib/data-file";
 import { formatTag } from "@/lib/data-preview";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
-import { assetHref, collectionJsonHref, itemHref } from "@/lib/utils";
+import { assetHref, collectionHref, collectionJsonHref, itemHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
@@ -46,9 +47,11 @@ export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
   const { collection: raw } = await params;
   const id = decodeURIComponent(raw);
-  const c = await getCollection(env, id);
+  const catalog = await getCatalog(env);
+  const c = catalog.collections.find((collection) => collection.id === id);
   if (!c) return <NotInEnv env={env} collection={id} />;
 
+  const children = childCollectionsOf(c, catalog.collections);
   const rows = itemRowsOf(c);
   const rowOf = new Map(rows.map((r) => [r.id, r]));
   // The file the items live in, for the Data panel.
@@ -88,6 +91,7 @@ export default async function CollectionPage({ params }: Props) {
     { key: "id", value: c.id, label: "Id" },
     ...(version ? [{ key: "version", value: version, label: "Version" }] : []),
     { key: "items", value: c.itemCount, label: "Items" },
+    ...(c.childCollectionCount > 0 ? [{ key: "child_collections", value: c.childCollectionCount, label: "Child collections" }] : []),
     {
       key: "bbox",
       value: c.bbox ? c.bbox.map((n) => n.toFixed(4)).join(", ") : null,
@@ -109,8 +113,13 @@ export default async function CollectionPage({ params }: Props) {
           <>
             {c.series.versions.length < 2 && c.version && <span>{versionName(c.version)}</span>}
             <span>
-              <span className="ffx-num">{fmtNum(c.itemCount)}</span> items
+              <span className="ffx-num">{fmtNum(c.itemCount)}</span> {c.itemCount === 1 ? "item" : "items"}
             </span>
+            {c.childCollectionCount > 0 && (
+              <span>
+                <span className="ffx-num">{fmtNum(c.childCollectionCount)}</span> {c.childCollectionCount === 1 ? "collection" : "collections"}
+              </span>
+            )}
             {c.temporal[0] || c.temporal[1] ? (
               <span className="ffx-num">{fmtRange(c.temporal[0], c.temporal[1])}</span>
             ) : null}
@@ -207,6 +216,27 @@ export default async function CollectionPage({ params }: Props) {
           </Panel>
         </div>
         <div className="sx-col">
+          {children.length > 0 && (
+            <Panel title="Child collections" note={fmtNum(children.length)} id="child-collections">
+              <ul className="divide-y divide-grid">
+                {children.map((child) => (
+                  <li key={child.id}>
+                    <Link href={collectionHref(env, child.id)} className="sx-row">
+                      <div className="sx-row-main">
+                        <div className="sx-row-title">{child.title}</div>
+                        <div className="sx-row-sub">
+                          {child.title !== child.id && <span className="ffx-id">{child.id}</span>}
+                          <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
+                        </div>
+                        {child.description && <p className="sx-row-desc">{child.description}</p>}
+                      </div>
+                      <Icon d={ICONS.chevronRight} size={14} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
           <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
             <ItemsList env={env} collection={c.id} rows={rows} />
           </Panel>

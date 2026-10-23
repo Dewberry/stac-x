@@ -61,7 +61,7 @@ function load(file) {
   vm.runInContext(`(function(require, module, exports) {${outputText}\n})`, context, { filename: file })(localRequire, loaded, loaded.exports);
   return loaded.exports;
 }
-const { getCatalog, invalidate } = load(resolve(root, "catalog.ts"));
+const { childCollectionsOf, getCatalog, invalidate } = load(resolve(root, "catalog.ts"));
 const { collectionsOf, readCollectionJson } = load(resolve(root, "stac-json.ts"));
 const uri = "file:///checks/collection.json";
 const parquet = "file:///checks/items.parquet";
@@ -86,6 +86,8 @@ assert.equal(catalog.errors.length, 0);
 assert.equal(catalog.collections.length, 1);
 let c = catalog.collections[0];
 assert.equal(c.itemCount, 0);
+assert.equal(c.childCollectionCount, 0);
+assert.equal(childCollectionsOf(c, catalog.collections).length, 0);
 assert.equal(c.fromDocument, true);
 assert.equal(c.title, "Empty Collection");
 assert.equal(c.sourceTitle, doc.title);
@@ -111,6 +113,8 @@ const childUri = "file:///checks/child/collection-v01.json";
 const grandchildUri = "file:///checks/child/deeper/collection.json";
 put(uri, { ...doc, links: [
   { rel: "child", href: "child/collection-v01.json" },
+  { rel: "child", href: "./child/collection-v01.json" },
+  { rel: "child", href: "collection.json" },
   { rel: "child", href: "child/deeper/collection.json" },
 ] });
 put(childUri, { ...doc, id: "child", links: [{ rel: "child", href: "deeper/collection.json" }] });
@@ -123,6 +127,16 @@ for (const rootUri of [catalogUri, uri]) {
   assert.equal(catalog.sources.length, 3);
   assert.ok(catalog.collections.every((c) => c.itemCount === 0 && c.fromDocument));
   assert.equal(catalog.collections.find((c) => c.id === "child").assets.overview.href, "file:///checks/child/overview.png");
+  assert.equal(catalog.collections.find((c) => c.id === "empty").childCollectionCount, 2);
+  assert.equal(catalog.collections.find((c) => c.id === "child").childCollectionCount, 1);
+  for (const parent of catalog.collections) {
+    const children = childCollectionsOf(parent, catalog.collections);
+    assert.equal(children.length, parent.childCollectionCount);
+    assert.ok(children.every((child) => child.id !== parent.id));
+  }
+  const children = childCollectionsOf(catalog.collections.find((c) => c.id === "empty"), catalog.collections);
+  assert.equal(JSON.stringify(children.map((c) => c.id)), JSON.stringify(["child", "grandchild"]));
+  assert.equal(JSON.stringify(childCollectionsOf(catalog.collections.find((c) => c.id === "child"), catalog.collections).map((c) => c.id)), JSON.stringify(["grandchild"]));
 }
 
 // Unreadable or invalid children report errors without hiding valid siblings.
@@ -140,6 +154,8 @@ assert.ok(nested.missing.some((m) => m.href.endsWith("invalid.json") && m.error 
 catalog = await snapshot();
 assert.equal(catalog.collections.length, 3);
 assert.equal(catalog.errors.length, 2);
+assert.equal(catalog.collections.find((c) => c.id === "empty").childCollectionCount, 1);
+assert.equal(JSON.stringify(childCollectionsOf(catalog.collections.find((c) => c.id === "empty"), catalog.collections).map((c) => c.id)), JSON.stringify(["child"]));
 put(uri, doc);
 sources = [catalogUri];
 
@@ -175,3 +191,63 @@ catalog = await snapshot();
 assert.equal(catalog.collections.length, 0);
 assert.equal(catalog.errors.length, 1);
 console.log("Empty collection regression checks passed.");
+
+// Shared labels preserve namespace identity, casing, and existing overrides.
+const { humanize } = load(resolve(root, "format.ts"));
+for (const [key, expected] of [
+  ["ffrd:foobar", "FFRD: Foobar"],
+  ["FfRd:foo_bar", "FFRD: Foo bar"],
+  ["custom-v2:some_field", "CUSTOM-V2: Some field"],
+  ["proj:epsg", "PROJ: EPSG"],
+  ["file:values", "FILE: Values"],
+  ["ffrd:date_approved", "FFRD: Date approved"],
+  ["ffrd", "FFRD"],
+  ["drain_area_va", "Drainage area (mi²)"],
+  ["stac_version", "STAC version"],
+  ["", ""],
+]) assert.equal(humanize(key), expected, key);
+console.log("Property label regression checks passed.");
+
+// Home hierarchy: roots by default, all levels searchable, and a matching
+// parent includes its descendants without duplicating shared children.
+const { collectionParents, hierarchyOf, searchCollections } = load(resolve(root, "collection-hierarchy.ts"));
+const nodes = [
+  { slug: "weather", name: "Meteorology", parentSlugs: [] },
+  { slug: "models", name: "Models", parentSlugs: [] },
+  { slug: "storms", name: "Storm catalog", parentSlugs: ["weather", "models", "weather"] },
+  { slug: "events", name: "Events", blurb: "Hourly rain", parentSlugs: ["storms"] },
+  { slug: "orphan", name: "Orphan", parentSlugs: ["missing"] },
+];
+const hierarchy = hierarchyOf(nodes);
+const slugs = (query) => Array.from(searchCollections(nodes, query, hierarchy), (n) => n.slug);
+assert.deepEqual(slugs(""), ["weather", "models", "orphan"]);
+assert.deepEqual(slugs("  "), slugs(""));
+assert.deepEqual(slugs("METEOROLOGY"), ["weather", "storms", "events"]);
+assert.deepEqual(slugs("storm"), ["storms", "events"]);
+assert.deepEqual(slugs("hourly"), ["events"]);
+assert.deepEqual(slugs("nothing matches"), []);
+assert.deepEqual(Array.from(hierarchy.parentPaths("storms")), ["Meteorology", "Models"]);
+assert.deepEqual(Array.from(hierarchy.parentPaths("events")), ["Meteorology / Storm catalog", "Models / Storm catalog"]);
+assert.deepEqual(Array.from(hierarchy.parentPaths("orphan")), []);
+assert.deepEqual(Array.from(searchCollections([], "")), []);
+
+const cyclic = [
+  { slug: "a", name: "A", parentSlugs: ["b"] },
+  { slug: "b", name: "B", parentSlugs: ["a"] },
+  { slug: "c", name: "C", parentSlugs: ["b"] },
+];
+assert.equal(searchCollections(cyclic, "").length, 3); // Rootless bad links don't hide data.
+assert.equal(searchCollections(cyclic, "A").length, 3);
+assert.deepEqual(Array.from(hierarchyOf(cyclic).parentPaths("c")), ["A / B"]);
+const selfLink = [{ slug: "self", name: "Self", parentSlugs: ["self"] }];
+assert.equal(searchCollections(selfLink, "").length, 1);
+
+// A child link to an older version still parents the latest visible series.
+const family = [
+  { id: "p", series: { id: "p", latest: "p" }, docHref: "file:///p.json", childCollectionHrefs: ["file:///old.json"] },
+  { id: "old", series: { id: "s", latest: "new" }, docHref: "file:///old.json", childCollectionHrefs: [] },
+  { id: "new", series: { id: "s", latest: "new" }, docHref: "file:///new.json", childCollectionHrefs: [] },
+];
+assert.deepEqual(Array.from(collectionParents(family, new Set(["p", "new"])).get("s")), ["p"]);
+assert.deepEqual(Array.from(collectionParents(family, new Set(["new"])).get("s")), []); // Failed parent becomes an orphan.
+console.log("Catalog hierarchy and search regression checks passed.");
