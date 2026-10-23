@@ -534,7 +534,7 @@ export function HomeMap({
       mapRef.current = null;
     };
     // Built once; highlight and data changes are applied by the effects below.
-     
+
   }, []);
 
   useEffect(() => {
