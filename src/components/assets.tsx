@@ -261,7 +261,6 @@ function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
       <AssetHead a={a} />
       {a.title && a.description && <p className="text-small text-ink-sec">{a.description}</p>}
       {image && <Thumbnail src={assetHref(a.href)} alt={a.title || humanize(key)} />}
-      <div className="sx-asset-href">{a.href}</div>
       <div className="flex flex-wrap gap-1">
         {a.type && <span className="sx-tag">{mediaLabel(a.type)}</span>}
         {a.roles?.map((r) => (

@@ -34,6 +34,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** The STAC "core" fields, shown first and under their own names. */
 const CORE = ["datetime", "start_datetime", "end_datetime", "created", "updated", "title", "description"];
 
+// Geometry stays on the map and in the raw JSON, not in the metadata table.
+const SPATIAL = new Set(["geometry", "geometry_type", "bbox"]);
+
 export default async function ItemPage({ params }: Props) {
   const env = await pageEnv(params);
   const { collection: rawC, item: rawI } = await params;
@@ -73,11 +76,9 @@ export default async function ItemPage({ params }: Props) {
       ? [{ key: "range", value: fmtRange(str(p.start_datetime), str(p.end_datetime)), label: "Period" }]
       : []),
     ...CORE.filter((k) => k in p && k !== "title" && k !== "description").map((k) => ({ key: k, value: p[k] })),
-    ...(item.bbox ? [{ key: "bbox", value: item.bbox.map((n) => n.toFixed(5)).join(", "), label: "Bounding box" }] : []),
-    { key: "geometry_type", value: brokenGeometry ? "Couldn't be read" : item.geometry?.type ?? null, label: "Geometry" },
   ];
   const rest: Entry[] = Object.entries(p)
-    .filter(([k]) => !CORE.includes(k))
+    .filter(([k]) => !CORE.includes(k) && !SPATIAL.has(k.split(":").pop()!))
     .map(([key, value]) => ({ key, value }));
 
   const links = item.links.filter((l) => !["self", "parent", "root", "collection"].includes(l.rel));

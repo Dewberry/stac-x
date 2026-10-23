@@ -6,12 +6,6 @@
   display: grid;
   gap: 0.625rem;
 }
-.sx-asset-href {
-  font-family: var(--ffx-mono);
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
-  overflow-wrap: anywhere;
-}
 .sx-asset-table {
   border: 1px solid var(--ffx-rule);
   border-radius: 8px;
