@@ -9,7 +9,7 @@ import { NotFound, parseRef, readJson } from "./storage";
  *
  * An environment's folder or prefix can hold a catalog.json (or a versioned
  * catalog-v1.json) at its root. The catalog's `child` links are followed,
- * through any sub-catalogs, to collections, whatever their files are called
+ * through sub-catalogs and parent collections, whatever their files are called
  * (collection-v1.0.json is fine). Each collection is one source, and its
  * items are the rows of the stac-geoparquet file it links to, as `items` or
  * `alternate`. Without an items link, the collection is loaded with no
@@ -59,13 +59,13 @@ export async function collectionsOf(
     }
     if (doc?.type === "Collection") {
       collections.push(uri);
-      return;
-    }
-    if (doc?.type !== "Catalog") {
+    } else if (doc?.type !== "Catalog") {
       missing.push({ href: uri, error: "not a STAC Catalog or Collection" });
       return;
     }
     const links = Array.isArray(doc.links) ? (doc.links as StacLink[]) : [];
+    // Collections can have children too. Keep the parent as a source and
+    // follow its children; the seen set handles shared children and cycles.
     // Siblings are read together; a catalog of a dozen collections is one
     // round trip deep instead of a dozen.
     await Promise.all(

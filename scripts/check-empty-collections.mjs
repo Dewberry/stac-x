@@ -62,7 +62,7 @@ function load(file) {
   return loaded.exports;
 }
 const { getCatalog, invalidate } = load(resolve(root, "catalog.ts"));
-const { readCollectionJson } = load(resolve(root, "stac-json.ts"));
+const { collectionsOf, readCollectionJson } = load(resolve(root, "stac-json.ts"));
 const uri = "file:///checks/collection.json";
 const parquet = "file:///checks/items.parquet";
 const doc = {
@@ -104,6 +104,44 @@ const catalogUri = "file:///checks/catalog.json";
 put(catalogUri, { type: "Catalog", links: [{ rel: "child", href: "collection.json" }] });
 sources = [catalogUri];
 assert.equal((await snapshot()).collections[0].id, doc.id);
+
+// Nested collections are discovered from a catalog or a collection root.
+// Shared children and child-link cycles must not duplicate sources or hang.
+const childUri = "file:///checks/child/collection-v01.json";
+const grandchildUri = "file:///checks/child/deeper/collection.json";
+put(uri, { ...doc, links: [
+  { rel: "child", href: "child/collection-v01.json" },
+  { rel: "child", href: "child/deeper/collection.json" },
+] });
+put(childUri, { ...doc, id: "child", links: [{ rel: "child", href: "deeper/collection.json" }] });
+put(grandchildUri, { ...doc, id: "grandchild", links: [{ rel: "child", href: "../../collection.json" }] });
+for (const rootUri of [catalogUri, uri]) {
+  sources = [rootUri];
+  catalog = await snapshot();
+  assert.equal(catalog.errors.length, 0);
+  assert.equal(JSON.stringify(catalog.collections.map((c) => c.id).sort()), JSON.stringify(["child", "empty", "grandchild"]));
+  assert.equal(catalog.sources.length, 3);
+  assert.ok(catalog.collections.every((c) => c.itemCount === 0 && c.fromDocument));
+  assert.equal(catalog.collections.find((c) => c.id === "child").assets.overview.href, "file:///checks/child/overview.png");
+}
+
+// Unreadable or invalid children report errors without hiding valid siblings.
+put("file:///checks/invalid.json", { type: "Feature" });
+put(uri, { ...doc, links: [
+  { rel: "child", href: "child/collection-v01.json" },
+  { rel: "child", href: "missing.json" },
+  { rel: "child", href: "invalid.json" },
+] });
+const nested = await collectionsOf(uri);
+assert.equal(nested.collections.length, 3);
+assert.equal(nested.missing.length, 2);
+assert.ok(nested.missing.some((m) => m.href.endsWith("missing.json") && m.error === "not found"));
+assert.ok(nested.missing.some((m) => m.href.endsWith("invalid.json") && m.error === "not a STAC Catalog or Collection"));
+catalog = await snapshot();
+assert.equal(catalog.collections.length, 3);
+assert.equal(catalog.errors.length, 2);
+put(uri, doc);
+sources = [catalogUri];
 
 // Adding a parquet link and later removing it must refresh without stale items.
 put(parquet, { items: [], collections: {} });

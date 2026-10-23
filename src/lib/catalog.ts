@@ -7,7 +7,7 @@ import { collectionName } from "./format";
 import { NotStac, readItems } from "./parquet";
 import { collectionsOf, readCollectionJson, resolveHref } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
-import { awsAvailable, CATALOG_JSON, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
+import { awsAvailable, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
 /**
@@ -221,11 +221,12 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
   for (const entry of configuredSources(env)) {
     try {
       for (const uri of await listSourceFiles(entry)) {
-        if (!CATALOG_JSON.test(uri)) {
+        if (!isJsonSource(uri)) {
           uris.push(uri);
           continue;
         }
-        // A static catalog: each collection it links to is a source.
+        // Start at either a catalog or a directly configured collection.
+        // Each collection reached through child links is its own source.
         const found = await collectionsOf(uri);
         uris.push(...found.collections);
         for (const m of found.missing) {
