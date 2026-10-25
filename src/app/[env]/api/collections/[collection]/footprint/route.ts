@@ -9,13 +9,15 @@ import { mapArea } from "@/lib/map-area";
  * ones too heavy to send with the page. The console fetches it when the
  * collection is first picked or pointed at. The app's own, not STAC.
  */
-export async function GET(_req: Request, { params }: { params: Promise<{ env: string; collection: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ env: string; collection: string }> }) {
   const { env, collection } = await params;
   if (!isEnv(env)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const c = await getCollection(env, decodeURIComponent(collection));
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   try {
-    const f = footprintOf(c, mapArea());
+    // Collection previews need the actual footprint, not the home map's
+    // whole-area shortcut, which intentionally returns no features.
+    const f = footprintOf(c, new URL(req.url).searchParams.get("view") === "collection" ? null : mapArea());
     return NextResponse.json({ type: "FeatureCollection", slug: f.slug, features: f.features });
   } catch (e) {
     console.error(`stac-x: ${c.id} couldn't be drawn on the home page:`, e);

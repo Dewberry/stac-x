@@ -239,11 +239,13 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   // Latest props, readable from the one-time map setup below without
   // rebuilding the map. Written in an effect, never during render.
   const dataRef = useRef(data);
+  const bboxRef = useRef(bbox);
   const selectedRef = useRef(selected);
   const hiRef = useRef<(string | null | undefined)[]>([]);
   const onHoverRef = useRef(onHover);
   useEffect(() => {
     dataRef.current = data;
+    bboxRef.current = bbox;
     selectedRef.current = selected;
     hiRef.current = JSON.parse(hiKey);
     onHoverRef.current = onHover;
@@ -291,7 +293,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
       setPinHost(pinDiv);
 
       const fit = () => {
-        const b = boundsOf(dataRef.current, bbox);
+        const b = boundsOf(dataRef.current, bboxRef.current);
         if (b) m.fitBounds(b, FIT);
       };
       m.addControl(new Controls(m, frame, fit), "top-right");
@@ -355,14 +357,19 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
       mapRef.current = null;
     };
     // The map is built once; data and selection updates go through the effects below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const m = mapRef.current;
     const src = m?.getSource(SRC) as GeoJSONSource | undefined;
     if (src) src.setData(data);
-  }, [data]);
+    // Child previews replace the dataset without rebuilding the map. Frame
+    // each dataset, including the parent's items when the pointer leaves.
+    if (m) {
+      const bounds = boundsOf(data, bbox);
+      if (bounds) m.fitBounds(bounds, { ...FIT, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 750 });
+    }
+  }, [data, bbox]);
 
   useEffect(() => {
     const m = mapRef.current;

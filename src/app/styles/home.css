@@ -172,11 +172,14 @@
 }
 
 /* The console. On a phone the map is a band across the top and the rail a
-   plain block under it. From lg the rail is a fixed column and the map
+  plain block under it. From lg the rail is resizable and the map
    takes the rest, both full height. */
 .sx-console {
   display: flex;
   flex-direction: column;
+}
+.sx-rail-resizer {
+  display: none;
 }
 .sx-console-map {
   position: relative;
@@ -291,7 +294,7 @@
     height: 32px;
   }
 }
-/* "Group by review": a small switch and its label, at the end of the title row. */
+/* "Hide empty collections": a small switch at the end of the title row. */
 .sx-group-switch {
   display: inline-flex;
   align-items: center;
@@ -833,6 +836,20 @@ button.sx-map-pill svg {
   font-weight: 600;
   color: var(--ffx-ink);
 }
+.sx-child-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  list-style: none;
+  cursor: pointer;
+}
+.sx-child-summary::-webkit-details-marker {
+  display: none;
+}
+.sx-preview .sx-child-collections:not([open]) {
+  flex: none;
+}
 .sx-child-collections .sx-item-list > li + li {
   border-top: 1px solid var(--ffx-rule);
 }
@@ -1117,10 +1134,59 @@ button.sx-map-pill svg {
     height: auto;
   }
   .sx-rail {
-    width: 372px;
+    width: var(--sx-rail-width, 372px);
+    order: 2;
     flex: none;
     min-height: 0;
     border-right: 1px solid var(--ffx-rule);
+  }
+  .sx-rail-resizer {
+    order: 1;
+    flex: 0 0 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    border-right: 1px solid var(--ffx-rule);
+    background: var(--ffx-surface);
+    color: var(--ffx-ink-mut);
+  }
+  .sx-rail-resizer button {
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ffx-ink);
+    font-size: 22px;
+    cursor: pointer;
+  }
+  .sx-rail-resizer button[aria-disabled="true"] {
+    color: var(--ffx-ink-mut);
+    cursor: default;
+  }
+  .sx-rail-grip {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    min-height: 44px;
+    cursor: col-resize;
+    touch-action: none;
+  }
+  .sx-rail-grip > span {
+    width: 4px;
+    height: 40px;
+    border-radius: 2px;
+    background: var(--ffx-rule-strong);
+  }
+  .sx-rail-grip:hover > span,
+  .sx-rail-grip:focus-visible > span,
+  .sx-console[data-resizing] .sx-rail-grip > span {
+    background: var(--ffx-river);
+  }
+  .sx-rail-resizer :focus-visible {
+    outline-offset: -2px;
+  }
+  .sx-console[data-resizing] {
+    user-select: none;
   }
   .sx-rail-list {
     flex: 1;

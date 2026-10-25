@@ -5,7 +5,7 @@ import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { collectionName } from "./format";
 import { NotStac, readItems } from "./parquet";
-import { collectionsOf, readCollectionJson, resolveHref } from "./stac-json";
+import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsAvailable, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
@@ -37,6 +37,8 @@ type SourceState = {
   etag: string;
   /** The parquet file a collection.json's items come from. */
   parquet: string | null;
+  /** JSON item files and pages, absent on caches from before JSON item support. */
+  dependencies?: JsonStac["dependencies"];
   items: StacItem[];
   /** Collection objects embedded in the file's metadata, by id. */
   embedded: Record<string, Record<string, unknown>>;
@@ -263,17 +265,17 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
   try {
     const [h, sidecar] = await Promise.all([head(uri), readEdits(uri)]);
     if (!h) throw new Error("object not found");
-    // A catalog's collection.json says nothing about its items, which are
-    // the rows of the parquet file it links to, so it's re-read when either
-    // file changes. Unchanged, a check is two HEADs and no parsing. No
-    // `embedded` means the state was cached before this code read it.
+    // Re-read when the collection or any linked items file changes. JSON
+    // dependencies include every ItemCollection page, not just the first.
     if (isJsonSource(uri)) {
       const rows = state.parquet ? await head(state.parquet) : null;
-      if (`${h.etag}|${rows?.etag ?? ""}` !== state.etag || !state.embedded) {
+      if (`${h.etag}|${rows?.etag ?? ""}` !== state.etag || !state.embedded ||
+          !state.dependencies || await jsonItemsChanged(state.dependencies)) {
         const read = await readCollectionJson(uri);
         state.items = read.items;
         state.embedded = read.collections;
         state.parquet = read.parquet?.uri ?? null;
+        state.dependencies = read.dependencies;
         state.etag = `${h.etag}|${read.parquet?.etag ?? ""}`;
       }
     } else if (h.etag !== state.etag || !state.embedded) {

@@ -104,7 +104,7 @@ const PARQUET = /\.(geo)?parquet$|\.pq$/i;
  * catalog-v1.json. Its children are found by stac-json.ts.
  */
 export const CATALOG_JSON = /(^|\/)catalog[^/]*\.json$/i;
-/** A source that's a catalog's collection.json, whose items are in the parquet file it links to. */
+/** A collection JSON source, whose items may be linked JSON or parquet. */
 export const isJsonSource = (uri: string) => /\.json$/i.test(uri);
 
 /* ------------------------------------------------------------------ list */

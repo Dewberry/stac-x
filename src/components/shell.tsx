@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BrandLink } from "./brand-link";
-import { Icon, ICONS } from "./icons";
+import { Chevron, Icon, ICONS } from "./icons";
 import { HeaderControls } from "./env-switcher";
 import { MoreMenu } from "./more-menu";
 export { EnvBand } from "./env-switcher";
@@ -175,6 +175,28 @@ export function PageHead({
         </div>
       )}
     </div>
+  );
+}
+
+/** A native disclosure; descriptions and assets start closed, navigation can start open. */
+export function CollapsiblePanel({ title, note, id, children, defaultOpen = false }: {
+  title: string;
+  note?: ReactNode;
+  id: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <section className="ffx-panel sx-collapsible-panel" id={id} aria-labelledby={`${id}-h`}>
+      <details open={defaultOpen}>
+        <summary className="ffx-panel-head">
+          <Chevron />
+          <h2 className="ffx-panel-title" id={`${id}-h`}>{title}</h2>
+          {note && <span className="ffx-panel-note">{note}</span>}
+        </summary>
+        <div>{children}</div>
+      </details>
+    </section>
   );
 }
 

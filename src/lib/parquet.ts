@@ -167,7 +167,7 @@ const GEOMETRY_TYPES = new Set(["Point", "MultiPoint", "LineString", "MultiLineS
  * whose geometry is there but can't be read says why, so the collection
  * can say so on its page.
  */
-function toGeometry(v: unknown): { value: Geometry | null; error: string | null } {
+export function toGeometry(v: unknown): { value: Geometry | null; error: string | null } {
   if (v === null || v === undefined) return { value: null, error: null };
   if (v instanceof Uint8Array) {
     try {

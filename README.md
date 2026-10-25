@@ -82,12 +82,19 @@ Each value is one or more of these, separated by commas:
 
 - **A STAC catalog**, `catalog.json` or a versioned name like `catalog-v1.json`.
   It's followed through its `child` links to its collections, and each
-  collection's items are the rows of the stac-geoparquet file it links to.
+  collection's items come from linked GeoParquet or JSON files.
+- **A single STAC Collection JSON file**, with linked items or metadata only.
 - **An S3 prefix or local folder.** Every parquet file and `catalog.json` in it is read.
 - **A single parquet file**, on S3 or local.
 
-Items are always GeoParquet. A collection that keeps one JSON file per item
-isn't read, and shows up as an error in the server log.
+Collections can link individual JSON Items with `rel="item"`, or JSON
+ItemCollections (GeoJSON FeatureCollections) with `rel="items"`. ItemCollection
+`next` links are followed, repeated files and item ids are read once, and
+relative item links and asset hrefs resolve against the JSON file containing
+them. Linked GeoParquet takes precedence when both formats are available.
+JSON reads and ETag checks run eight files at a time; GeoParquet is still
+recommended for large collections. Changes to linked items or pages are
+picked up at the configured refresh interval, even if the collection is unchanged.
 
 Collections without an items link are shown with zero items, using their
 metadata, extent and collection assets. A linked GeoParquet file with zero
@@ -102,6 +109,24 @@ only once. Review counts and map selection follow this scope, with no roll-up
 of descendant items into parents. Loaded children whose parents couldn't be
 loaded stay at the top level. Rootless cyclic branches also stay visible rather
 than disappearing because of invalid hierarchy links.
+
+Hide empty collections is on by default and remembers the viewer's choice.
+The updated default resets the earlier opt-in preference once. List totals and
+direct child counts exclude hidden collections while the filter is on.
+It removes collections with no items, child collections,
+or collection assets from the home list, search results, child links, and map.
+Parents with children stay browsable. Review-state filters remain separate.
+Child collections use compact counts and plain headings and list rows.
+Collection pages keep browsing on the left and maps on the right;
+item pages keep their maps at the top left. On desktop, drag the divider beside the
+collections pane to give the list or map more room. Child collections start
+expanded and can be collapsed; Description and Assets start collapsed on
+collection pages. Hover or focus a child link to preview it on the map, then
+leave the link or press Escape to return to the current collection's items.
+The divider's arrow buttons work
+without dragging; the focused divider also accepts Left/Right, Home/End, and
+Enter to reset. The preferred width is remembered in this browser. Phones keep
+the stacked map and list.
 
 There are no defaults in the code, so an environment left unset reads nothing
 and its pages load empty. The example file points Sandbox and Production at
@@ -165,16 +190,16 @@ also needs to know.
 
 ### What the catalog has to look like
 
-The app reads what the pipeline writes: stac-geoparquet, one file per
-collection.
+The app reads stac-geoparquet and static STAC JSON items.
 
 - A STAC catalog's `child` links lead, through any sub-catalogs, to
   collection files. Each collection links to its parquet file with any `rel`
   but `self`, as long as the link's `type` says parquet
   (`application/vnd.apache.parquet`) or its href ends in `.parquet`,
   `.geoparquet` or `.pq`. Relative hrefs are fine.
-- A collection that links one JSON file per item is refused, and the server
-  log says so. Convert it to stac-geoparquet first.
+- Collections can instead link JSON Items or paginated ItemCollections as
+  described in [Sources](#sources). Missing or invalid linked documents report
+  an error rather than appearing as empty collections.
 - Sources and the files they link to have to be on S3 (`s3://`) or a local
   path. `https://` isn't read: the page notes that collections couldn't be
   loaded, and the server log says why.

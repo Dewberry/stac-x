@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { PreviewButton } from "@/components/data-modal";
 import { DataPanel } from "@/components/data-panel";
-import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
+import { ChildCollectionLink, ItemHoverProvider, LinkedMap } from "@/components/item-hover";
 import { ItemsList } from "@/components/items-list";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
-import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
+import { CollapsiblePanel, homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { childCollectionsOf, getCatalog, getCollection } from "@/lib/catalog";
+import { collectionAncestors } from "@/lib/collection-hierarchy";
 import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
@@ -36,9 +36,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * A collection: the STAC Browser layout. The left column is what describes
- * the collection (description, license and temporal extent, the map, then
- * metadata) and the right column is its items. QC is recorded for the
+ * A collection keeps browsing on the left and its map on the right, like
+ * the catalog. Assets and metadata follow the map. Item pages keep their
+ * map at the top left. QC is recorded for the
  * collection as a whole and reviewed from Admin, so the page only shows its
  * state in the subtitle. Under the items, the first rows of the file they
  * came from, for a look at the data itself.
@@ -107,7 +107,14 @@ export default async function CollectionPage({ params }: Props) {
   return (
     <div className="sx-page">
       <PageHead
-        crumbs={[homeCrumb(env), { label: c.title }]}
+        crumbs={[
+          homeCrumb(env),
+          ...collectionAncestors(c, catalog.collections).map((parent) => ({
+            label: parent.title,
+            href: collectionHref(env, parent.id),
+          })),
+          { label: c.title },
+        ]}
         title={c.title}
         subtitle={
           <>
@@ -168,10 +175,10 @@ export default async function CollectionPage({ params }: Props) {
       <VersionNotice env={env} c={c} />
 
       <ItemHoverProvider>
-      <div className="sx-cols">
+      <div className="sx-cols sx-collection-cols">
         <div className="sx-col">
           {(c.description || c.keywords.length > 0 || facts.length > 0) && (
-            <Panel title="Description" id="about">
+            <CollapsiblePanel title="Description" id="about">
               {c.description && <div className="sx-desc ffx-prose">{c.description}</div>}
               {c.keywords.length > 0 && (
                 <ul className="sx-keywords" aria-label="Keywords">
@@ -185,57 +192,33 @@ export default async function CollectionPage({ params }: Props) {
                   <MetaTable entries={facts} />
                 </div>
               )}
-            </Panel>
+            </CollapsiblePanel>
           )}
-          {brokenGeometry && (
-            <p className="sx-callout" role="status">
-              The geometry in this collection&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
-              The rest of the page shows what the file has.
-            </p>
-          )}
-          <div className="sx-mapcard">
-            <LinkedMap
-              data={geo}
-              bbox={brokenGeometry ? LOWER_48 : c.bbox}
-              label={`Items of ${c.title}`}
-              hint={brokenGeometry ? "Geometry couldn't be read." : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
-              tip={brokenGeometry ? undefined : "Click one for a link to its page."}
-            />
-          </div>
-          {/* The collection's own files sit in the slot STAC Browser gives them
-              after the map. Overview plots show inline like an item's. */}
-          {Object.keys(c.assets).length > 0 && (
-            <Panel title="Assets" note={assetNote(c.assets)} id="assets">
-              <Assets assets={c.assets} plotsFirst />
-            </Panel>
-          )}
-          <Panel title="Metadata" id="meta">
-            <div className="pb-2">
-              <MetaTable entries={meta} />
-            </div>
-          </Panel>
-        </div>
-        <div className="sx-col">
           {children.length > 0 && (
-            <Panel title="Child collections" note={fmtNum(children.length)} id="child-collections">
+            <CollapsiblePanel title="Child collections" note={fmtNum(children.length)} id="child-collections" defaultOpen>
               <ul className="divide-y divide-grid">
                 {children.map((child) => (
                   <li key={child.id}>
-                    <Link href={collectionHref(env, child.id)} className="sx-row">
+                    <ChildCollectionLink href={collectionHref(env, child.id)} preview={{
+                      url: `${collectionJsonHref(env, child.id)}/footprint?view=collection`,
+                      name: child.title,
+                      bbox: child.geometryErrors ? null : child.bbox,
+                    }}>
                       <div className="sx-row-main">
                         <div className="sx-row-title">{child.title}</div>
                         <div className="sx-row-sub">
                           {child.title !== child.id && <span className="ffx-id">{child.id}</span>}
                           <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
+                          {child.childCollectionCount > 0 && <span><span className="ffx-num">{fmtNum(child.childCollectionCount)}</span> child {child.childCollectionCount === 1 ? "collection" : "collections"}</span>}
                         </div>
                         {child.description && <p className="sx-row-desc">{child.description}</p>}
                       </div>
                       <Icon d={ICONS.chevronRight} size={14} />
-                    </Link>
+                    </ChildCollectionLink>
                   </li>
                 ))}
               </ul>
-            </Panel>
+            </CollapsiblePanel>
           )}
           <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
             <ItemsList env={env} collection={c.id} rows={rows} />
@@ -269,6 +252,34 @@ export default async function CollectionPage({ params }: Props) {
               <DataPanel href={`${collectionJsonHref(env, c.id)}/data`} />
             </Panel>
           )}
+        </div>
+        <div className="sx-col">
+          {brokenGeometry && (
+            <p className="sx-callout" role="status">
+              The geometry in this collection&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
+              The rest of the page shows what the file has.
+            </p>
+          )}
+          <div className="sx-mapcard">
+            <LinkedMap
+              data={geo}
+              bbox={brokenGeometry ? LOWER_48 : c.bbox}
+              label={`Items of ${c.title}`}
+              hint={brokenGeometry ? "Geometry couldn't be read." : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
+              tip={brokenGeometry ? undefined : "Click one for a link to its page."}
+            />
+          </div>
+          {/* Collection assets stay below the map; overview plots show inline. */}
+          {Object.keys(c.assets).length > 0 && (
+            <CollapsiblePanel title="Assets" note={assetNote(c.assets)} id="assets">
+              <Assets assets={c.assets} plotsFirst />
+            </CollapsiblePanel>
+          )}
+          <Panel title="Metadata" id="meta">
+            <div className="pb-2">
+              <MetaTable entries={meta} />
+            </div>
+          </Panel>
         </div>
       </div>
       </ItemHoverProvider>

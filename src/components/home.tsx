@@ -7,13 +7,14 @@ import type { Feature, FeatureCollection, MultiPolygon } from "geojson";
 import { envMeta, type EnvKey } from "@/lib/env";
 import type { Tint } from "@/lib/overview";
 import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
-import { hierarchyOf, searchCollections } from "@/lib/collection-hierarchy";
+import { hasCollectionContent, hierarchyOf, searchCollections } from "@/lib/collection-hierarchy";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
 import { HomeRail, type Group } from "./home-rail";
+import { HomeSplit } from "./home-split";
 import { ItemHoverContext } from "./item-hover";
 import type { ItemRow } from "./items-list";
-import { QC_LABEL, stateOf } from "./qc-mark";
+import { stateOf } from "./qc-mark";
 
 /**
  * The home page, a console for people who already know FFRD: the
@@ -24,8 +25,9 @@ import { QC_LABEL, stateOf } from "./qc-mark";
  * The rail shows top-level collections until searched. Search matches title
  * and description at every level, including descendants of matching parents;
  * the review states in its head are the legend for the marks
- * and the review filter in one; the rows are one list by name, or grouped
- * by review state.
+ * and the review filter in one; the rows are one list by name. The empty
+ * collection toggle hides leaves without items or collection assets, keeping
+ * parent collections available for browsing.
  * Selecting a collection opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
@@ -122,44 +124,41 @@ export type Member = {
   end?: string | null;
 };
 
-export type GroupBy = "none" | "review";
-
-/** The order of the rail's review groups: what needs someone first. */
-const REVIEW_GROUPS: QcStatus[] = ["needs_revision", "rejected", "pending", "approved"];
-const GROUP_KEY = "sx-home-group";
+// Reset the old opt-in preference once: existing browsers should also start
+// with empty collections hidden. Explicit choices made from here are kept.
+const EMPTY_KEY = "sx-home-hide-empty-v2";
 /** How long, in ms, the pointer rests on a collection before the map previews it. */
 const PREVIEW_DELAY = 120;
 
 /**
- * The rail's grouping, a per-viewer preference kept in localStorage. Read
- * through useSyncExternalStore so the server render (never grouped) and
+ * The empty filter, a per-viewer preference kept in localStorage. Read
+ * through useSyncExternalStore so the server render (empty collections hidden) and
  * the browser's agree, and so a change in another tab carries over.
  */
-const GROUP_EVENT = "sx-home-group";
 // Kept here too, for when storage is blocked.
-let groupInMemory: GroupBy = "none";
-function readGroup(): GroupBy {
+let hideEmptyInMemory = true;
+function readHideEmpty(): boolean {
   try {
-    const v = localStorage.getItem(GROUP_KEY);
-    return v === "review" || v === "none" ? v : groupInMemory;
+    const v = localStorage.getItem(EMPTY_KEY);
+    return v === null ? hideEmptyInMemory : v === "true";
   } catch {
-    return groupInMemory;
+    return hideEmptyInMemory;
   }
 }
-function subscribeGroup(onChange: () => void) {
+function subscribeHideEmpty(onChange: () => void) {
   window.addEventListener("storage", onChange);
-  window.addEventListener(GROUP_EVENT, onChange);
+  window.addEventListener(EMPTY_KEY, onChange);
   return () => {
     window.removeEventListener("storage", onChange);
-    window.removeEventListener(GROUP_EVENT, onChange);
+    window.removeEventListener(EMPTY_KEY, onChange);
   };
 }
-function regroup(v: GroupBy) {
-  groupInMemory = v;
+function saveHideEmpty(value: boolean) {
+  hideEmptyInMemory = value;
   try {
-    localStorage.setItem(GROUP_KEY, v);
+    localStorage.setItem(EMPTY_KEY, String(value));
   } catch {}
-  window.dispatchEvent(new Event(GROUP_EVENT));
+  window.dispatchEvent(new Event(EMPTY_KEY));
 }
 
 /** A collection's items as the rail lists them: null until fetched, "error" when they couldn't be. */
@@ -195,7 +194,7 @@ export function HomeConsole({
   // The item under the cursor, in the rows or on the map, by id.
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [filter, setFilter] = useState<QcStatus | null>(null);
-  const groupBy = useSyncExternalStore(subscribeGroup, readGroup, (): GroupBy => "none");
+  const hideEmpty = useSyncExternalStore(subscribeHideEmpty, readHideEmpty, () => true);
   // Whether the last selected collection is in the area, which outlines
   // the area more heavily.
   const [pickedInArea, setPickedInArea] = useState<boolean | null>(null);
@@ -228,14 +227,15 @@ export function HomeConsole({
   const hierarchy = useMemo(() => hierarchyOf(areas), [areas]);
   // Search all levels; a matching parent brings its descendants along.
   // Review facets count this scope before applying the selected QC state.
-  const scope = useMemo(() => searchCollections(areas, q, hierarchy), [areas, q, hierarchy]);
+  const searchScope = useMemo(() => searchCollections(areas, q, hierarchy), [areas, q, hierarchy]);
+  const scope = useMemo(() => hideEmpty ? searchScope.filter(hasCollectionContent) : searchScope, [searchScope, hideEmpty]);
   const shown = useMemo(() => scope.filter((a) => !filter || stateOf(a) === filter), [scope, filter]);
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
   const childCollections = useMemo(() => activeSelected
-    ? areas.filter((child) => child.slug !== activeSelected && child.parentSlugs.includes(activeSelected))
-    : [], [areas, activeSelected]);
+    ? areas.filter((child) => child.slug !== activeSelected && child.parentSlugs.includes(activeSelected) && (!hideEmpty || hasCollectionContent(child)))
+    : [], [areas, activeSelected, hideEmpty]);
   // An open parent's children can be previewed without becoming top-level rows.
   const previewableIds = useMemo(() => new Set([...shownIds, ...childCollections.map((child) => child.slug)]), [shownIds, childCollections]);
   const activeHovered = hovered && shownIds.has(hovered) ? hovered : null;
@@ -247,13 +247,7 @@ export function HomeConsole({
   const parentPaths = useMemo(() => searching
     ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.parentPaths(a.slug)]))
     : {}, [hierarchy, searching, shown]);
-  const groups = useMemo<Group[]>(() => {
-    const list =
-      groupBy === "review"
-        ? REVIEW_GROUPS.map((s) => ({ key: s, label: QC_LABEL[s], rows: shown.filter((a) => stateOf(a) === s) }))
-        : [{ key: "all", label: null, rows: shown }];
-    return list.filter((g) => g.rows.length);
-  }, [shown, groupBy]);
+  const groups = useMemo<Group[]>(() => shown.length ? [{ key: "all", label: null, rows: shown }] : [], [shown]);
 
   // The collection pointed at, a beat after the pointer gets there, so
   // sweeping down the list doesn't flash every footprint on the way. The
@@ -392,7 +386,7 @@ export function HomeConsole({
                 : `Previewing ${previewArea.name} on the map.`
             : ""}
         </p>
-        <div className="sx-console">
+        <HomeSplit>
           <div className="sx-console-map">
             <HomeMap
               areas={mapAreas}
@@ -431,8 +425,8 @@ export function HomeConsole({
             byState={byState}
             notice={notice}
             emptyText={emptyText}
-            groupBy={groupBy}
-            onGroupBy={regroup}
+            hideEmpty={hideEmpty}
+            onHideEmpty={(value) => { resetSelection(); saveHideEmpty(value); }}
             filter={filter}
             onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}
@@ -446,7 +440,7 @@ export function HomeConsole({
             onHover={setHovered}
             onSelect={select}
           />
-        </div>
+        </HomeSplit>
       </div>
     </ItemHoverContext.Provider>
   );

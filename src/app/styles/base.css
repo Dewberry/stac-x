@@ -112,6 +112,27 @@
 .ffx-panel-body {
   padding: var(--ffx-panel-pad);
 }
+.sx-collapsible-panel summary {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding-block: 0.875rem;
+  list-style: none;
+  cursor: pointer;
+}
+.sx-collapsible-panel summary::-webkit-details-marker {
+  display: none;
+}
+.sx-collapsible-panel summary .ffx-panel-title {
+  flex: 1;
+}
+.sx-collapsible-panel summary:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-collapsible-panel summary:focus-visible {
+  outline-offset: -3px;
+}
 
 /* The page: a title row, then the two columns. */
 .sx-page {

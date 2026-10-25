@@ -14,8 +14,8 @@ import { assetHref, withBase } from "@/lib/utils";
  * The assets of an item, grouped by what they're for: model files, time
  * series, terrain, GIS layers and so on, worked out from each asset's roles
  * and media type. A model run can carry fifty files, and a flat list of them
- * can't be scanned. A small set opens in full; a large one opens its first
- * group. Each asset is a row (file name, what it is, size) that opens to its
+ * can't be scanned. Every category starts collapsed, whatever its size.
+ * Each asset is a row (file name, what it is, size) that opens to its
  * description, its image if it has one, its actions and whatever extra fields
  * it carries. The open row's header line holds its actions (Download, the
  * S3 URI to copy, Bucket View), and a parquet, CSV or JSON asset gets a
@@ -169,8 +169,7 @@ function chipsOf(formats: string[]): string[] {
 export function Assets({ assets, plotsFirst = false }: { assets: Record<string, StacAsset>; plotsFirst?: boolean }) {
   const groups = grouped(assets, plotsFirst);
   if (!groups.length) return <p className="sx-empty">This item has no assets.</p>;
-  const total = Object.keys(assets).length;
-  const data: AssetGroupData[] = groups.map(({ bucket, entries }, i) => {
+  const data: AssetGroupData[] = groups.map(({ bucket, entries }) => {
     entries.sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
     const formats = Array.from(new Set(entries.map(([key, a]) => formatOf(a, key)).filter(Boolean)));
     return {
@@ -178,7 +177,7 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
       label: bucket.label,
       description: bucket.description,
       formats: chipsOf(formats),
-      open: total <= 8 || i === 0,
+      open: false,
       rows: entries.map(([key, a]) => {
         const file = a.href.split("/").pop() || key;
         const what = whatOf(a, file);
@@ -208,15 +207,22 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
   return <AssetGroups groups={data} />;
 }
 
-/** Download and Copy, labeled, for the head of the preview dialog. */
+/** The same file actions in the expanded asset and its preview dialog. */
 function AssetActions({ a }: { a: StacAsset }) {
   const s3 = a.href.startsWith("s3://");
+  const cloudView = cloudViewHref(a.href);
   return (
     <>
       <a href={assetHref(a.href)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" download={s3 ? undefined : true}>
         <Icon d={ICONS.download} size={12} /> Download
       </a>
       <CopyButton text={a.href} label={s3 ? "Copy S3 URI" : "Copy URL"} />
+      {cloudView && (
+        <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer"
+          aria-label={`Cloud View: open ${a.href.split("/").pop() || "asset"} folder`}>
+          <Icon d={ICONS.external} size={12} /> Cloud View
+        </a>
+      )}
     </>
   );
 }
@@ -228,22 +234,12 @@ function AssetActions({ a }: { a: StacAsset }) {
  * (only where CLOUD_VIEW_URL is set).
  */
 function AssetHead({ a }: { a: StacAsset }) {
-  const s3 = a.href.startsWith("s3://");
-  const cloudView = cloudViewHref(a.href);
   return (
     <div className="sx-asset-head">
       {a.title && <div className="sx-asset-title">{a.title}</div>}
       {!a.title && a.description && <p className="text-small text-ink-sec">{a.description}</p>}
       <div className="sx-asset-acts">
-        <a href={assetHref(a.href)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" download={s3 ? undefined : true}>
-          <Icon d={ICONS.download} size={12} /> Download
-        </a>
-        <CopyButton text={a.href} label={s3 ? "S3 URI" : "URL"} ariaLabel={s3 ? "Copy S3 URI" : "Copy URL"} />
-        {cloudView && (
-          <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" title="Open this file's folder in Cloud View">
-            <Icon d={ICONS.external} size={12} /> Bucket View
-          </a>
-        )}
+        <AssetActions a={a} />
       </div>
     </div>
   );

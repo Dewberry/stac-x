@@ -407,6 +407,7 @@ export function HomeMap({
     let map: MapLibreMap | null = null;
     let disposed = false;
     let unwatch: (() => void) | null = null;
+    let sizeObserver: ResizeObserver | null = null;
 
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed) return;
@@ -428,6 +429,9 @@ export function HomeMap({
       });
       map = m;
       mapRef.current = m;
+      // Pane drags change the container without resizing the browser window.
+      sizeObserver = new ResizeObserver(() => m.resize());
+      sizeObserver.observe(host);
       // A handle for the console while developing: __sxMap.getStyle(), etc.
       if (process.env.NODE_ENV !== "production") (window as unknown as { __sxMap?: unknown }).__sxMap = m;
 
@@ -451,10 +455,10 @@ export function HomeMap({
           setFramed(null);
         } else setFramed(framingRef.current);
       });
-      const fitFrame = (duration = 300) => {
+      const fitFrame = (duration = 750) => {
         movedByHand.current = false;
         framingRef.current = null;
-        m.fitBounds(bounds(), { ...fitPadding(), duration });
+        m.fitBounds(bounds(), { ...fitPadding(), duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration });
       };
       fitFrameRef.current = fitFrame;
       const fitLabel = areaRef.current ? `Fit to ${areaRef.current.name}` : "Fit to the catalog";
@@ -528,6 +532,7 @@ export function HomeMap({
     return () => {
       disposed = true;
       unwatch?.();
+      sizeObserver?.disconnect();
       popupRef.current?.remove();
       popupRef.current = null;
       map?.remove();
@@ -587,7 +592,7 @@ export function HomeMap({
     if (!a || !a.bbox || a.wide || a.drawn === "area" || !a.drawn) return fitFrameRef.current();
     const [w, s, e, n] = a.bbox;
     framingRef.current = a.slug;
-    m.fitBounds([[w, s], [e, n]], { ...fitPadding(), maxZoom: FIT_MAX_ZOOM, duration: 400 });
+    m.fitBounds([[w, s], [e, n]], { ...fitPadding(), maxZoom: FIT_MAX_ZOOM, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 750 });
   }, [fitSlug]);
 
   // The list is built each render; only a change in what's drawn matters.

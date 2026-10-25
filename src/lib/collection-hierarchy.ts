@@ -3,6 +3,38 @@ import type { Collection } from "./stac";
 
 export type HierarchyNode = { slug: string; name: string; parentSlugs: string[] };
 
+/** A container or collection-level asset is content too, even with no direct items. */
+export function hasCollectionContent(node: { itemCount: number; childCollectionCount: number; assetCount: number }): boolean {
+  return node.itemCount > 0 || node.childCollectionCount > 0 || node.assetCount > 0;
+}
+
+/** A stable root-to-parent breadcrumb path from loaded child links, with cycle protection. */
+export function collectionAncestors(collection: Collection, collections: Collection[]): Collection[] {
+  const parents = new Map<string, Collection[]>();
+  // Shared children have one deterministic trail; prefer current parent versions.
+  const ordered = [...collections].sort((a, b) =>
+    Number(b.id === b.series.latest) - Number(a.id === a.series.latest) ||
+    a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+  for (const parent of ordered) {
+    for (const href of parent.childCollectionHrefs ?? []) {
+      const list = parents.get(href) ?? [];
+      list.push(parent);
+      parents.set(href, list);
+    }
+  }
+  const ancestors: Collection[] = [];
+  const seen = new Set([collection.id]);
+  let current = collection;
+  while (current.docHref) {
+    const parent = parents.get(current.docHref)?.find((candidate) => !seen.has(candidate.id));
+    if (!parent) break;
+    ancestors.push(parent);
+    seen.add(parent.id);
+    current = parent;
+  }
+  return ancestors.reverse();
+}
+
 /** Resolve links to older versions onto the latest visible version of that series. */
 export function collectionParents(collections: Collection[], visibleIds: Set<string>): Map<string, string[]> {
   const byHref = new Map(collections.flatMap((c) => c.docHref ? [[c.docHref, c] as const] : []));

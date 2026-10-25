@@ -7,6 +7,7 @@ import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
 import { ItemsList } from "./items-list";
+import { Chevron } from "./icons";
 import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 
 /**
@@ -259,10 +260,15 @@ function ChildCollections({ collections, preview, onHover }: {
   onHover: (slug: string | null) => void;
 }) {
   const heading = useId();
+  const [open, setOpen] = useState(true);
   if (!collections.length) return null;
   return (
-    <section className="sx-items-compact sx-child-collections" aria-labelledby={heading}>
-      <h3 id={heading} className="sx-child-heading">Child collections <span className="ffx-num">({fmtNum(collections.length)})</span></h3>
+    <details className="sx-items-compact sx-child-collections" open={open}
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open);
+        if (!event.currentTarget.open) onHover(null);
+      }}>
+      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">Child collections <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
       <div className="sx-item-block">
         <ul className="sx-item-list">
           {collections.map((child) => (
@@ -286,7 +292,7 @@ function ChildCollections({ collections, preview, onHover }: {
           ))}
         </ul>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -310,9 +316,9 @@ export function OpenRow({
 }) {
   return (
     <div className="sx-row-more">
+      <ChildCollections collections={childCollections} preview={preview} onHover={onHover} />
       <PreviewBody area={area} />
       <WayIn area={area} />
-      <ChildCollections collections={childCollections} preview={preview} onHover={onHover} />
       {(area.itemCount > 0 || !childCollections.length) && <Items env={env} area={area} rows={rows} activeIds={activeIds} />}
     </div>
   );

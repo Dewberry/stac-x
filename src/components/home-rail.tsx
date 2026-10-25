@@ -4,14 +4,15 @@ import { useLayoutEffect, useRef } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import type { QcStatus } from "@/lib/stac";
-import type { GroupBy, HomeArea, Rows } from "./home";
+import { hasCollectionContent } from "@/lib/collection-hierarchy";
+import type { HomeArea, Rows } from "./home";
 import { AreaSub, countOf, OpenRow, UnitGlyph } from "./home-preview";
 import type { ItemRow } from "./items-list";
 import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
 
 /**
  * The collections rail, the left side of the home console: its head
- * (Collections and how many, the grouping, the search box, the review
+ * (Collections and how many, the empty filter, the search box, the review
  * states as legend and filter) and the rows in groups. A row is the
  * collection's name, its count and one line of where and when; the
  * selected row opens in place (OpenRow) with the collection's description,
@@ -22,7 +23,8 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  *
  * The search box matches collections by title and description, not their
  * items, and includes descendants of matching parents. Child results show
- * their parent paths. Empty groups fold into one line.
+ * their parent paths. The empty filter applies to child links as well as
+ * search results and top-level rows.
  */
 
 /** One group of the rail's rows. Ungrouped, the rail is one group with no heading. */
@@ -48,8 +50,8 @@ export function HomeRail({
   byState,
   notice,
   emptyText,
-  groupBy,
-  onGroupBy,
+  hideEmpty,
+  onHideEmpty,
   filter,
   onFilter,
   query,
@@ -75,8 +77,8 @@ export function HomeRail({
   notice?: string | null;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
-  groupBy: GroupBy;
-  onGroupBy: (v: GroupBy) => void;
+  hideEmpty: boolean;
+  onHideEmpty: (value: boolean) => void;
   filter: QcStatus | null;
   onFilter: (v: QcStatus | null) => void;
   query: string;
@@ -109,10 +111,10 @@ export function HomeRail({
     const bottom = top + row.offsetHeight;
     if (top - headH < list.scrollTop) list.scrollTop = top - headH;
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = Math.min(top - headH, bottom - list.clientHeight);
-  }, [selected, groupBy]);
+  }, [selected, hideEmpty]);
 
   return (
-    <aside className="sx-rail" aria-label="Collections">
+    <aside id="collections-pane" className="sx-rail" aria-label="Collections">
       <div className="sx-rail-head">
         <div className="sx-rail-title">
           <h2>Collections</h2>
@@ -120,15 +122,15 @@ export function HomeRail({
           <span className="sx-rail-count ffx-num">
             {shownCount === scopeCount ? fmtNum(scopeCount) : `${fmtNum(shownCount)} of ${fmtNum(scopeCount)}`}
           </span>
-          {/* On, the rows group by review state; off, they're one list by name. */}
+          {/* Parents and collection assets remain browsable even with zero direct items. */}
           <button
             type="button"
             className="sx-group-switch"
-            aria-pressed={groupBy === "review"}
-            onClick={() => onGroupBy(groupBy === "review" ? "none" : "review")}
+            aria-pressed={hideEmpty}
+            onClick={() => onHideEmpty(!hideEmpty)}
           >
             <span className="sx-switch" aria-hidden="true" />
-            Group by review
+            Hide empty collections
           </button>
         </div>
         {areas.length > 0 && (
@@ -144,6 +146,7 @@ export function HomeRail({
         {/* Said once the search or filter changes. The lines below show the
             same, but a status region that mounts with its text is often missed. */}
         <p className="sr-only" role="status">
+          {hideEmpty ? `Empty collections hidden. ${shownCount} collections shown. Collections with children or assets are kept.` : "Empty collections included."}
           {search ? `${search.collections} ${search.collections === 1 ? "collection found" : "collections found"}, including descendants of matching parents.` : ""}
           {filter ? ` Showing ${QC_LABEL[filter]} only` : ""}
         </p>
@@ -183,7 +186,6 @@ export function HomeRail({
             <button
               type="button"
               onClick={() => {
-                // This line goes with the filter, so focus goes to the state button that set it.
                 document.querySelector<HTMLElement>(".sx-state-btn[aria-pressed=true]")?.focus();
                 onFilter(null);
               }}
@@ -211,12 +213,13 @@ export function HomeRail({
             <ul>
               {g.rows.map((a) => {
                 const open = selected === a.slug;
+                const children = areas.filter((child) => child.slug !== a.slug && child.parentSlugs.includes(a.slug) && (!hideEmpty || hasCollectionContent(child)));
                 return (
                   <AreaRow
                     key={a.slug}
                     env={env}
-                    area={a}
-                    childCollections={open ? areas.filter((child) => child.slug !== a.slug && child.parentSlugs.includes(a.slug)) : []}
+                    area={hideEmpty ? { ...a, childCollectionCount: children.length } : a}
+                    childCollections={open ? children : []}
                     parentPaths={parentPaths[a.slug] ?? []}
                     active={(selected ?? hovered) === a.slug}
                     previewing={preview === a.slug}

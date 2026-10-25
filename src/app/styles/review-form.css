@@ -230,29 +230,34 @@
   overflow-wrap: anywhere;
 }
 
-/* Below 64rem the columns are one, so the collection page puts what people
-   came for first: the map, the items, then the description and metadata.
+/* Below 64rem the columns are one: map, children, items, description, metadata.
    The columns give up their boxes and the panels take an order. */
 @media (max-width: 63.99rem) {
-  .sx-cols:has(> .sx-col > #items) {
+  .sx-collection-cols {
     display: grid;
   }
-  .sx-cols:has(> .sx-col > #items) > .sx-col {
+  .sx-collection-cols > .sx-col {
     display: contents;
   }
-  .sx-cols:has(> .sx-col > #items) .sx-mapcard {
+  .sx-collection-cols .sx-mapcard {
     order: 1;
   }
-  .sx-cols:has(> .sx-col > #items) #items {
+  .sx-collection-cols #child-collections {
     order: 2;
   }
-  .sx-cols:has(> .sx-col > #items) #about {
+  .sx-collection-cols #items {
     order: 3;
   }
-  .sx-cols:has(> .sx-col > #items) #assets {
+  .sx-collection-cols #about {
     order: 4;
   }
-  .sx-cols:has(> .sx-col > #items) #meta {
+  .sx-collection-cols #assets {
     order: 5;
+  }
+  .sx-collection-cols #meta {
+    order: 6;
+  }
+  .sx-collection-cols #data {
+    order: 7;
   }
 }

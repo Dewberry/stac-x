@@ -30,9 +30,9 @@ export function HomeLoading() {
           <div className="sx-rail-head">
             <div className="sx-rail-title">
               <h2>Collections</h2>
-              <button type="button" className="sx-group-switch" aria-pressed="false" disabled>
+              <button type="button" className="sx-group-switch" aria-pressed="true" disabled>
                 <span className="sx-switch" aria-hidden="true" />
-                Group by review
+                Hide empty collections
               </button>
             </div>
             <label className="ffx-field">

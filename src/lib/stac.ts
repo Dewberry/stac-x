@@ -79,7 +79,7 @@ export function qcMeta(v: unknown) {
 
 /** An item as the catalog holds it: the STAC item plus where it came from. */
 export type CatalogItem = StacItem & {
-  /** URI of the parquet file the row was read from. Never serialized. */
+  /** URI of the parquet or collection JSON source. Never serialized. */
   source: string;
 };
 
