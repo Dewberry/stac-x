@@ -230,6 +230,22 @@
   overflow-wrap: anywhere;
 }
 
+/* Long browsing lists scroll beside the map, not past it. Keep headings,
+   search and paging outside the scroller and stop wheel gestures at its ends. */
+@media (min-width: 64rem) {
+  .sx-child-collections-list,
+  .sx-collection-cols .sx-items-rows {
+    max-height: min(32rem, 50dvh);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+  .sx-child-collections-list .sx-row:focus-visible,
+  .sx-collection-cols .sx-items-rows .sx-row:focus-visible {
+    outline-offset: -3px;
+  }
+}
+
 /* Below 64rem the columns are one: map, children, items, description, metadata.
    The columns give up their boxes and the panels take an order. */
 @media (max-width: 63.99rem) {

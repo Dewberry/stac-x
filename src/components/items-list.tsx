@@ -95,6 +95,12 @@ export function ItemsList({
   const current = Math.min(page, pages - 1);
   const slice = compact ? filtered : filtered.slice(current * PAGE, current * PAGE + PAGE);
 
+  // A new page, search or sort starts at the top of the full list's scroller.
+  const rowsRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (rowsRef.current) rowsRef.current.scrollTop = 0;
+  }, [current, q, sort]);
+
   // In the rail: how many rows fit in the block, for the note under it, and
   // whether more are below the fold, for the fade.
   const blockRef = useRef<HTMLDivElement>(null);
@@ -198,7 +204,7 @@ export function ItemsList({
           </div>
         </div>
       ) : (
-        <div className="sx-rows">
+        <div ref={rowsRef} className="sx-rows sx-items-rows ffx-scroll">
           {slice.map((r) => (
             <Link key={r.id} className="sx-row" {...rowProps(r)}>
               <div className="sx-row-main">

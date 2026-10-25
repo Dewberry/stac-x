@@ -121,7 +121,9 @@ Collection pages keep browsing on the left and maps on the right;
 item pages keep their maps at the top left. On desktop, drag the divider beside the
 collections pane to give the list or map more room. Child collections start
 expanded and can be collapsed; Description and Assets start collapsed on
-collection pages. Hover or focus a child link to preview it on the map, then
+collection pages. Long child collection and item lists scroll independently on
+desktop so the map stays visible. Item search, sort and paging stay outside the
+scrolling rows. Hover or focus a child link to preview it on the map, then
 leave the link or press Escape to return to the current collection's items.
 The divider's arrow buttons work
 without dragging; the focused divider also accepts Left/Right, Home/End, and

@@ -196,7 +196,7 @@ export default async function CollectionPage({ params }: Props) {
           )}
           {children.length > 0 && (
             <CollapsiblePanel title="Child collections" note={fmtNum(children.length)} id="child-collections" defaultOpen>
-              <ul className="divide-y divide-grid">
+              <ul className="sx-child-collections-list ffx-scroll divide-y divide-grid">
                 {children.map((child) => (
                   <li key={child.id}>
                     <ChildCollectionLink href={collectionHref(env, child.id)} preview={{
