@@ -14,14 +14,15 @@ export type NodeKind = "catalog" | "dataset";
 
 /**
  * A catalog when the STAC type says so. Until the generator types its
- * containers, a Collection with no items and no collection-level assets
- * describes no data, so it's a container too, with children or without:
- * an empty leaf (an Archive folder, Grids' AEP Grids) is a shelf waiting
- * for a dataset, not a dataset with nothing in it.
+ * containers, a Collection with no items, no source of items and no
+ * collection-level assets describes no data, so it's a container too, with
+ * children or without: an empty leaf (an Archive folder, Grids' AEP Grids)
+ * is a shelf waiting for a dataset, not a dataset with nothing in it. One
+ * that links a parquet file with no rows yet is a dataset waiting for rows.
  */
-export function kindOf(c: Pick<Collection, "type" | "itemCount" | "assets">): NodeKind {
+export function kindOf(c: Pick<Collection, "type" | "itemCount" | "assets" | "linksItems">): NodeKind {
   if (c.type === "Catalog") return "catalog";
-  if (c.itemCount === 0 && Object.keys(c.assets).length === 0) return "catalog";
+  if (c.itemCount === 0 && !c.linksItems && Object.keys(c.assets).length === 0) return "catalog";
   return "dataset";
 }
 

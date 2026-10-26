@@ -97,6 +97,8 @@ export type Collection = {
   type: "Catalog" | "Collection";
   /** A catalog (a folder) or a dataset; see kindOf in collection-hierarchy.ts. */
   kind: NodeKind;
+  /** It has a source of items, a parquet file or item links, even one with no rows yet. */
+  linksItems: boolean;
   /** The name to show, from collectionName. */
   title: string;
   /** The title as the collection.json has it, or null when it has none. */

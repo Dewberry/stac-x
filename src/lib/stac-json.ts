@@ -125,9 +125,12 @@ async function readJsonItems(links: StacLink[], collection: string, uri: string)
 }
 
 /**
- * Every collection a catalog reaches through its child links. A child that
- * can't be read is reported rather than dropped, so a catalog pointing at
- * files that haven't been uploaded says so on the page.
+ * Every collection and sub-catalog a catalog reaches through its child
+ * links; the catalog it starts from isn't one of them. A sub-catalog is a
+ * node of the tree like a collection (a folder, lib/collection-hierarchy.ts),
+ * so a generator that types its containers as Catalog keeps its folders. A
+ * child that can't be read is reported rather than dropped, so a catalog
+ * pointing at files that haven't been uploaded says so on the page.
  */
 export async function collectionsOf(
   catalogUri: string,
@@ -135,6 +138,7 @@ export async function collectionsOf(
   const collections: string[] = [];
   const missing: { href: string; error: string }[] = [];
   const seen = new Set<string>();
+  const start = parseRef(catalogUri).uri;
   const walk = async (uri: string) => {
     if (seen.has(uri)) return;
     seen.add(uri);
@@ -145,7 +149,7 @@ export async function collectionsOf(
       missing.push({ href: uri, error: e instanceof NotFound ? "not found" : e instanceof Error ? e.message : String(e) });
       return;
     }
-    if (doc?.type === "Collection") {
+    if (doc?.type === "Collection" || (doc?.type === "Catalog" && uri !== start)) {
       collections.push(uri);
     } else if (doc?.type !== "Catalog") {
       missing.push({ href: uri, error: "not a STAC Catalog or Collection" });
@@ -160,17 +164,20 @@ export async function collectionsOf(
       links.filter((l) => l?.rel === "child" && typeof l.href === "string").map((l) => walk(resolveHref(l.href, uri))),
     );
   };
-  await walk(parseRef(catalogUri).uri);
+  await walk(start);
   return { collections, missing };
 }
 
 export async function readCollectionJson(uri: string): Promise<JsonStac> {
   uri = parseRef(uri).uri;
   const { value: doc } = await readJson<Record<string, unknown>>(uri);
-  if (!doc || doc.type !== "Collection" || typeof doc.id !== "string") {
-    throw new Error("not a STAC Collection");
+  if (!doc || (doc.type !== "Collection" && doc.type !== "Catalog") || typeof doc.id !== "string") {
+    throw new Error("not a STAC Collection or Catalog");
   }
   const id = doc.id;
+  // A sub-catalog is metadata and child links; its items, if it has any
+  // links to them, aren't read, since a catalog has no data of its own.
+  if (doc.type === "Catalog") return { items: [], collections: { [id]: doc }, parquet: null, dependencies: [] };
   const links = linksOf(doc);
   const parquet = links.find(PARQUET_LINK);
   if (!parquet) {

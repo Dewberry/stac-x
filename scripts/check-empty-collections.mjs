@@ -159,10 +159,32 @@ assert.equal(JSON.stringify(childCollectionsOf(catalog.collections.find((c) => c
 put(uri, doc);
 sources = [catalogUri];
 
+// A sub-catalog typed Catalog is a node of the tree, and a catalog; the
+// catalog the environment is read from isn't a node.
+const subUri = "file:///checks/sub/catalog.json";
+put(catalogUri, { type: "Catalog", id: "root", links: [{ rel: "child", href: "sub/catalog.json" }] });
+put(subUri, { type: "Catalog", id: "sub", title: "Sub", description: "A folder", links: [{ rel: "child", href: "../collection.json" }] });
+catalog = await snapshot();
+assert.equal(catalog.errors.length, 0);
+assert.equal(JSON.stringify(catalog.collections.map((c) => c.id).sort()), JSON.stringify(["empty", "sub"]));
+const sub = catalog.collections.find((c) => c.id === "sub");
+assert.equal(sub.type, "Catalog");
+assert.equal(sub.kind, "catalog");
+assert.equal(sub.description, "A folder");
+assert.equal(JSON.stringify(childCollectionsOf(sub, catalog.collections).map((c) => c.id)), JSON.stringify(["empty"]));
+// A metadata-only collection with an asset of its own is a dataset.
+assert.equal(catalog.collections.find((c) => c.id === "empty").kind, "dataset");
+put(catalogUri, { type: "Catalog", links: [{ rel: "child", href: "collection.json" }] });
+
 // Adding a parquet link and later removing it must refresh without stale items.
 put(parquet, { items: [], collections: {} });
+put(uri, { ...doc, assets: {}, links: [{ rel: "items", href: "items.parquet" }] });
+c = (await snapshot()).collections[0];
+assert.equal(c.itemCount, 0);
+// A linked file with no rows yet still makes it a dataset, not a folder.
+assert.equal(c.linksItems, true);
+assert.equal(c.kind, "dataset");
 put(uri, { ...doc, links: [{ rel: "items", href: "items.parquet" }] });
-assert.equal((await snapshot()).collections[0].itemCount, 0);
 put(parquet, { items: [{ id: "one", collection: "old-id", properties: {}, links: [], assets: {}, geometry: null, bbox: null }], collections: {} });
 c = (await snapshot()).collections[0];
 assert.equal(c.itemCount, 1);
@@ -179,10 +201,11 @@ assert.equal(c.fromDocument, true);
 assert.equal(c.sources[0], parquet);
 assert.equal(c.assets.overview.href, "file:///checks/overview.png");
 
-// Unsupported item links and missing referenced files aren't empty collections.
+// Missing referenced files aren't empty collections, whether the link is to
+// a JSON item, an ItemCollection or a parquet file.
 for (const rel of ["item", "items"]) {
   put(uri, { ...doc, links: [{ rel, href: "item.json" }] });
-  await assert.rejects(readCollectionJson(uri), /outside a stac-geoparquet/);
+  await assert.rejects(readCollectionJson(uri), NotFound);
 }
 put(uri, { ...doc, links: [{ rel: "items", href: "missing.parquet" }] });
 await assert.rejects(readCollectionJson(uri), NotFound);

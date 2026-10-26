@@ -168,7 +168,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     // Documents name real collections even when there are no item rows.
     const ids = new Set([
       ...s.items.map((i) => i.collection),
-      ...Object.entries(s.embedded).filter(([id, doc]) => doc.type === "Collection" && doc.id === id).map(([id]) => id),
+      ...Object.entries(s.embedded).filter(([id, doc]) => (doc.type === "Collection" || doc.type === "Catalog") && doc.id === id).map(([id]) => id),
     ]);
     sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(ids), error: s.error });
     for (const id of ids) {
@@ -339,11 +339,12 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       stac_version: _v, stac_extensions: _x, type: _t, assets,
       version, deprecated, experimental, ...extra
     } = doc;
-    void _id; void _extent; void _v; void _x; void _t;
+    void _id; void _extent; void _v; void _x;
     return {
       id,
-      type: "Collection",
-      // Classified in build(), once its children are known.
+      type: _t === "Catalog" ? "Catalog" : "Collection",
+      linksItems: linksItemsOf(cache, sources),
+      // Classified in build().
       kind: "dataset",
       title: collectionName(typeof title === "string" ? title : null, id),
       sourceTitle: typeof title === "string" && title ? title : null,
@@ -384,6 +385,7 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
   return {
     id,
     type: "Collection",
+    linksItems: linksItemsOf(cache, sources),
     kind: "dataset",
     title: collectionName(null, id),
     sourceTitle: null,
@@ -411,6 +413,19 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
     geometryErrors,
     items,
   };
+}
+
+/**
+ * Whether a collection has somewhere its items come from, even an empty one:
+ * a parquet file of its own, or a collection.json that links a parquet file
+ * or item documents. A dataset whose file has no rows yet is still a dataset.
+ */
+function linksItemsOf(cache: Cache, sources: string[]): boolean {
+  return sources.some((uri) => {
+    if (!isJsonSource(uri)) return true;
+    const s = cache.sources.get(uri);
+    return !!s?.parquet || (s?.dependencies?.length ?? 0) > 0;
+  });
 }
 
 /** Loaded direct children, not descendants, missing documents, or self-links. */
