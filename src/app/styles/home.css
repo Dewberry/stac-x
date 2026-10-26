@@ -1457,7 +1457,10 @@ button.sx-map-pill svg {
     max-height: none;
     overflow: visible;
   }
+  /* Positioned, so what's absolutely placed inside it (the sr-only labels
+     in an open row) is clipped with the rest instead of stretching the page. */
   .sx-rail-list {
+    position: relative;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
