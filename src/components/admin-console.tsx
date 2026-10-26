@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { AdminActivity, type ActivityRow } from "./admin-activity";
 import type { PathStage } from "./promotion-path";
+import { FolderGlyph } from "./icons";
 import { Caret, type Decision } from "./review";
 import { ReviewSheet, statusOf, type Flash, type Outcome, type Sheet } from "./admin-review-sheet";
 import { saveQcAction } from "@/app/actions";
-import { envMeta, PATH, type EnvKey } from "@/lib/env";
+import { envMeta, nextEnv, PATH, type EnvKey } from "@/lib/env";
 import { fmtAge, fmtDate, fmtNum } from "@/lib/format";
 import { qcMeta, type QcEdit, type QcEvent, type QcStatus } from "@/lib/stac";
 import { withBase } from "@/lib/utils";
@@ -31,13 +32,21 @@ import { withBase } from "@/lib/utils";
  * one-key shortcuts for Approve or Reject: approving copies files to the
  * next environment, which shouldn't happen on a stray keypress.
  *
- * This is the only place a collection is reviewed or moved; the collection
- * page just shows its state. The sheet itself is in admin-review-sheet.tsx.
+ * This is the only place a dataset is reviewed or moved; its page just
+ * shows its state. The sheet itself is in admin-review-sheet.tsx.
+ *
+ * The queue is datasets only. Catalogs are folders with nothing to review
+ * (lib/collection-hierarchy.ts); they appear as the headings the rows are
+ * grouped under, by top-level catalog, which can be turned off.
  */
 
 export type QueueRow = {
   id: string;
   title: string;
+  /** The top-level catalog it sits in; null for a dataset at the top. */
+  group: { slug: string; name: string } | null;
+  /** Empty catalogs directly inside it (Project Scoping's ten). */
+  emptyInside: number;
   /** The collection page. */
   href: string;
   version: string | null;
@@ -57,6 +66,7 @@ export type QueueRow = {
 
 type Filter = QcStatus | "all";
 type Sort = "oldest" | "newest" | "title";
+type Grouping = "catalog" | "none";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "pending", label: "To review" },
@@ -72,34 +82,64 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: "title", label: "Title" },
 ];
 
+// The labels say what they do on their own, since a phone hides "Group by".
+const GROUPINGS: { value: Grouping; label: string }[] = [
+  { value: "catalog", label: "By catalog" },
+  { value: "none", label: "Not grouped" },
+];
+
 const EMPTY: Record<Filter, string> = {
   pending: "Nothing is waiting for review.",
-  needs_revision: "No collections need revision.",
-  rejected: "No collections have been rejected.",
-  approved: "No collections have been approved yet.",
-  all: "There are no collections in this environment.",
+  needs_revision: "No datasets need revision.",
+  rejected: "No datasets have been rejected.",
+  approved: "No datasets have been approved yet.",
+  all: "There are no datasets in this environment.",
 };
 
 const isFilter = (v: unknown): v is Filter => FILTERS.some((f) => f.value === v);
 const isSort = (v: unknown): v is Sort => SORTS.some((s) => s.value === v);
+const isGrouping = (v: unknown): v is Grouping => GROUPINGS.some((g) => g.value === v);
+
+/** One group of the queue: the rows under a top-level catalog, or under no heading. */
+type QueueGroup = { key: string; name: string | null; rows: QueueRow[] };
+
+/** Rows under their top-level catalog, catalogs by name, the ones at the top first, each in the queue's order. */
+function groupsOf(rows: QueueRow[], grouping: Grouping): QueueGroup[] {
+  if (grouping === "none") return rows.length ? [{ key: "all", name: null, rows }] : [];
+  const by = new Map<string, QueueGroup>();
+  for (const r of rows) {
+    const key = r.group?.slug ?? "";
+    let g = by.get(key);
+    if (!g) by.set(key, (g = { key: key || "top", name: r.group?.name ?? null, rows: [] }));
+    g.rows.push(r);
+  }
+  return [...by.values()].sort((a, b) => (!a.name ? -1 : !b.name ? 1 : a.name.localeCompare(b.name)));
+}
+
+const plural = (n: number, one: string, many: string) => `${fmtNum(n)} ${n === 1 ? one : many}`;
 const DAY = 86_400_000;
 
 export function AdminConsole({
   env,
   rows,
+  catalogCount,
   now,
   initial,
 }: {
   env: EnvKey;
+  /** The environment's datasets. */
   rows: QueueRow[];
+  /** The catalogs around them, which aren't reviewed. */
+  catalogCount: number;
   /** The server's clock, so ages render the same on both sides. */
   now: number;
-  initial: { status?: string; q?: string; sort?: string };
+  initial: { status?: string; q?: string; sort?: string; group?: string };
 }) {
   const pathname = usePathname();
   const [filter, setFilter] = useState<Filter>(isFilter(initial.status) ? initial.status : "pending");
   const [query, setQuery] = useState(initial.q ?? "");
   const [sort, setSort] = useState<Sort>(isSort(initial.sort) ? initial.sort : "oldest");
+  const [grouping, setGrouping] = useState<Grouping>(isGrouping(initial.group) ? initial.group : "catalog");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -111,12 +151,13 @@ export function AdminConsole({
     if (filter !== "pending") p.set("status", filter);
     if (q) p.set("q", q);
     if (sort !== "oldest") p.set("sort", sort);
+    if (grouping !== "catalog") p.set("group", grouping);
     const s = p.toString();
     // usePathname leaves out the base path; without it a reload or a copied
     // link lands outside the app.
     const path = withBase(pathname);
     window.history.replaceState(null, "", s ? `${path}?${s}` : path);
-  }, [filter, q, sort, pathname]);
+  }, [filter, q, sort, grouping, pathname]);
 
   const counts = useMemo(() => {
     const out: Record<Filter, number> = { pending: 0, approved: 0, needs_revision: 0, rejected: 0, all: rows.length };
@@ -142,6 +183,20 @@ export function AdminConsole({
     else out.sort(byDate(sort === "oldest" ? 1 : -1));
     return out;
   }, [rows, filter, q, sort]);
+  // The rows as the page shows them, in groups; J and K step in this order.
+  const groups = useMemo(() => groupsOf(shown, grouping), [shown, grouping]);
+  const ordered = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+  const next = nextEnv(env);
+  // What approving does here, said plainly: only some datasets can be sent
+  // on yet (lib/promote.ts), and catalogs never are.
+  const sendable = shown.filter((r) => r.sendable).length;
+  const approveNote = !next
+    ? "Catalogs are never approved on their own."
+    : sendable === shown.length
+      ? `Approving a dataset sends it to ${next.label}. Catalogs are never approved on their own.`
+      : sendable === 0
+        ? `Approving a dataset records the decision here; sending it to ${next.label} along with the catalog path it sits in is coming soon. Catalogs are never approved on their own.`
+        : `Approving a dataset sends it to ${next.label}, except one read from a STAC catalog, which keeps its approval here until sending those is built. Catalogs are never approved on their own.`;
 
   const stats = useMemo(() => {
     const waiting = rows.filter((r) => statusOf(r) === "pending");
@@ -189,7 +244,7 @@ export function AdminConsole({
 
   function open(id: string) {
     setFlash(null);
-    setSheet({ mode: "one", id, list: shown.map((r) => r.id) });
+    setSheet({ mode: "one", id, list: ordered.map((r) => r.id) });
   }
 
   return (
@@ -200,6 +255,10 @@ export function AdminConsole({
             <Short long="Waiting for review" short="Waiting" />
           </dt>
           <dd>{fmtNum(stats.waiting)}</dd>
+          <dd className="sx-stat-note">
+            Datasets.
+            {catalogCount > 0 && <> The {plural(catalogCount, "catalog", "catalogs")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.</>}
+          </dd>
         </div>
         <div className="sx-stat">
           <dt>
@@ -233,7 +292,7 @@ export function AdminConsole({
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="m10.5 10.5 3 3" strokeLinecap="round" />
               </svg>
-              <span className="sr-only">Search collections</span>
+              <span className="sr-only">Search datasets</span>
               <input
                 type="search"
                 placeholder="Search title or id"
@@ -254,10 +313,20 @@ export function AdminConsole({
                 ))}
               </select>
             </label>
+            <label className="ffx-field ffx-field-select">
+              <span className="ffx-field-label">Group by</span>
+              <select value={grouping} onChange={(e) => setGrouping(e.target.value as Grouping)}>
+                {GROUPINGS.map((g) => (
+                  <option key={g.value} value={g.value}>
+                    {g.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {selectedShown.length > 0 && (
-            <div className="sx-bulk" role="region" aria-label="Selected collections">
+            <div className="sx-bulk" role="region" aria-label="Selected datasets">
               <span className="ffx-num">
                 <b>{selectedShown.length}</b> selected
               </span>
@@ -308,11 +377,12 @@ export function AdminConsole({
 
           <div id="queue-panel" role="tabpanel" aria-labelledby={`tab-${filter}`} tabIndex={-1}>
             {shown.length === 0 ? (
-              <p className="sx-empty">{q ? "No collections match that search." : EMPTY[filter]}</p>
+              <p className="sx-empty">{q ? "No datasets match that search." : EMPTY[filter]}</p>
             ) : (
               <>
                 <QueueTable
-                  rows={shown}
+                  rows={ordered}
+                  groups={groups}
                   now={now}
                   selected={selected}
                   openId={openId}
@@ -320,9 +390,10 @@ export function AdminConsole({
                   onSelect={setSelected}
                   onOpen={open}
                 />
-                <QueueCards rows={shown} now={now} selected={selected} openId={openId} onSelect={setSelected} onOpen={open} />
+                <QueueCards groups={groups} now={now} selected={selected} openId={openId} onSelect={setSelected} onOpen={open} />
               </>
             )}
+            {rows.length > 0 && <p className="sx-queue-note">{approveNote}</p>}
           </div>
         </section>
 
@@ -416,6 +487,7 @@ function Tabs({ filter, counts, onChange }: { filter: Filter; counts: Record<Fil
 
 function QueueTable({
   rows,
+  groups,
   now,
   selected,
   openId,
@@ -424,6 +496,7 @@ function QueueTable({
   onOpen,
 }: {
   rows: QueueRow[];
+  groups: QueueGroup[];
   now: number;
   selected: Set<string>;
   openId: string | null;
@@ -460,7 +533,7 @@ function QueueTable({
               />
             </th>
             <th scope="col" aria-sort={sort === "title" ? "ascending" : undefined}>
-              Collection
+              Dataset
             </th>
             <th scope="col" className="ffx-r">
               Items
@@ -470,74 +543,88 @@ function QueueTable({
             </th>
             <th scope="col">Environments</th>
             <th scope="col">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">Review</span>
             </th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr
-              key={r.id}
-              data-selected={selected.has(r.id) || undefined}
-              data-open={r.id === openId || undefined}
-              onClick={(e) => {
-                // A click anywhere on the row opens it, except on its own controls.
-                if ((e.target as HTMLElement).closest("a, button, input, label")) return;
-                onOpen(r.id);
-              }}
-            >
-              <td className="sx-queue-check">
-                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.title}`} />
-              </td>
-              <td className="sx-queue-name">
-                <Link href={r.href} className="sx-queue-title">
-                  {r.title}
-                </Link>
-                {r.id === openId && <span className="sx-open-tag">Open</span>}
-                <span className="sx-queue-sub">
-                  <span className="ffx-id">{r.id}</span>
-                  {r.version && <span className="sx-tag">{r.version}</span>}
-                  {r.older && (
-                    <span className="sx-tag" data-tone="muted">
-                      Older version
-                    </span>
-                  )}
-                </span>
-              </td>
-              <td className="ffx-r ffx-num">{fmtNum(r.itemCount)}</td>
-              <td className="ffx-num" title={r.since ? fmtDate(r.since) : undefined}>
-                <Since row={r} now={now} />
-              </td>
-              <td>
-                <MiniPath stages={r.stages} />
-              </td>
-              <td className="ffx-r">
-                <button type="button" className="ffx-btn ffx-btn-sm" aria-label={`Review ${r.title}`} onClick={() => onOpen(r.id)}>
-                  Review
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
+        {groups.map((g) => (
+          <tbody key={g.key}>
+            {g.name && (
+              <tr className="sx-qgroup">
+                <th scope="colgroup" colSpan={6}>
+                  <span className="sx-qgroup-in">
+                    <FolderGlyph />
+                    <span className="sx-qgroup-name">{g.name}</span>
+                    <span className="sx-qgroup-count">{plural(g.rows.length, "dataset", "datasets")}</span>
+                  </span>
+                </th>
+              </tr>
+            )}
+            {g.rows.map((r) => (
+              <tr
+                key={r.id}
+                data-selected={selected.has(r.id) || undefined}
+                data-open={r.id === openId || undefined}
+                onClick={(e) => {
+                  // A click anywhere on the row opens it, except on its own controls.
+                  if ((e.target as HTMLElement).closest("a, button, input, label")) return;
+                  onOpen(r.id);
+                }}
+              >
+                <td className="sx-queue-check">
+                  <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.title}`} />
+                </td>
+                <td className="sx-queue-name">
+                  <Link href={r.href} className="sx-queue-title">
+                    {r.title}
+                  </Link>
+                  {r.id === openId && <span className="sx-open-tag">Open</span>}
+                  <span className="sx-queue-sub">
+                    <span className="ffx-id">{r.id}</span>
+                    {r.version && <span className="sx-tag">{r.version}</span>}
+                    {r.older && (
+                      <span className="sx-tag" data-tone="muted">
+                        Older version
+                      </span>
+                    )}
+                    {r.emptyInside > 0 && <span>Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>}
+                  </span>
+                </td>
+                <td className="ffx-r ffx-num">{fmtNum(r.itemCount)}</td>
+                <td className="ffx-num" title={r.since ? fmtDate(r.since) : undefined}>
+                  <Since row={r} now={now} />
+                </td>
+                <td>
+                  <MiniPath stages={r.stages} />
+                </td>
+                <td className="ffx-r">
+                  <button type="button" className="ffx-btn ffx-btn-sm" aria-label={`Review ${r.title}`} onClick={() => onOpen(r.id)}>
+                    Review
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   );
 }
 
 /**
- * The queue on a phone, where the table won't fit: one card per collection
- * with the same facts, selection and Review. Above 64rem the table shows
+ * The queue on a phone, where the table won't fit: one card per dataset
+ * with the same facts, selection and Review, under the same catalog headings. Above 64rem the table shows
  * instead; both are in the page and CSS picks one.
  */
 function QueueCards({
-  rows,
+  groups,
   now,
   selected,
   openId,
   onSelect,
   onOpen,
 }: {
-  rows: QueueRow[];
+  groups: QueueGroup[];
   now: number;
   selected: Set<string>;
   openId: string | null;
@@ -551,35 +638,51 @@ function QueueCards({
     onSelect(s);
   }
   return (
-    <ul className="sx-qcards">
-      {rows.map((r) => (
-        <li key={r.id} className="sx-qcard" data-selected={selected.has(r.id) || undefined} data-open={r.id === openId || undefined}>
-          <input
-            type="checkbox"
-            className="sx-check"
-            checked={selected.has(r.id)}
-            onChange={() => toggle(r.id)}
-            aria-label={`Select ${r.title}`}
-          />
-          <div className="sx-qcard-main">
-            <Link href={r.href} className="sx-qcard-title">
-              {r.title}
-            </Link>
-            <span className="ffx-id sx-qcard-id">{r.id}</span>
-            <span className="sx-qcard-facts">
-              <span className="ffx-num">{fmtNum(r.itemCount)} items</span>
-              <Since row={r} now={now} />
-            </span>
-            <span className="sx-qcard-foot">
-              <MiniPath stages={r.stages} />
-              <button type="button" className="ffx-btn sx-qcard-review" aria-label={`Review ${r.title}`} onClick={() => onOpen(r.id)}>
-                Review
-              </button>
-            </span>
-          </div>
-        </li>
+    <div className="sx-qcards">
+      {groups.map((g) => (
+        <div key={g.key}>
+          {g.name && (
+            <h3 className="sx-qgroup-card">
+              <FolderGlyph />
+              <span className="sx-qgroup-name">{g.name}</span>
+              <span className="sx-qgroup-count">{plural(g.rows.length, "dataset", "datasets")}</span>
+            </h3>
+          )}
+          <ul>
+            {g.rows.map((r) => (
+              <li key={r.id} className="sx-qcard" data-selected={selected.has(r.id) || undefined} data-open={r.id === openId || undefined}>
+                <input
+                  type="checkbox"
+                  className="sx-check"
+                  checked={selected.has(r.id)}
+                  onChange={() => toggle(r.id)}
+                  aria-label={`Select ${r.title}`}
+                />
+                <div className="sx-qcard-main">
+                  <Link href={r.href} className="sx-qcard-title">
+                    {r.title}
+                  </Link>
+                  <span className="ffx-id sx-qcard-id">{r.id}</span>
+                  {r.emptyInside > 0 && (
+                    <span className="sx-qcard-holds">Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>
+                  )}
+                  <span className="sx-qcard-facts">
+                    <span className="ffx-num">{fmtNum(r.itemCount)} items</span>
+                    <Since row={r} now={now} />
+                  </span>
+                  <span className="sx-qcard-foot">
+                    <MiniPath stages={r.stages} />
+                    <button type="button" className="ffx-btn sx-qcard-review" aria-label={`Review ${r.title}`} onClick={() => onOpen(r.id)}>
+                      Review
+                    </button>
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       ))}
-    </ul>
+    </div>
   );
 }
 

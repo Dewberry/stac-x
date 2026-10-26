@@ -33,19 +33,19 @@
   font-weight: 400;
   color: var(--ffx-ink-mut);
 }
-.sx-queue th:nth-child(1) {
+.sx-queue thead th:nth-child(1) {
   width: 40px;
 }
-.sx-queue th:nth-child(3) {
+.sx-queue thead th:nth-child(3) {
   width: 60px;
 }
-.sx-queue th:nth-child(4) {
+.sx-queue thead th:nth-child(4) {
   width: 90px;
 }
-.sx-queue th:nth-child(5) {
+.sx-queue thead th:nth-child(5) {
   width: 150px;
 }
-.sx-queue th:nth-child(6) {
+.sx-queue thead th:nth-child(6) {
   width: 90px;
 }
 .sx-queue td {
@@ -187,8 +187,16 @@
     flex: none;
     height: 32px;
   }
+  /* The search on its own line, the sort and the grouping side by side under it. */
   .sx-queue-tools {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+  }
+  .sx-queue-tools > .ffx-field:first-child {
+    flex: 1 1 100%;
+  }
+  .sx-queue-tools > .ffx-field-select {
+    flex: 1 1 0;
+    min-width: 0;
   }
   .sx-queue-tools .ffx-field {
     height: 40px;
