@@ -31,6 +31,13 @@
   background: color-mix(in srgb, var(--ffx-header-ink) 10%, transparent);
   border-color: var(--ffx-header-ink-mut);
 }
+/* On an environment's color the text is white, as on the band below. The
+   header ink is off-white in dark mode and falls short on Sandbox's gray. */
+.ffx-env-trigger[data-env="sandbox"],
+.ffx-env-trigger[data-env="dev"],
+.ffx-env-trigger[data-env="test"] {
+  color: #fff;
+}
 .ffx-env-trigger[data-env="sandbox"] {
   background: var(--ffx-env-sandbox);
   border-color: var(--ffx-env-sandbox);
@@ -65,7 +72,7 @@
   background: var(--ffx-ink);
 }
 .ffx-env-trigger .ffx-env-dot {
-  background: var(--ffx-header-ink);
+  background: currentColor;
   box-shadow: none;
 }
 .ffx-env-menu {
