@@ -96,6 +96,8 @@ export type HomeArea = {
   unit: ItemUnit;
   /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
   geometryError?: boolean;
+  /** Its parent document didn't load, so it's at the top of the list for now, and the row says so. */
+  parentMissing?: boolean;
   /** The footprint was too heavy to send with the page; it's fetched from the footprint route when picked. */
   lazy?: boolean;
   /** Where the extent sits against the deployment's area; null when there's no area or no extent. */

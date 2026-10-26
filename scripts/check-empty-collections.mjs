@@ -159,6 +159,26 @@ assert.equal(JSON.stringify(childCollectionsOf(catalog.collections.find((c) => c
 put(uri, doc);
 sources = [catalogUri];
 
+// A child whose parent is listed but then fails to load (here, the parent's
+// parquet link points at nothing) sits at the top of the tree and says so.
+// A child linked straight from the catalog the environment starts at doesn't.
+{
+  const parentUri = "file:///checks/parent/collection.json";
+  const orphanUri = "file:///checks/parent/orphan/collection.json";
+  put(catalogUri, { type: "Catalog", id: "root", links: [{ rel: "child", href: "parent/collection.json" }, { rel: "child", href: "collection.json" }] });
+  put(parentUri, { type: "Collection", id: "parent", description: "d", links: [{ rel: "child", href: "orphan/collection.json" }, { rel: "items", href: "gone.parquet" }] });
+  put(orphanUri, { type: "Collection", id: "orphan", description: "d", links: [] });
+  const found = await collectionsOf(catalogUri);
+  assert.equal(found.parents[orphanUri], parentUri);
+  assert.equal(found.parents[parentUri], undefined);
+  const snap = await snapshot();
+  assert.equal(JSON.stringify(snap.collections.map((c) => c.id).sort()), JSON.stringify(["empty", "orphan"]));
+  assert.equal(snap.collections.find((c) => c.id === "orphan").parentMissing, true);
+  assert.equal(snap.collections.find((c) => c.id === "empty").parentMissing, false);
+  files.delete(parentUri);
+  files.delete(orphanUri);
+}
+
 // A sub-catalog typed Catalog is still a node of the tree (a catalog, as it
 // has no items or assets); the catalog the environment is read from isn't.
 const subUri = "file:///checks/sub/catalog.json";
@@ -181,8 +201,9 @@ put(parquet, { items: [], collections: {} });
 put(uri, { ...doc, assets: {}, links: [{ rel: "items", href: "items.parquet" }] });
 c = (await snapshot()).collections[0];
 assert.equal(c.itemCount, 0);
-// No items and no assets is a folder, whatever it links.
-assert.equal(c.kind, "catalog");
+// A collection that links a data file is a dataset waiting for rows, not a folder.
+assert.equal(c.itemsLinked, true);
+assert.equal(c.kind, "dataset");
 put(uri, { ...doc, links: [{ rel: "items", href: "items.parquet" }] });
 put(parquet, { items: [{ id: "one", collection: "old-id", properties: {}, links: [], assets: {}, geometry: null, bbox: null }], collections: {} });
 c = (await snapshot()).collections[0];

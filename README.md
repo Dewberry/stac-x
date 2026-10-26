@@ -96,12 +96,16 @@ JSON reads and ETag checks run eight files at a time; GeoParquet is still
 recommended for large collections. Changes to linked items or pages are
 picked up at the configured refresh interval, even if the collection is unchanged.
 
-A collection with no items, no items link and no collection-level assets is
-read as a catalog: a folder that holds other nodes. So is any document typed
-`Catalog` below the one an environment starts from. A collection that links a
-GeoParquet file with zero rows is still a dataset, waiting for rows. Missing or
-unreadable linked files still report an error; they aren't treated as
-intentionally empty collections.
+Every node is read as either a dataset or a catalog (a folder that holds
+other nodes), worked out from what it holds on every load. A collection with
+items, or with a link to where its items are (a GeoParquet file, even with
+zero rows yet, or JSON items), is a dataset. Otherwise a document typed
+`Catalog` is a catalog; a leaf with collection-level assets is a dataset (a
+bundle of files); a node with children stays a catalog even when a manifest
+or README is attached to it; and anything with nothing in it is a catalog.
+A node whose parent document was listed but didn't load sits at the top of
+the list and its row says so. Missing or unreadable linked files still report
+an error; they aren't treated as intentionally empty collections.
 
 The home page lists datasets, grouped under the top-level catalog each sits
 in. Catalogs are never rows: a heading opens one in the rail (`?in=<slug>`),

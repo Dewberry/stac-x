@@ -33,18 +33,20 @@ function load(file) {
   return loaded.exports;
 }
 
-// Catalogs and datasets. A Collection with no items and no assets is a
-// catalog, leaf or not; a node with items and children is a dataset that
-// also holds catalogs.
+// Catalogs and datasets. Items or an items link make a dataset; a node
+// with items and children is a dataset that also holds catalogs; a node
+// with nothing in it is a catalog, leaf or not.
 const { collectionParents, hierarchyOf, kindOf, searchCollections } = load(resolve(root, "collection-hierarchy.ts"));
-const node = (over) => ({ type: "Collection", itemCount: 0, assets: {}, childCollectionHrefs: [], ...over });
-// The type isn't read: every node is a Collection, folders included.
-assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "dataset");
+const node = (over) => ({ type: "Collection", itemCount: 0, itemsLinked: false, assets: {}, childCollectionHrefs: [], ...over });
+assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "dataset"); // Items win over the type.
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"] })), "catalog");
 assert.equal(kindOf(node({})), "catalog"); // An empty leaf is a shelf, not a dataset.
 assert.equal(kindOf(node({ itemCount: 1 })), "dataset");
+assert.equal(kindOf(node({ itemsLinked: true })), "dataset"); // A parquet file with no rows yet.
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"], itemCount: 1 })), "dataset");
-assert.equal(kindOf(node({ assets: { plot: { href: "p.png" } } })), "dataset");
+assert.equal(kindOf(node({ assets: { plot: { href: "p.png" } } })), "dataset"); // A bundle of files.
+assert.equal(kindOf(node({ assets: { manifest: { href: "m.csv" } }, childCollectionHrefs: ["a.json"] })), "catalog"); // A folder with a manifest.
+assert.equal(kindOf(node({ type: "Catalog", assets: { readme: { href: "r.md" } } })), "catalog");
 
 // The tree's shape in miniature: two roots with datasets, one without, a
 // same-named empty catalog in two places, and a dataset that holds catalogs.

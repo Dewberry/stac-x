@@ -109,6 +109,13 @@ export type Collection = {
   bbox: [number, number, number, number] | null;
   temporal: [string | null, string | null];
   itemCount: number;
+  /** Links a parquet file or JSON items, so it's a dataset even before it has rows. */
+  itemsLinked: boolean;
+  /**
+   * Reached through a document that didn't load, so it sits at the top of
+   * the tree for now and the page says why.
+   */
+  parentMissing: boolean;
   /** Distinct loaded collections linked directly as children, not all descendants. */
   childCollectionCount: number;
   /** Resolved child document hrefs, for matching loaded collections to navigation links. */

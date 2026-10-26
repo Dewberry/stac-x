@@ -57,7 +57,8 @@ type CollectionDoc = Record<string, unknown> | null;
 
 type Cache = {
   sources: Map<string, SourceState>;
-  listing: { at: number; uris: string[]; errors: string[] } | null;
+  /** The source files, and for each one reached through a collection's child link, that collection's file. */
+  listing: { at: number; uris: string[]; parents: Record<string, string>; errors: string[] } | null;
   docs: Map<string, { at: number; doc: CollectionDoc }>;
   building: Promise<Catalog> | null;
   /** The last catalog built, served while the next one is checked. Null until the first build and after a write. */
@@ -204,10 +205,15 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
       }
     }
   }
-  // Count the same loaded children the collection page can link to.
+  // Count the same loaded children the collection page can link to, and
+  // note a node whose parent document was listed but never became a node,
+  // so it sits at the top of the tree for now.
+  const loadedHrefs = new Set(collections.map((c) => c.docHref).filter((h): h is string => !!h));
   for (const c of collections) {
     c.childCollectionCount = childCollectionsOf(c, collections).length;
     c.kind = kindOf(c);
+    const parent = c.docHref ? listing.parents[c.docHref] : undefined;
+    c.parentMissing = !!parent && !loadedHrefs.has(parent);
   }
   try {
     const series = groupVersions(collections);
@@ -225,6 +231,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
 async function listSources(env: EnvKey, cache: Cache, now: number) {
   if (cache.listing && now - cache.listing.at < refreshMs) return cache.listing;
   const uris: string[] = [];
+  const parents: Record<string, string> = {};
   const errors: string[] = [];
   for (const entry of configuredSources(env)) {
     try {
@@ -237,6 +244,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
         // Each collection reached through child links is its own source.
         const found = await collectionsOf(uri);
         uris.push(...found.collections);
+        Object.assign(parents, found.parents);
         for (const m of found.missing) {
           errors.push(`${m.href}: ${m.error}`);
           console.error(`stac-x: ${uri} links to ${m.href}, which couldn't be read: ${m.error}`);
@@ -247,7 +255,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
       console.error(`stac-x: listing ${entry} failed:`, e);
     }
   }
-  cache.listing = { at: now, uris: Array.from(new Set(uris)), errors };
+  cache.listing = { at: now, uris: Array.from(new Set(uris)), parents, errors };
   return cache.listing;
 }
 
@@ -354,6 +362,12 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
       bbox: docBbox && docBbox.length >= 4 ? [docBbox[0], docBbox[1], docBbox[2], docBbox[3]] : bbox,
       temporal: docInterval ? [docInterval[0] ?? null, docInterval[1] ?? null] : temporal,
       itemCount: items.length,
+      // Classified in build(), from what the sources link to.
+      itemsLinked: sources.some((uri) => {
+        const s = cache.sources.get(uri);
+        return !isJsonSource(uri) || !!s?.parquet || (s?.dependencies?.length ?? 0) > 0;
+      }),
+      parentMissing: false,
       childCollectionCount: 0,
       childCollectionHrefs: Array.isArray(links) && docBase
         ? (links as StacLink[]).filter((l) => l?.rel === "child" && typeof l.href === "string").map((l) => resolveHref(l.href, docBase))
@@ -394,6 +408,9 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
     bbox: unionBbox(items),
     temporal: temporalExtent(items),
     itemCount: items.length,
+    // Its items are the rows of a file.
+    itemsLinked: true,
+    parentMissing: false,
     childCollectionCount: 0,
     childCollectionHrefs: [],
     sources,

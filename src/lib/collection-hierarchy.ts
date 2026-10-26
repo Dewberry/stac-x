@@ -15,15 +15,24 @@ export type NodeKind = "catalog" | "dataset";
 /**
  * Every node in the catalog is a STAC Collection, and stays one: the
  * generator writes its folders as Collections with a placeholder extent,
- * and the viewer never rewrites them. So a node is a catalog (a folder)
- * when it has no items and no collection-level assets, with children or
- * without: an empty leaf (an Archive folder, Grids' AEP Grids) is an empty
- * folder. Anything with items or assets of its own is a dataset. The STAC
- * type isn't read. It's worked out on every load, so a folder that gains
- * items becomes a dataset with nothing to configure.
+ * and the viewer never rewrites them. So the kind is worked out from what
+ * a node holds, on every load, and a folder that gains data becomes a
+ * dataset with nothing to configure:
+ *
+ * - Items, or a link to where its items are (a parquet file, JSON items),
+ *   make a dataset, even with no rows yet.
+ * - Otherwise a document typed Catalog is a catalog.
+ * - Otherwise a leaf with collection-level assets is a dataset (a bundle
+ *   of files with no items), but a node with children keeps being a
+ *   folder when a manifest or a README is attached to it.
+ * - Otherwise it's a catalog: an empty leaf (an Archive folder, Grids' AEP
+ *   Grids) is an empty folder.
  */
-export function kindOf(c: Pick<Collection, "itemCount" | "assets">): NodeKind {
-  return c.itemCount === 0 && Object.keys(c.assets).length === 0 ? "catalog" : "dataset";
+export function kindOf(c: Pick<Collection, "type" | "itemCount" | "itemsLinked" | "assets" | "childCollectionHrefs">): NodeKind {
+  if (c.itemCount > 0 || c.itemsLinked) return "dataset";
+  if (c.type === "Catalog") return "catalog";
+  if (Object.keys(c.assets).length > 0 && c.childCollectionHrefs.length === 0) return "dataset";
+  return "catalog";
 }
 
 export type HierarchyNode = { slug: string; name: string; parentSlugs: string[]; kind: NodeKind };

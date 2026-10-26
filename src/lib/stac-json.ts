@@ -130,18 +130,23 @@ async function readJsonItems(links: StacLink[], collection: string, uri: string)
  * node of the tree like a collection (a folder, lib/collection-hierarchy.ts),
  * so a generator that types its containers as Catalog keeps its folders. A
  * child that can't be read is reported rather than dropped, so a catalog
- * pointing at files that haven't been uploaded says so on the page.
+ * pointing at files that haven't been uploaded says so on the page. For a
+ * collection reached through another collection's child link, `parents`
+ * names that collection's file (the first one found), so the tree can tell
+ * a node that's top-level by design from one whose parent didn't load.
  */
 export async function collectionsOf(
   catalogUri: string,
-): Promise<{ collections: string[]; missing: { href: string; error: string }[] }> {
+): Promise<{ collections: string[]; parents: Record<string, string>; missing: { href: string; error: string }[] }> {
   const collections: string[] = [];
+  const parents: Record<string, string> = {};
   const missing: { href: string; error: string }[] = [];
   const seen = new Set<string>();
   const start = parseRef(catalogUri).uri;
-  const walk = async (uri: string) => {
+  const walk = async (uri: string, from: string | null) => {
     if (seen.has(uri)) return;
     seen.add(uri);
+    if (from && from !== start) parents[uri] = from;
     let doc: Record<string, unknown>;
     try {
       doc = (await readJson<Record<string, unknown>>(uri)).value;
@@ -161,11 +166,11 @@ export async function collectionsOf(
     // Siblings are read together; a catalog of a dozen collections is one
     // round trip deep instead of a dozen.
     await Promise.all(
-      links.filter((l) => l?.rel === "child" && typeof l.href === "string").map((l) => walk(resolveHref(l.href, uri))),
+      links.filter((l) => l?.rel === "child" && typeof l.href === "string").map((l) => walk(resolveHref(l.href, uri), uri)),
     );
   };
-  await walk(start);
-  return { collections, missing };
+  await walk(start, null);
+  return { collections, parents, missing };
 }
 
 export async function readCollectionJson(uri: string): Promise<JsonStac> {
