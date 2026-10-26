@@ -48,10 +48,12 @@ export function SiteHeader({ session }: { session: Session | null }) {
       <div className="ffx-shell sx-header-inner">
         {portal ? (
           // The site this app is one part of, ahead of the wordmark like the
-          // first step of a path: FFRD Cloud / STAC.
+          // first step of a path: FFRD Cloud / STAC. It opens in a new tab so
+          // the catalog stays open behind it.
           <div className="sx-portal">
-            <a href={portal.url} className="sx-portal-link">
+            <a href={portal.url} className="sx-portal-link" target="_blank" rel="noreferrer">
               {portal.name}
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
             <span className="sx-portal-sep" aria-hidden="true">
               /
