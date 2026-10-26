@@ -375,6 +375,10 @@ export function HomeMap({
   const drawnRef = useRef(drawn);
   const areaRef = useRef(area);
   const frameBoxRef = useRef(frame);
+  // What the fit button says it fits to: the opened catalog, or the area.
+  const fitLabel = frameName ? `Fit to ${frameName}` : area ? `Fit to ${area.name}` : "Fit to the catalog";
+  const fitLabelRef = useRef(fitLabel);
+  const controlsRef = useRef<Controls | null>(null);
   const areaHighlightRef = useRef(areaHighlight);
   const areaCoveredRef = useRef(areaCovered);
   const hoverKeysRef = useRef(hoverKeys);
@@ -464,9 +468,10 @@ export function HomeMap({
         m.fitBounds(bounds(), { ...fitPadding(), duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration });
       };
       fitFrameRef.current = fitFrame;
-      const fitLabel = areaRef.current ? `Fit to ${areaRef.current.name}` : "Fit to the catalog";
       // The map already fills the window, so there's no full screen button.
-      m.addControl(new Controls(m, frame, () => fitFrame(), fitLabel, { fullscreen: false }), "top-right");
+      const controls = new Controls(m, frame, () => fitFrame(), fitLabelRef.current, { fullscreen: false });
+      controlsRef.current = controls;
+      m.addControl(controls, "top-right");
       // The map takes the window, so a resize changes what fits. With nothing
       // selected, keep the area framed.
       m.on("resize", () => {
@@ -598,6 +603,11 @@ export function HomeMap({
     m.fitBounds([[w, s], [e, n]], { ...fitPadding(), maxZoom: FIT_MAX_ZOOM, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 750 });
   }, [fitSlug]);
 
+  useEffect(() => {
+    fitLabelRef.current = fitLabel;
+    controlsRef.current?.setFitLabel(fitLabel);
+  }, [fitLabel]);
+
   // A catalog opened or closed in the rail moves the frame. With nothing
   // picked, the map goes there; a pick keeps the map on the pick, and
   // closing it goes back to the new frame.
@@ -646,7 +656,7 @@ export function HomeMap({
   }, [areaHighlight]);
 
   return (
-    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label={area ? `Collections in ${area.name}` : "Collections on the map"}>
+    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label={area ? `Datasets in ${area.name}` : "Datasets on the map"}>
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {tip && (
         <div className="ffx-map-tip sx-map-tip" data-stack={tip.rows.length > 1 || undefined} data-flip={tip.flip || undefined} style={{ left: tip.x, top: tip.y }} aria-hidden="true">

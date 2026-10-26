@@ -249,12 +249,13 @@ function icon(d: string) {
  */
 export class Controls implements IControl {
   private el?: HTMLDivElement;
+  private fitButton?: HTMLButtonElement;
   private onFs?: () => void;
   constructor(
     private readonly map: MapLibreMap,
     private readonly frame: HTMLElement,
     private readonly fit: () => void,
-    private readonly fitLabel = "Fit to data",
+    private fitLabel = "Fit to data",
     private readonly opts: { fullscreen?: boolean } = {},
   ) {}
   onAdd() {
@@ -272,7 +273,7 @@ export class Controls implements IControl {
     };
     button("Zoom in", ICON.zoomIn, () => this.map.zoomIn());
     button("Zoom out", ICON.zoomOut, () => this.map.zoomOut());
-    button(this.fitLabel, ICON.fit, this.fit);
+    this.fitButton = button(this.fitLabel, ICON.fit, this.fit);
     if (document.fullscreenEnabled && this.opts.fullscreen !== false) {
       const fs = button("Full screen", ICON.enter, () => {
         if (document.fullscreenElement) void document.exitFullscreen();
@@ -288,6 +289,14 @@ export class Controls implements IControl {
     }
     this.el = el;
     return el;
+  }
+  /** What the fit button fits to, when that changes after the map is made. */
+  setFitLabel(label: string) {
+    this.fitLabel = label;
+    if (this.fitButton) {
+      this.fitButton.title = label;
+      this.fitButton.setAttribute("aria-label", label);
+    }
   }
   onRemove() {
     if (this.onFs) document.removeEventListener("fullscreenchange", this.onFs);

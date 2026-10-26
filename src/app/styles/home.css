@@ -4,7 +4,8 @@
    left, the map on the right, edge to edge under the environment band. The
    selected dataset opens in its row, items and all, and the map frames
    it. From lg the page doesn't scroll; only the rail's list does, under
-   the rail's head, so there's one scrollbar. The body becomes
+   the rail's head, and an open row's items in their own short box, so a
+   905-item list doesn't push the rest of the rail away. The body becomes
    exactly the window's height and main takes what the header and the band
    leave, so a band that wraps is accounted for. The footer, and its theme
    control, are on every other page. On a phone it's a plain column: the
@@ -287,11 +288,6 @@
 .sx-rail-in {
   margin-left: -4px;
 }
-/* The rail's title takes focus when a catalog is opened or left, from
-   code; there's nothing to do on it, so no ring. */
-.sx-rail-title h2:focus {
-  outline: none;
-}
 /* With a catalog open: the way back, its name with a folder and the kind
    beside it, its description, and what's in it. */
 .sx-rail-back {
@@ -338,24 +334,41 @@
   text-underline-offset: 3px;
   cursor: pointer;
 }
-/* On a phone the description is two lines until Read more. */
+/* The description is four lines until Read more, so a long one can't fill
+   the fixed head and leave no room for the list; two on a phone. */
+.sx-scope-desc p:not([data-open]) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
 @media (max-width: 63.99rem) {
   .sx-scope-desc p:not([data-open]) {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
-    overflow: hidden;
   }
   .sx-rail-title h2.sx-scope-title {
     font-size: 20px;
     line-height: 24px;
   }
 }
-@media (min-width: 64rem) {
-  .sx-readmore {
-    display: none;
-  }
+/* Opened in the rail, a catalog's own page is a link away. */
+.sx-rail-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  min-height: 24px;
+  margin-top: -6px;
+  font-size: var(--ffx-t-micro);
+  font-weight: 500;
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-rail-page:hover {
+  text-decoration-thickness: 2px;
 }
 .sx-scope-counts {
   font-size: 13px;
@@ -1433,7 +1446,7 @@ button.sx-map-pill svg {
     left: 372px;
     display: grid;
     place-items: center;
-    width: 22px;
+    width: 24px;
     height: 56px;
     padding: 0;
     border: 0;
@@ -1451,12 +1464,6 @@ button.sx-map-pill svg {
     color: var(--ffx-ink);
     background: var(--ffx-surface-sunken);
   }
-  /* The rail's list is the one scroller. An open row's items and the
-     catalogs inside it run at full length in it, not in a box of their own. */
-  .sx-rail .sx-item-list {
-    max-height: none;
-    overflow: visible;
-  }
   /* Positioned, so what's absolutely placed inside it (the sr-only labels
      in an open row) is clipped with the rest instead of stretching the page. */
   .sx-rail-list {
@@ -1464,6 +1471,8 @@ button.sx-map-pill svg {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* Room for the sticky heading, so a row scrolled to by focus isn't under it. */
+    scroll-padding-top: 34px;
   }
 }
 

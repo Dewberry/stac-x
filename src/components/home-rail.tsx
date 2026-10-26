@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
@@ -140,6 +141,7 @@ export function HomeRail({
   env,
   datasetCount,
   rootsWithData,
+  allInCatalogs,
   emptyRoots,
   opened,
   openedParent,
@@ -172,6 +174,8 @@ export function HomeRail({
   datasetCount: number;
   /** Top-level catalogs with at least one dataset below them. */
   rootsWithData: number;
+  /** Every dataset sits in some catalog, so "in N catalogs" is the whole story. */
+  allInCatalogs: boolean;
   /** Top-level catalogs with no dataset anywhere below them, by name. */
   emptyRoots: HomeArea[];
   /** The catalog open in the rail, if one is. */
@@ -221,8 +225,9 @@ export function HomeRail({
   const anything = datasetCount > 0 || emptyRoots.length > 0;
 
   // Opening or leaving a catalog replaces the whole rail, so focus goes to
-  // its title. Not on the first render: a link to a catalog lands there
-  // without taking focus from the page.
+  // its title and the list starts at its top, unless a dataset that's still
+  // in view stays open. Not on the first render: a link to a catalog lands
+  // there without taking focus from the page.
   const titleRef = useRef<HTMLHeadingElement>(null);
   const openedSlug = opened?.slug ?? null;
   const seenScope = useRef(openedSlug);
@@ -230,7 +235,12 @@ export function HomeRail({
     if (seenScope.current === openedSlug) return;
     seenScope.current = openedSlug;
     titleRef.current?.focus();
-  }, [openedSlug]);
+    if (!selected && listRef.current) listRef.current.scrollTop = 0;
+  }, [openedSlug, selected]);
+  // Somewhere steady for focus when the control that had it goes.
+  const focusSteady = (selector: string) => (document.querySelector<HTMLElement>(selector) ?? titleRef.current)?.focus();
+  // The review states show where there are datasets to count.
+  const statesShown = datasetCount > 0 && (!opened || opened.datasetsBelow > 0);
 
   // Scroll the list so the open row's head is in view, below its sticky
   // catalog heading. Done by hand rather than scrollIntoView, which would
@@ -240,7 +250,7 @@ export function HomeRail({
     if (!selected || !list || !matchMedia(WIDE_SCREEN).matches) return;
     const row = list.querySelector<HTMLElement>(`[data-slug="${CSS.escape(selected)}"] > .sx-row`);
     if (!row) return;
-    const head = row.closest(".sx-group")?.querySelector<HTMLElement>(".sx-ghead");
+    const head = row.closest(".sx-group")?.querySelector<HTMLElement>(".sx-ghead, .sx-shead");
     const headH = head?.offsetHeight ?? 0;
     const top = row.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
     const bottom = top + row.offsetHeight;
@@ -278,6 +288,10 @@ export function HomeRail({
                 </>
               )}
             </p>
+            <Link href={opened.href} className="sx-rail-page">
+              Catalog page
+              <Icon d={ICONS.chevronRight} size={12} />
+            </Link>
           </>
         ) : (
           <div className="sx-rail-title">
@@ -286,12 +300,12 @@ export function HomeRail({
             <span className="sx-rail-count ffx-num">
               {shownCount === total ? fmtNum(total) : `${fmtNum(shownCount)} of ${fmtNum(total)}`}
             </span>
-            {rootsWithData > 0 && !search && (
+            {rootsWithData > 0 && allInCatalogs && !search && (
               <span className="sx-rail-in">in {plural(rootsWithData, "catalog", "catalogs")}</span>
             )}
           </div>
         )}
-        {anything && (!opened || opened.datasetsBelow > 0) && (
+        {anything && (
           <label className="ffx-field">
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <circle cx="7" cy="7" r="4.5" />
@@ -326,7 +340,7 @@ export function HomeRail({
         )}
         {/* The review states with their counts: the legend for the open
             row's mark, and a filter. Datasets only; catalogs aren't reviewed. */}
-        {datasetCount > 0 && (!opened || opened.datasetsBelow > 0) && (
+        {statesShown && (
           <div className="sx-rail-states" role="group" aria-label="Filter by review state">
             {STATE_ORDER.map((st) => (
               <button
@@ -343,7 +357,7 @@ export function HomeRail({
             ))}
           </div>
         )}
-        {filter && (
+        {filter && statesShown && (
           <p className="sx-filter-line">
             <span aria-hidden="true">
               Showing <b>{QC_LABEL[filter]}</b> only
@@ -351,7 +365,7 @@ export function HomeRail({
             <button
               type="button"
               onClick={() => {
-                document.querySelector<HTMLElement>(".sx-state-btn[aria-pressed=true]")?.focus();
+                focusSteady(".sx-state-btn[aria-pressed=true]");
                 onFilter(null);
               }}
             >
@@ -369,7 +383,11 @@ export function HomeRail({
         {groups.length === 0 && !search && (!opened || (opened.datasetsBelow > 0 && filter)) && (
           <li className="sx-empty">{datasetCount ? "No datasets match." : emptyText}</li>
         )}
-        {opened && !opened.datasetsBelow && !emptyInOpened.length && <li className="sx-empty">Nothing in it yet.</li>}
+        {opened && !opened.datasetsBelow && !emptyInOpened.length && !search && <li className="sx-empty">Nothing in it yet.</li>}
+        {/* Matches the review filter hides: say so, rather than an empty list under a line counting them. */}
+        {search && filter && statesShown && shownCount === 0 && search.datasets > 0 && (
+          <li className="sx-empty">No matching datasets are {QC_LABEL[filter]}.</li>
+        )}
         {groups.map((g) => (
           <li key={g.key} className="sx-group">
             {search && (
@@ -457,7 +475,7 @@ export function HomeRail({
             <button
               type="button"
               onClick={() => {
-                document.querySelector<HTMLElement>(".sx-rail input[type=search]")?.focus();
+                focusSteady(".sx-rail input[type=search]");
                 onQuery("");
               }}
             >

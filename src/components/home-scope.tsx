@@ -22,7 +22,10 @@ function scopeHref(env: EnvKey, slug: string | null) {
 }
 
 export function goToScope(env: EnvKey, slug: string | null) {
-  window.history.pushState(null, "", scopeHref(env, slug));
+  const href = scopeHref(env, slug);
+  // A link to what's already open adds nothing to Back.
+  if (`${location.pathname}${location.search}` === href) return;
+  window.history.pushState(null, "", href);
 }
 
 export function ScopeLink({

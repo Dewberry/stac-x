@@ -200,13 +200,17 @@ async function HomeData({ env }: { env: EnvKey }) {
   // Where the map goes when a catalog is opened in the rail: its datasets'
   // boxes, leaving out the ones that reach beyond the area (a storm domain,
   // a national inventory), so a catalog of basin-wide data opens on the
-  // basin and one of a single watershed opens on that watershed.
+  // basin and one of a single watershed opens on that watershed. When some
+  // were left out the area stays in the frame, so a catalog of mostly
+  // area-wide data doesn't open on its one small dataset.
   const bySlug = new Map(areas.map((a) => [a.slug, a]));
   for (const a of areas) {
     if (a.kind !== "catalog" || !a.datasetsBelow) continue;
     const below = [...tree.descendants([a.slug])].map((s) => bySlug.get(s)!).filter((d) => d.kind === "dataset" && d.bbox);
     const near = area ? below.filter((d) => d.coverage !== "beyond") : below;
-    a.frame = near.length ? mapFrame(null, near.map((d) => d.bbox)) : area?.bbox ?? null;
+    const boxes = near.map((d) => d.bbox);
+    if (area && near.length < below.length) boxes.push(area.bbox);
+    a.frame = boxes.length ? mapFrame(null, boxes) : area?.bbox ?? null;
   }
 
   return (

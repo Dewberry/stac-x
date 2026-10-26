@@ -214,6 +214,20 @@ export function HomeConsole({
     const below = hierarchy.descendants([opened.slug]);
     return datasets.filter((a) => below.has(a.slug));
   }, [datasets, opened, hierarchy]);
+  // Opening or leaving a catalog starts the rail afresh there. The search
+  // that found the catalog would hide what's in it, and a dataset left
+  // selected outside it would come back on Back. On a phone the sheet goes
+  // too, since the rail it covers is what changed. Done while rendering,
+  // the way React keeps state in step with a changed input.
+  const openedSlug = opened?.slug ?? null;
+  const [lastOpened, setLastOpened] = useState(openedSlug);
+  if (lastOpened !== openedSlug) {
+    setLastOpened(openedSlug);
+    setQuery("");
+    setHovered(null);
+    const narrow = typeof window !== "undefined" && !window.matchMedia("(min-width: 64rem)").matches;
+    if (selected && (narrow || !inView.some((a) => a.slug === selected))) setSelected(null);
+  }
   // Review facets count this scope before applying the selected QC state.
   const scope = useMemo(() => q ? searchCollections(inView, q) : inView, [inView, q]);
   const shown = useMemo(() => scope.filter((a) => !filter || stateOf(a) === filter), [scope, filter]);
@@ -225,8 +239,12 @@ export function HomeConsole({
   // Top-level catalogs that hold a dataset, and those that hold none yet.
   const roots = useMemo(() => {
     const top = areas.filter((a) => hierarchy.roots.has(a.slug) && a.kind === "catalog");
-    return { full: top.filter((a) => a.datasetsBelow > 0).length, empty: top.filter((a) => a.datasetsBelow === 0) };
-  }, [areas, hierarchy]);
+    return {
+      full: top.filter((a) => a.datasetsBelow > 0).length,
+      empty: top.filter((a) => a.datasetsBelow === 0),
+      all: datasets.every((d) => hierarchy.rootCatalogOf(d.slug)),
+    };
+  }, [areas, datasets, hierarchy]);
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
@@ -286,8 +304,13 @@ export function HomeConsole({
     return [...byHead.values()].sort((x, y) =>
       !x.catalog ? -1 : !y.catalog ? 1 : x.catalog.name.localeCompare(y.catalog.name) || x.key.localeCompare(y.key));
   }, [shown, searching, hierarchy, opened]);
-  // The way back out of the opened catalog: its parent, or the landing.
-  const openedParent = useMemo(() => opened ? (hierarchy.ancestorsOf(opened.slug).at(-1) ?? null) : null, [opened, hierarchy]);
+  // The way back out of the opened catalog: the catalog it's in, or the
+  // landing. A dataset above it (Project Scoping's catalogs) can't be opened
+  // in the rail, so the way back skips it.
+  const openedParent = useMemo(
+    () => opened ? (hierarchy.ancestorsOf(opened.slug).filter((t) => t.kind === "catalog").at(-1) ?? null) : null,
+    [opened, hierarchy],
+  );
   // Where the open dataset sits, for its facts.
   const trail = useMemo(
     () => current ? hierarchy.ancestorsOf(current.slug).filter((t) => t.kind === "catalog") : [],
@@ -467,6 +490,7 @@ export function HomeConsole({
             env={env}
             datasetCount={datasets.length}
             rootsWithData={roots.full}
+            allInCatalogs={roots.all}
             emptyRoots={roots.empty}
             opened={opened}
             openedParent={openedParent}
