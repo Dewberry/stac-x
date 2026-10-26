@@ -194,8 +194,8 @@ export function PageHead({
   );
 }
 
-/** A native disclosure; descriptions and assets start closed, navigation can start open. */
-export function CollapsiblePanel({ title, note, id, children, defaultOpen = false }: {
+/** A native disclosure. Open to begin with, so the page shows what it has; a person can fold one away. */
+export function CollapsiblePanel({ title, note, id, children, defaultOpen = true }: {
   title: string;
   note?: ReactNode;
   id: string;
