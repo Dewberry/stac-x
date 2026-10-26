@@ -96,38 +96,30 @@ JSON reads and ETag checks run eight files at a time; GeoParquet is still
 recommended for large collections. Changes to linked items or pages are
 picked up at the configured refresh interval, even if the collection is unchanged.
 
-Collections without an items link are shown with zero items, using their
-metadata, extent and collection assets. A linked GeoParquet file with zero
-rows works too. Missing or unreadable linked files still report an error;
-they aren't treated as intentionally empty collections.
+A collection with no items, no items link and no collection-level assets is
+read as a catalog: a folder that holds other nodes. So is any document typed
+`Catalog` below the one an environment starts from. A collection that links a
+GeoParquet file with zero rows is still a dataset, waiting for rows. Missing or
+unreadable linked files still report an error; they aren't treated as
+intentionally empty collections.
 
-The home page lists top-level collections by default. Child collections stay
-accessible from their parent's page and through search. Search matches titles
-and descriptions at every level; a matching parent also includes all its
-descendants. Child results show their parent paths, and shared children appear
-only once. Review counts and map selection follow this scope, with no roll-up
-of descendant items into parents. Loaded children whose parents couldn't be
-loaded stay at the top level. Rootless cyclic branches also stay visible rather
-than disappearing because of invalid hierarchy links.
+The home page lists datasets, grouped under the top-level catalog each sits
+in. Catalogs are never rows: a heading opens one in the rail (`?in=<slug>`),
+with its datasets under the catalogs inside it and its empty catalogs folded
+at the end, and top-level catalogs with nothing in them yet are named at the
+foot of the list. Search matches datasets and catalogs by title and
+description, without bringing in a match's descendants, and lists the two
+apart; catalogs that share a name are one row that opens to where each sits.
+The review counts, the map and the Admin queue cover datasets only. A catalog's
+page shows what's inside it and where it sits, with no map, items or review
+state. Loaded children whose parents couldn't be loaded stay at the top level,
+and rootless cyclic branches stay visible rather than disappearing.
 
-Hide empty collections is on by default and remembers the viewer's choice.
-The updated default resets the earlier opt-in preference once. List totals and
-direct child counts exclude hidden collections while the filter is on.
-It removes collections with no items, child collections,
-or collection assets from the home list, search results, child links, and map.
-Parents with children stay browsable. Review-state filters remain separate.
-Child collections use compact counts and plain headings and list rows.
-Collection pages keep browsing on the left and maps on the right;
-item pages keep their maps at the top left. On desktop, drag the divider beside the
-collections pane to give the list or map more room. Child collections start
-expanded and can be collapsed; Description and Assets start collapsed on
-collection pages. Long child collection and item lists scroll independently on
-desktop so the map stays visible. Item search, sort and paging stay outside the
-scrolling rows. Hover or focus a child link to preview it on the map, then
-leave the link or press Escape to return to the current collection's items.
-The divider's arrow buttons work
-without dragging; the focused divider also accepts Left/Right, Home/End, and
-Enter to reset. The preferred width is remembered in this browser. Phones keep
+Collection pages keep browsing on the left and maps on the right; item pages
+keep their maps at the top left. Description and Assets start collapsed. On
+desktop, the handle on the edge of the map hides the dataset list and brings it
+back. Long item lists scroll in their own box so the rest of the page stays in
+view; item search, sort and paging stay outside the scrolling rows. Phones keep
 the stacked map and list.
 
 There are no defaults in the code, so an environment left unset reads nothing

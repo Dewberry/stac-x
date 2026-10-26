@@ -38,12 +38,25 @@ if (!home) {
   process.exit(2);
 }
 
-const collection = await firstLink(ENV, new RegExp(`${ENV}/collections/[^"/?#\\\\]+`));
+// The home page links every collection; take the first dataset with an item
+// for the collection and item pages, and the first catalog for a catalog's
+// page, which is laid out apart from a dataset's.
+const homeHtml = await (await fetch(BASE + ENV)).text();
+const candidates = [...new Set(homeHtml.match(new RegExp(`${ENV}/collections/[^"/?#\\\\]+`, "g")) ?? [])].slice(0, 60);
+let collection = null;
+let item = null;
+let catalogPage = null;
+for (const path of candidates) {
+  if (collection && catalogPage) break;
+  const res = await fetch(BASE + path).catch(() => null);
+  if (!res?.ok) continue;
+  const html = await res.text();
+  if (!catalogPage && html.includes("sx-catalog-title")) catalogPage = path;
+  const itemLink = !collection && html.match(new RegExp(`${path}/items/[^"/?#\\\\]+`));
+  if (itemLink) [collection, item] = [path, itemLink[0]];
+}
 // A catalog opened in the home rail, when the catalog has catalogs.
 const scoped = await firstLink(ENV, new RegExp(`${ENV}\\?in=[^"&#\\\\]+`));
-// That catalog's own page, which is laid out apart from a dataset's.
-const catalogPage = scoped && `${ENV}/collections/${scoped.slice(scoped.indexOf("?in=") + 4)}`;
-const item = collection && (await firstLink(collection, new RegExp(`${collection}/items/[^"/?#\\\\]+`)));
 const pages = [
   "/signin",
   ENV,
@@ -55,7 +68,7 @@ const pages = [
   `${ENV}/admin/not-built-yet`,
   `${ENV}/no-such-page`,
 ].filter(Boolean);
-if (!collection) console.log("No collections found, so collection and item pages are skipped.\n");
+if (!collection) console.log("No dataset with items found, so collection and item pages are skipped.\n");
 
 const browser = await chromium.launch();
 let failures = 0;
