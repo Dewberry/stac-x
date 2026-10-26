@@ -44,3 +44,26 @@ export const ICONS = {
   chevronRight: "m6 4 4 4-4 4",
   fit: "M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3",
 };
+
+/**
+ * The folder beside a catalog's name, wherever one is named: group
+ * headings, breadcrumbs, catalog rows. Datasets never carry it, so it's
+ * how the two kinds tell apart at a glance.
+ */
+export function FolderGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      className="sx-folder"
+      viewBox="0 0 14 14"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M1.5 4.5V3a1 1 0 0 1 1-1h3l1.5 1.5h5a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-9.5a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}

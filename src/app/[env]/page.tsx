@@ -16,16 +16,19 @@ import { collectionHref, collectionJsonHref } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 /**
- * The landing page: where the catalog's collections are, on one map that
+ * The landing page: where the catalog's datasets are, on one map that
  * opens on the deployment's area (lib/map-area.ts) or, with none set, on
- * everything the catalog covers.
+ * everything the datasets cover.
  *
- * Every collection in the catalog is an area here: it links to the
- * collection, its counts are real, and its footprint is drawn on the map
- * when it's selected (points for gages, the covered area for a model; see
+ * Every node in the catalog is an area here, so the rail can group and
+ * search by catalog, but only datasets are drawn, counted and framed. A
+ * catalog has no extent of its own; the box the generator gives it is a
+ * placeholder (lib/collection-hierarchy.ts). A dataset links to its page,
+ * its counts are real, and its footprint is drawn on the map when it's
+ * selected (points for gages, the covered area for a model; see
  * lib/overview.ts), so a new parquet file in the bucket shows up here with
- * no code change. A collection whose extent covers most of the area (gages,
- * a storm catalog) says "Whole area" in the rail.
+ * no code change. A dataset whose extent covers most of the area (gages)
+ * says "Whole area" in the rail.
  */
 
 /** The most items a selected collection lists by name in its row. */
@@ -34,15 +37,15 @@ const MEMBERS_MAX = 24;
 /** Share of the area a collection's extent has to cover to count as area-wide. */
 const WIDE = 0.7;
 
-/** How many times the area's box a collection's box has to be to count as larger than the area. */
+/** How many times the area's box a dataset's box has to be to count as reaching beyond the area. */
 const LARGER = 3;
 
 /** What the rail says when an environment has nothing in it yet. */
 const EMPTY: Record<EnvKey, string> = {
-  sandbox: "Collections show up here once they land in the Sandbox catalog.",
-  dev: "Collections show up here once they land in the Development catalog.",
-  test: "Collections show up here once they're approved in Development.",
-  prod: "Collections show up here once they're approved in Test.",
+  sandbox: "Datasets show up here once they land in the Sandbox catalog.",
+  dev: "Datasets show up here once they land in the Development catalog.",
+  test: "Datasets show up here once they're approved in Development.",
+  prod: "Datasets show up here once they're approved in Test.",
 };
 
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {
@@ -85,7 +88,8 @@ async function HomeData({ env }: { env: EnvKey }) {
   // The heavy ones keep their shape here but their features stay on the
   // server, fetched when the collection is picked.
   const lazy = new Set<string>();
-  const footprints: Footprint[] = [...latest]
+  const footprints: Footprint[] = latest
+    .filter((c) => c.kind === "dataset")
     .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
     .map((c) => {
       try {
@@ -127,22 +131,26 @@ async function HomeData({ env }: { env: EnvKey }) {
     return names.size === 1 ? (names.values().next().value ?? null) : null;
   };
 
-  // Where a collection's extent sits against the area. A box several times
-  // the area's (a five-state storm domain, a national inventory) is larger
-  // than it, even though it covers all of it.
+  // Where a dataset's extent sits against the area. A box several times
+  // the area's (a five-state storm domain, a national inventory) reaches
+  // beyond it, even though it covers all of it, and so does one that
+  // misses the area altogether. A box small enough to fall between the
+  // area's sample points is in it when its middle is.
   const coverageOf = (bbox: [number, number, number, number] | null): HomeArea["coverage"] => {
     if (!area || !bbox) return null;
-    if (extentArea(bbox) >= LARGER * extentArea(area.bbox)) return "larger";
-    return areaShare(area, bbox) >= WIDE ? "whole" : "part";
+    if (extentArea(bbox) >= LARGER * extentArea(area.bbox)) return "beyond";
+    const share = areaShare(area, bbox);
+    if (share >= WIDE) return "whole";
+    return share > 0 || inArea(area, [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]) ? "part" : "beyond";
   };
 
   const areas: HomeArea[] = [];
   for (const c of latest) {
     if (failed.has(c.id)) continue;
     // A collection whose geometry couldn't be read has no place on the map,
-    // not even an extent; its row says so.
+    // not even an extent; its row says so. A catalog has none to begin with.
     const broken = c.geometryErrors > 0;
-    const bbox = broken ? null : c.bbox ?? unionBbox(c.items);
+    const bbox = broken || c.kind === "catalog" ? null : c.bbox ?? unionBbox(c.items);
     areas.push({
       slug: c.series.id,
       id: c.id,
@@ -159,41 +167,47 @@ async function HomeData({ env }: { env: EnvKey }) {
       href: collectionHref(env, c.id),
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
-      childCollectionCount: c.childCollectionCount,
       parentSlugs: [],
+      datasetsBelow: 0,
+      emptyInside: 0,
       unit: broken ? "items" : unitOf(c),
       geometryError: broken || undefined,
       lazy: lazy.has(c.id) || undefined,
       coverage: coverageOf(bbox),
-      years: yearsOf(c.temporal),
+      years: c.kind === "catalog" ? null : yearsOf(c.temporal),
       license: c.license,
       providers: c.providers.map((p) => p.name),
       keywords: c.keywords,
       assetCount: Object.keys(c.assets).length,
-      temporal: c.temporal,
-      qc: c.qc,
+      temporal: c.kind === "catalog" ? null : c.temporal,
+      // Catalogs have no review state; a proposed status on one means nothing.
+      qc: c.kind === "catalog" ? null : c.qc,
       ...versionOf(c),
     });
   }
   areas.sort((a, b) => a.name.localeCompare(b.name));
 
-  // Keep descendants available to search, but frame the initial map around
-  // top-level collections only. A failed parent leaves its children visible.
+  // Every level is sent, for grouping and search. A failed parent leaves
+  // its children at the top level.
   const parents = collectionParents(catalog.collections, new Set(areas.map((a) => a.id)));
   for (const a of areas) a.parentSlugs = parents.get(a.slug) ?? [];
-  const { roots } = hierarchyOf(areas);
+  const tree = hierarchyOf(areas);
+  for (const a of areas) {
+    a.datasetsBelow = tree.datasetsBelow(a.slug);
+    if (a.kind === "dataset") a.emptyInside = tree.childrenOf(a.slug).filter((c) => tree.isEmpty(c.slug)).length;
+  }
 
   return (
     <HomeConsole
       env={env}
       areas={areas}
       area={area && { name: area.name, geometry: area.geometry }}
-      frame={mapFrame(area, areas.filter((a) => roots.has(a.slug)).map((a) => a.bbox))}
+      frame={mapFrame(area, areas.filter((a) => a.kind === "dataset").map((a) => a.bbox))}
       items={items}
       // Only shown when something is wrong. The details go to the server log.
       notice={
         catalog.errors.length > 0 || failed.size > 0
-          ? "Some collections couldn't be loaded and may be missing. Try again in a minute."
+          ? "Some datasets or catalogs couldn't be loaded and may be missing. Try again in a minute."
           : null
       }
       emptyText={EMPTY[env]}

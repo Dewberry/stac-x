@@ -18,17 +18,17 @@ import { stateOf } from "./qc-mark";
 
 /**
  * The home page, a console for people who already know FFRD: the
- * collections rail on the left and the map on the right, filling the window
+ * dataset rail on the left and the map on the right, filling the window
  * under the environment band. Nothing here says what stac-x is; the header
  * does that.
  *
- * The rail shows top-level collections until searched. Search matches title
- * and description at every level, including descendants of matching parents;
- * the review states in its head are the legend for the marks
- * and the review filter in one; the rows are one list by name. The empty
- * collection toggle hides leaves without items or collection assets, keeping
- * parent collections available for browsing.
- * Selecting a collection opens its row in place, with enough to decide
+ * The rail's rows are datasets, grouped under the top-level catalog each
+ * sits in; catalogs are never rows (lib/collection-hierarchy.ts). Top-level
+ * catalogs with no dataset anywhere below them are named once at the foot
+ * of the list. The review states in the head count datasets only and are
+ * the legend for the marks and the review filter in one. Search matches
+ * datasets by title and description.
+ * Selecting a dataset opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
  * footprint over the selection. Enter or Space on a row opens it like a
@@ -80,10 +80,12 @@ export type HomeArea = {
   href: string;
   jsonHref: string;
   itemCount: number;
-  /** Loaded direct child collections, shown beside the item count. */
-  childCollectionCount: number;
-  /** Loaded parent series, used to hide descendants until searched for. */
+  /** Loaded parent series, for grouping under catalogs. */
   parentSlugs: string[];
+  /** Datasets anywhere below it. Zero for a catalog means it's empty. */
+  datasetsBelow: number;
+  /** For a dataset, how many empty catalogs sit directly inside it (Project Scoping's ten). */
+  emptyInside: number;
   /** What the items are on the map: all points, any shapes, or no geometry at all. */
   unit: "points" | "shapes" | "items";
   /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
@@ -91,7 +93,7 @@ export type HomeArea = {
   /** The footprint was too heavy to send with the page; it's fetched from the footprint route when picked. */
   lazy?: boolean;
   /** Where the extent sits against the deployment's area; null when there's no area or no extent. */
-  coverage: "whole" | "part" | "larger" | null;
+  coverage: "whole" | "part" | "beyond" | null;
   /** "1980–2025" when the extent spans more than one calendar year; null otherwise. */
   years: string | null;
   license: string | null;
@@ -192,18 +194,25 @@ export function HomeConsole({
   }, [selected, rowsBySlug, load]);
 
   const hierarchy = useMemo(() => hierarchyOf(areas), [areas]);
-  // Search all levels; a matching parent brings its descendants along.
+  const datasets = useMemo(() => areas.filter((a) => a.kind === "dataset"), [areas]);
   // Review facets count this scope before applying the selected QC state.
-  const scope = useMemo(() => q ? searchCollections(areas, q) : areas.filter((a) => hierarchy.roots.has(a.slug)), [areas, q, hierarchy]);
+  const scope = useMemo(() => q ? searchCollections(datasets, q) : datasets, [datasets, q]);
   const shown = useMemo(() => scope.filter((a) => !filter || stateOf(a) === filter), [scope, filter]);
+  // Top-level catalogs that hold a dataset, and those that hold none yet.
+  const roots = useMemo(() => {
+    const top = areas.filter((a) => hierarchy.roots.has(a.slug) && a.kind === "catalog");
+    return { full: top.filter((a) => a.datasetsBelow > 0).length, empty: top.filter((a) => a.datasetsBelow === 0) };
+  }, [areas, hierarchy]);
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
-  const childCollections = useMemo(() => activeSelected
-    ? areas.filter((child) => child.slug !== activeSelected && child.parentSlugs.includes(activeSelected))
-    : [], [areas, activeSelected]);
-  // An open parent's children can be previewed without becoming top-level rows.
-  const previewableIds = useMemo(() => new Set([...shownIds, ...childCollections.map((child) => child.slug)]), [shownIds, childCollections]);
+  const childCollections = useMemo(() => activeSelected ? hierarchy.childrenOf(activeSelected) : [], [hierarchy, activeSelected]);
+  // An open dataset's child datasets can be previewed without becoming rows.
+  // Catalogs inside it have nothing to draw.
+  const previewableIds = useMemo(
+    () => new Set([...shownIds, ...childCollections.filter((child) => child.kind === "dataset").map((child) => child.slug)]),
+    [shownIds, childCollections],
+  );
   const activeHovered = hovered && shownIds.has(hovered) ? hovered : null;
   const byState = useMemo(() => {
     const counts = Object.fromEntries(QC_STATUSES.map((s) => [s.value, 0])) as Record<QcStatus, number>;
@@ -213,7 +222,22 @@ export function HomeConsole({
   const parentPaths = useMemo(() => searching
     ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.pathOf(a.slug).length ? [hierarchy.pathOf(a.slug).join(" / ")] : []]))
     : {}, [hierarchy, searching, shown]);
-  const groups = useMemo<Group[]>(() => shown.length ? [{ key: "all", label: null, rows: shown }] : [], [shown]);
+  // Datasets under their top-level catalog, catalogs by name. Datasets at the
+  // top level, in a catalog with no folders, come first, under no heading.
+  const groups = useMemo<Group[]>(() => {
+    if (!shown.length) return [];
+    if (searching) return [{ key: "all", catalog: null, rows: shown }];
+    const byRoot = new Map<string, Group>();
+    for (const a of shown) {
+      const root = hierarchy.rootCatalogOf(a.slug);
+      const key = root?.slug ?? "";
+      let g = byRoot.get(key);
+      if (!g) byRoot.set(key, (g = { key: key || "top", catalog: root ? { slug: root.slug, name: root.name } : null, rows: [] }));
+      g.rows.push(a);
+    }
+    return [...byRoot.values()].sort((x, y) =>
+      !x.catalog ? -1 : !y.catalog ? 1 : x.catalog.name.localeCompare(y.catalog.name) || x.key.localeCompare(y.key));
+  }, [shown, searching, hierarchy]);
 
   // The collection pointed at, a beat after the pointer gets there, so
   // sweeping down the list doesn't flash every footprint on the way. The
@@ -341,7 +365,7 @@ export function HomeConsole({
     <ItemHoverContext.Provider value={hoverValue}>
       <div className="sx-home">
         {/* The page has no visible title (the header names the app), but a screen reader's outline needs one. */}
-        <h1 className="sr-only">Collections in {envMeta(env).label}</h1>
+        <h1 className="sr-only">Datasets in {envMeta(env).label}</h1>
         <p className="sr-only" role="status">
           {previewArea ? !previewArea.drawn
             ? `No map preview available for ${previewArea.name}.`
@@ -384,7 +408,10 @@ export function HomeConsole({
           )}
           <HomeRail
             env={env}
-            areas={areas}
+            datasetCount={datasets.length}
+            rootsWithData={roots.full}
+            emptyRoots={roots.empty}
+            childCollections={childCollections}
             scopeCount={scope.length}
             parentPaths={parentPaths}
             groups={groups}
@@ -395,7 +422,7 @@ export function HomeConsole({
             onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}
             onQuery={(value) => { resetSelection(); setQuery(value); }}
-            search={searching ? { q, collections: shown.length, hidden: shown.length < areas.length } : null}
+            search={searching ? { q, collections: shown.length, hidden: shown.length < datasets.length } : null}
             selected={activeSelected}
             hovered={activeHovered}
             preview={preview}

@@ -7,7 +7,7 @@ import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
 import { ItemsList } from "./items-list";
-import { Chevron } from "./icons";
+import { Chevron, FolderGlyph } from "./icons";
 import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 
 /**
@@ -25,15 +25,15 @@ import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 export const COVERAGE_LABEL: Record<NonNullable<HomeArea["coverage"]>, string> = {
   whole: "Whole area",
   part: "Part of the area",
-  larger: "Larger than the area",
+  beyond: "Beyond the area",
 };
 
 /**
- * The line under a collection's name in the rail: its review state once
+ * The line under a dataset's name in the rail: its review state once
  * someone has decided it, the years it covers, where it is against the
- * area, and its version when there are earlier ones (an open row has that
- * in its facts instead). Each part shows only when it says something, so a
- * row can be just "Whole area".
+ * area, the empty catalogs it holds, and its version when there are
+ * earlier ones (an open row has that in its facts instead). Each part
+ * shows only when it says something, so a row can be just "Whole area".
  */
 export function AreaSub({ area, open }: { area: HomeArea; open?: boolean }) {
   const state = stateOf(area);
@@ -48,6 +48,8 @@ export function AreaSub({ area, open }: { area: HomeArea; open?: boolean }) {
   if (area.years) parts.push(<span className="ffx-num">{area.years}</span>);
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
   if (area.geometryError) parts.push("Geometry couldn't be read");
+  if (area.emptyInside)
+    parts.push(`Also holds ${fmtNum(area.emptyInside)} empty ${area.emptyInside === 1 ? "catalog" : "catalogs"}`);
   return (
     <span className="sx-row-sub">
       {parts.map((p, i) => (
@@ -253,7 +255,11 @@ function Items({
   );
 }
 
-/** Direct children preload on expansion and preview on hover or keyboard focus. */
+/**
+ * What's directly inside an open dataset (Project Scoping's catalogs).
+ * Catalogs say whether anything has landed in them; a dataset inside says
+ * how many items it has, and previews on hover or keyboard focus.
+ */
 function ChildCollections({ collections, preview, onHover }: {
   collections: HomeArea[];
   preview: string | null;
@@ -268,7 +274,7 @@ function ChildCollections({ collections, preview, onHover }: {
         setOpen(event.currentTarget.open);
         if (!event.currentTarget.open) onHover(null);
       }}>
-      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">Child collections <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
+      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">{collections.every((c) => c.kind === "catalog") ? "Catalogs inside" : "Inside"} <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
       <div className="sx-item-block">
         <ul className="sx-item-list">
           {collections.map((child) => (
@@ -277,15 +283,21 @@ function ChildCollections({ collections, preview, onHover }: {
                 href={child.href}
                 className="sx-item"
                 data-active={preview === child.slug || undefined}
-                onMouseEnter={() => onHover(child.slug)}
-                onMouseLeave={() => onHover(null)}
-                onFocus={() => onHover(child.slug)}
-                onBlur={() => onHover(null)}
+                {...(child.kind === "dataset" && {
+                  onMouseEnter: () => onHover(child.slug),
+                  onMouseLeave: () => onHover(null),
+                  onFocus: () => onHover(child.slug),
+                  onBlur: () => onHover(null),
+                })}
               >
+                {child.kind === "catalog" && <FolderGlyph />}
                 <span className="sx-item-name">{child.name}</span>
                 <span className="sx-child-count text-ink-mut">
-                  <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
-                  {child.childCollectionCount > 0 && <span><span className="ffx-num">{fmtNum(child.childCollectionCount)}</span> {child.childCollectionCount === 1 ? "collection" : "collections"}</span>}
+                  {child.kind === "dataset"
+                    ? <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
+                    : child.datasetsBelow
+                      ? <span><span className="ffx-num">{fmtNum(child.datasetsBelow)}</span> {child.datasetsBelow === 1 ? "dataset" : "datasets"}</span>
+                      : <span>Nothing in it yet</span>}
                 </span>
               </Link>
             </li>
