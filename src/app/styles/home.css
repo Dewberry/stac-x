@@ -189,6 +189,12 @@
   overflow: hidden;
   background: var(--ffx-surface-inset);
 }
+/* A phone shows the map and the first rows together. */
+@media (max-width: 39.99rem) {
+  .sx-console-map {
+    height: 280px;
+  }
+}
 .sx-console-map .sx-home-map,
 .sx-console-map .ffx-map {
   position: absolute;

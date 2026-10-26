@@ -255,11 +255,12 @@
   flex: none;
   color: var(--ffx-ink-mut);
 }
-/* A deep trail on a phone: home, an ellipsis, the parent and the page. */
+/* A deep trail below the two-pane width: home, an ellipsis, the parent and
+   the page. Wider, the whole trail fits on one line. */
 .sx-crumbs li.sx-crumbs-gap {
   display: none;
 }
-@media (max-width: 39.99rem) {
+@media (max-width: 63.99rem) {
   .sx-crumbs li[data-folds] {
     display: none;
   }

@@ -266,7 +266,7 @@ export default async function CollectionPage({ params }: Props) {
         <div className="sx-col">
           {brokenGeometry && (
             <p className="sx-callout" role="status">
-              The geometry in this collection&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
+              The geometry in this dataset&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
               The rest of the page shows what the file has.
             </p>
           )}

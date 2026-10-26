@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/copy-button";
 import { PreviewButton } from "@/components/data-modal";
 import { DataMap } from "@/components/map";
 import { MetadataPanel, type Entry } from "@/components/meta-table";
+import { breakable } from "@/components/breakable";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
@@ -97,7 +98,7 @@ export default async function ItemPage({ params }: Props) {
       <PageHead
         crumbs={[homeCrumb(env), { label: collectionLabel, href: collectionHref(env, c.id) }, { label: title }]}
         kicker={unnamed ? c.title : undefined}
-        title={title}
+        title={breakable(title)}
         subtitle={
           <>
             {!unnamed?.idInTitle && <span className="ffx-id">{item.id}</span>}
@@ -180,7 +181,7 @@ export default async function ItemPage({ params }: Props) {
         <div className="sx-col">
           {brokenGeometry && (
             <p className="sx-callout" role="status">
-              The geometry in this collection&apos;s file couldn&apos;t be read, so the item isn&apos;t drawn on the map.
+              The geometry in this dataset&apos;s file couldn&apos;t be read, so the item isn&apos;t drawn on the map.
             </p>
           )}
           <div className="sx-mapcard">
@@ -216,7 +217,7 @@ export default async function ItemPage({ params }: Props) {
               <div className="sx-desc ffx-prose">{str(p.description)}</div>
             </Panel>
           )}
-          <Panel title="Collection" id="collection">
+          <Panel title="Dataset" id="collection">
             <Link href={collectionHref(env, c.id)} className="sx-row">
               <div className="sx-row-main">
                 <div className="sx-row-title">{collectionLabel}</div>

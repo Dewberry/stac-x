@@ -105,7 +105,7 @@ export function homeCrumb(env: EnvKey): Crumb {
  * the parent and the page. The page's own Where this sits has the rest.
  */
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
-  // Between home and the parent, what a phone folds into the ellipsis.
+  // Between home and the parent, what a narrow screen folds into the ellipsis.
   const folds = (i: number) => crumbs.length > 4 && i > 0 && i < crumbs.length - 2;
   return (
     <nav className="sx-crumbs" aria-label="Breadcrumb">

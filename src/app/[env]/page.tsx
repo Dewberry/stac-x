@@ -9,7 +9,7 @@ import { getCatalog, unionBbox } from "@/lib/catalog";
 import { collectionParents, hierarchyOf } from "@/lib/collection-hierarchy";
 import { footprintBytes, footprintOf, INLINE_MAX, unitOf, type Footprint } from "@/lib/footprint";
 import { itemRowsOf } from "@/lib/item-rows";
-import { areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
+import { areaOutside, areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { RAIL_COOKIE, railShare } from "@/lib/rail-share";
 import type { Collection } from "@/lib/stac";
@@ -41,6 +41,9 @@ const WIDE = 0.7;
 
 /** How many times the area's box a dataset's box has to be to count as reaching beyond the area. */
 const LARGER = 3;
+
+/** How much of a dataset's box has to lie outside the area for it to be wider than the area even when it covers it. */
+const OUTSIDE = 0.5;
 
 /** What the rail says when an environment has nothing in it yet. */
 const EMPTY: Record<EnvKey, string> = {
@@ -136,14 +139,15 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
 
   // Where a dataset's extent sits against the area. A box several times
   // the area's (a five-state storm domain, a national inventory) reaches
-  // beyond it, even though it covers all of it, and so does one that
-  // misses the area altogether. A box small enough to fall between the
-  // area's sample points is in it when its middle is.
+  // beyond it, even though it covers all of it; so does one that covers it
+  // but lies mostly outside it (a survey that runs on down the Platte); and
+  // so does one that misses the area altogether. A box small enough to fall
+  // between the area's sample points is in it when its middle is.
   const coverageOf = (bbox: [number, number, number, number] | null): HomeArea["coverage"] => {
     if (!area || !bbox) return null;
     if (extentArea(bbox) >= LARGER * extentArea(area.bbox)) return "beyond";
     const share = areaShare(area, bbox);
-    if (share >= WIDE) return "whole";
+    if (share >= WIDE) return areaOutside(area, bbox) >= OUTSIDE ? "beyond" : "whole";
     return share > 0 || inArea(area, [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]) ? "part" : "beyond";
   };
 

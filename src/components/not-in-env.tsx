@@ -84,7 +84,7 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
                 {catalog
                   ? `A catalog is in ${here} once a dataset inside it is.`
                   : envMeta(env).onPath
-                    ? `A collection reaches ${here} when it's approved in the environment before it.`
+                    ? `A dataset reaches ${here} when it's approved in the environment before it.`
                     : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`}
               </p>
               {stand && (

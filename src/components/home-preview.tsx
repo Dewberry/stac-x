@@ -14,7 +14,7 @@ import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 /**
  * What a selected collection shows: enough to decide whether to open it,
  * and its child collections and items. Its description, where its QC stands, the last reviewer's
- * note when it was sent back, the way in (Browse collection), then the items
+ * note when it was sent back, the way in (Browse dataset), then the items
  * by name with a search and a sort. The summary line (dates, place,
  * version) sits above it, in the row on a wide screen and in the sheet's
  * header on a phone, so the body doesn't repeat it. On a wide screen this
@@ -26,7 +26,7 @@ import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 export const COVERAGE_LABEL: Record<NonNullable<HomeArea["coverage"]>, string> = {
   whole: "Whole area",
   part: "Part of the area",
-  beyond: "Beyond the area",
+  beyond: "Wider than the area",
 };
 
 /**
@@ -243,7 +243,7 @@ function WayIn({ area }: { area: HomeArea }) {
   return (
     <div className="sx-pv-btns">
       <Link href={area.href} className="ffx-btn sx-pv-go">
-        Browse collection
+        Browse dataset
       </Link>
     </div>
   );
@@ -273,7 +273,7 @@ function Items({
         ))}
       </ul>
     );
-  if (rows === "error") return <p className="sx-pv-cover">The items couldn&apos;t be loaded. Open the collection to see them.</p>;
+  if (rows === "error") return <p className="sx-pv-cover">The items couldn&apos;t be loaded. Open the dataset to see them.</p>;
   return (
     <ItemsList env={env} collection={area.id} rows={rows} compact fill={fill} openHref={area.href} activeIds={activeIds} />
   );

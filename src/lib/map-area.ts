@@ -155,6 +155,25 @@ export function areaShare(area: MapArea, [w, s, e, n]: Bbox): number {
 }
 
 /**
+ * How much of a box lies outside the area, from 0 to 1, on a grid over the
+ * box. A dataset can cover the whole area and still be mostly somewhere
+ * else (a survey that follows the Platte on into Nebraska), and the landing
+ * page says "wider than" rather than "whole" for that.
+ */
+export function areaOutside(area: MapArea, [w, s, e, n]: Bbox): number {
+  const steps = 20;
+  let out = 0;
+  for (let i = 0; i < steps; i++) {
+    for (let j = 0; j < steps; j++) {
+      const x = w + ((i + 0.5) / steps) * (e - w);
+      const y = s + ((j + 0.5) / steps) * (n - s);
+      if (!inPolys(area.geometry.coordinates, x, y)) out++;
+    }
+  }
+  return out / (steps * steps);
+}
+
+/**
  * Whether polygons contain the whole area: at least 98% of its sample points
  * fall inside them. The slack is for edge cells on a coarse grid. The
  * landing page draws such a collection as the area itself instead of its own

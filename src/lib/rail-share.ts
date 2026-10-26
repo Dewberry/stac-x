@@ -8,8 +8,8 @@
 
 export const RAIL_COOKIE = "sx-rail";
 
-/** Half and half until someone moves the divider. */
-export const RAIL_DEFAULT = 50;
+/** The map gets a little more than half until someone moves the divider. */
+export const RAIL_DEFAULT = 45;
 export const RAIL_MIN = 20;
 export const RAIL_MAX = 70;
 

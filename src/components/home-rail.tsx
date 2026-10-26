@@ -37,7 +37,7 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * The selected row opens in place (OpenRow) with the dataset's
  * description, its review state, the way in and its items. Pointing at a
  * row previews its footprint on the map. Enter and Space open and close a
- * row like a click, as on any button; the open row's Browse collection goes
+ * row like a click, as on any button; the open row's Browse dataset goes
  * on to the dataset's page.
  */
 

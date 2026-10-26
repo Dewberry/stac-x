@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtRange } from "@/lib/format";
+import { breakable } from "./breakable";
 import type { EnvKey } from "@/lib/env";
 import { itemHref } from "@/lib/utils";
 import { useItemHover } from "./item-hover";
@@ -193,7 +194,7 @@ export function ItemsList({
       </div>
       )}
       {slice.length === 0 ? (
-        <p className="sx-empty">{all === 0 ? "This collection has no items." : "No items match."}</p>
+        <p className="sx-empty">{all === 0 ? "This dataset has no items." : "No items match."}</p>
       ) : compact ? (
         <div className="sx-item-block" data-more={more || undefined}>
           <div ref={blockRef} className="sx-item-list" onScroll={onScroll}>
@@ -222,7 +223,7 @@ export function ItemsList({
               <div className="sx-row-main">
                 <div className="sx-row-title">
                   {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
-                  {r.label ?? r.id}
+                  {breakable(r.label ?? r.id)}
                 </div>
                 <div className="sx-row-sub">
                   {r.kind && (
@@ -260,7 +261,7 @@ export function ItemsList({
               {openHref && (
                 <>
                   {" "}
-                  · <Link href={openHref}>Browse collection</Link> for the full table
+                  · <Link href={openHref}>Browse dataset</Link> for the full table
                 </>
               )}
             </>
@@ -300,14 +301,14 @@ export function ItemsList({
 
 /** The name with the search's text marked in it. */
 function mark(text: string, q: string): ReactNode {
-  if (!q) return text;
+  if (!q) return breakable(text);
   const at = text.toLowerCase().indexOf(q);
-  if (at < 0) return text;
+  if (at < 0) return breakable(text);
   return (
     <>
-      {text.slice(0, at)}
+      {breakable(text.slice(0, at))}
       <mark>{text.slice(at, at + q.length)}</mark>
-      {text.slice(at + q.length)}
+      {breakable(text.slice(at + q.length))}
     </>
   );
 }

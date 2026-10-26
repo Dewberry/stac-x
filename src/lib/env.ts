@@ -33,7 +33,7 @@ export const ENVS = [
     short: "Dev",
     prefix: "/dev",
     onPath: true,
-    blurb: "Where new collections land. Approving one here sends it to Test.",
+    blurb: "Where new datasets land. Approving one here sends it to Test.",
   },
   {
     key: "test",
@@ -41,7 +41,7 @@ export const ENVS = [
     short: "Test",
     prefix: "/test",
     onPath: true,
-    blurb: "Collections under review. Approving one here sends it to Production.",
+    blurb: "Datasets under review. Approving one here sends it to Production.",
   },
   {
     key: "prod",
@@ -49,7 +49,7 @@ export const ENVS = [
     short: "Prod",
     prefix: "",
     onPath: true,
-    blurb: "What everyone sees. Collections arrive here from Test.",
+    blurb: "What everyone sees. Datasets arrive here from Test.",
   },
 ] as const;
 

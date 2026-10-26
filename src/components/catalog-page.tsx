@@ -178,11 +178,7 @@ export function CatalogLayout({
             </CollapsiblePanel>
           )}
           <Panel title="Inside" note={inside.length ? fmtNum(inside.length) : undefined} id="inside">
-            {inside.length ? (
-              <InsideRows env={env} inside={inside} />
-            ) : (
-              <p className="sx-empty">Nothing in it yet.</p>
-            )}
+            {inside.length > 0 && <InsideRows env={env} inside={inside} />}
             <p className="sx-inside-note">
               A catalog is a folder. It has no extent, no items and no review state of its own; datasets that land
               inside it get reviewed one by one.
