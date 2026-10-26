@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { BrandLink } from "./brand-link";
-import { Chevron, Icon, ICONS } from "./icons";
+import { Chevron, FolderGlyph, Icon, ICONS } from "./icons";
 import { HeaderControls } from "./env-switcher";
 import { MoreMenu } from "./more-menu";
 export { EnvBand } from "./env-switcher";
@@ -22,7 +22,7 @@ export { Icon, ICONS } from "./icons";
  */
 
 /** What the home page is called wherever it's linked: the trail and the account menu. */
-const HOME_LABEL = "All collections";
+const HOME_LABEL = "All datasets";
 
 /** Pages reached from the account menu rather than the bar. */
 const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
@@ -86,8 +86,8 @@ export function SiteFooter() {
   );
 }
 
-/** One step of the trail. The last crumb is the page itself and has no href. */
-export type Crumb = { label: string; href?: string };
+/** One step of the trail. The last crumb is the page itself and has no href. A catalog's carries the folder. */
+export type Crumb = { label: string; href?: string; catalog?: boolean };
 
 /** The first crumb of every trail: the home page of the environment you're in. */
 export function homeCrumb(env: EnvKey): Crumb {
@@ -101,23 +101,39 @@ export function homeCrumb(env: EnvKey): Crumb {
  * the account menu is two clicks away. The last crumb is the page itself:
  * plain text, marked as the current page but no louder than the links, since
  * the title sits right under it. Long names clip so the trail stays readable
- * on a phone.
+ * on a phone, and a deep trail keeps only its ends there: home, an ellipsis,
+ * the parent and the page. The page's own Where this sits has the rest.
  */
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
+  // Between home and the parent, what a phone folds into the ellipsis.
+  const folds = (i: number) => crumbs.length > 4 && i > 0 && i < crumbs.length - 2;
   return (
     <nav className="sx-crumbs" aria-label="Breadcrumb">
       <ol>
         {crumbs.map((c, i) => {
           const last = i === crumbs.length - 1;
+          const label = (
+            <>
+              {c.catalog && <FolderGlyph />}
+              <span className="sx-crumb-label">{c.label}</span>
+            </>
+          );
           return (
-            <li key={`${i}-${c.label}`}>
-              {i > 0 && <Icon d={ICONS.chevronRight} size={10} />}
-              {c.href && !last ? (
-                <Link href={c.href}>{c.label}</Link>
-              ) : (
-                <span aria-current={last ? "page" : undefined}>{c.label}</span>
+            <Fragment key={`${i}-${c.label}`}>
+              {i === 1 && crumbs.length > 4 && (
+                <li className="sx-crumbs-gap" aria-hidden="true">
+                  <Icon d={ICONS.chevronRight} size={10} />…
+                </li>
               )}
-            </li>
+              <li data-folds={folds(i) || undefined}>
+                {i > 0 && <Icon d={ICONS.chevronRight} size={10} />}
+                {c.href && !last ? (
+                  <Link href={c.href}>{label}</Link>
+                ) : (
+                  <span aria-current={last ? "page" : undefined}>{label}</span>
+                )}
+              </li>
+            </Fragment>
           );
         })}
       </ol>

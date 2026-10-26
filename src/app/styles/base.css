@@ -240,10 +240,32 @@
 }
 .sx-crumbs li > a,
 .sx-crumbs li > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
   max-width: 20rem;
+}
+.sx-crumb-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.sx-crumbs .sx-folder {
+  flex: none;
+  color: var(--ffx-ink-mut);
+}
+/* A deep trail on a phone: home, an ellipsis, the parent and the page. */
+.sx-crumbs li.sx-crumbs-gap {
+  display: none;
+}
+@media (max-width: 39.99rem) {
+  .sx-crumbs li[data-folds] {
+    display: none;
+  }
+  .sx-crumbs li.sx-crumbs-gap {
+    display: inline-flex;
+  }
 }
 .sx-crumbs a {
   color: var(--ffx-ink-sec);

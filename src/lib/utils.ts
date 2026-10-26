@@ -24,6 +24,11 @@ export function withEnvHome(env: EnvKey) {
   return withEnv(env, "/");
 }
 
+/** The home page with a catalog open in the rail, or the whole environment for null. */
+export function scopeHref(env: EnvKey, slug: string | null) {
+  return slug ? `${withEnvHome(env)}?in=${encodeURIComponent(slug)}` : withEnvHome(env);
+}
+
 export function collectionHref(env: EnvKey, id: string) {
   return withEnv(env, `/collections/${encodeURIComponent(id)}`);
 }

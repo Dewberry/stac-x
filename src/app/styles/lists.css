@@ -93,3 +93,123 @@
   color: var(--ffx-ink-sec);
   background: var(--ffx-surface-sunken);
 }
+
+/* A catalog's page (components/catalog-page.tsx). The title carries the
+   folder at the title's own scale. */
+.sx-catalog-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 26px;
+  line-height: 1.15;
+}
+.sx-catalog-title .sx-folder {
+  color: var(--ffx-ink-mut);
+}
+@media (min-width: 40rem) {
+  .sx-catalog-title {
+    font-size: 30px;
+  }
+}
+/* What's inside a catalog, or a dataset that holds catalogs: datasets with
+   their count and review state, catalogs with their folder, id and what
+   they hold. */
+.sx-inside-list > li + li {
+  border-top: 1px solid var(--ffx-grid);
+}
+.sx-inside-row {
+  padding-block: 12px;
+}
+.sx-inside-row .sx-row-main {
+  display: grid;
+  gap: 2px;
+}
+.sx-inside-row .sx-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sx-inside-row .sx-row-title .sx-folder {
+  color: var(--ffx-ink-mut);
+}
+.sx-inside-row[data-kind="catalog"] .sx-row-title {
+  color: var(--ffx-ink-sec);
+}
+.sx-inside-row .sx-row-desc {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 18px;
+}
+.sx-inside-id {
+  font-size: 11px;
+  color: var(--ffx-ink-mut);
+  overflow-wrap: anywhere;
+}
+.sx-inside-qc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ffx-t-micro);
+}
+.sx-inside-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-inside-count b {
+  font-family: var(--ffx-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-inside-status {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+.sx-inside-row:hover .sx-row-title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-inside-note {
+  padding: 0.75rem var(--ffx-panel-pad) var(--ffx-panel-pad);
+  border-top: 1px solid var(--ffx-grid);
+  font-size: var(--ffx-t-small);
+  line-height: 1.45;
+  color: var(--ffx-ink-mut);
+}
+/* Where a catalog sits: its trail as a short outline, a step in per level,
+   the catalog itself in bold. */
+.sx-sits {
+  padding: 0 var(--ffx-panel-pad) var(--ffx-panel-pad);
+}
+.sx-sits li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding-left: calc(var(--depth, 0) * 18px);
+  font-size: 13px;
+  color: var(--ffx-ink-sec);
+}
+.sx-sits a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-sits a:hover {
+  text-decoration-thickness: 2px;
+}
+.sx-sits .sx-folder {
+  color: var(--ffx-ink-mut);
+}
+.sx-sits [aria-current="page"] {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}

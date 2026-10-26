@@ -6,7 +6,7 @@ import { HomeLoading } from "@/components/home-loading";
 import type { EnvKey } from "@/lib/env";
 import { getCatalog, unionBbox } from "@/lib/catalog";
 import { collectionParents, hierarchyOf } from "@/lib/collection-hierarchy";
-import { footprintBytes, footprintOf, INLINE_MAX, type Footprint } from "@/lib/footprint";
+import { footprintBytes, footprintOf, INLINE_MAX, unitOf, type Footprint } from "@/lib/footprint";
 import { itemRowsOf } from "@/lib/item-rows";
 import { areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
@@ -225,17 +225,6 @@ async function HomeData({ env }: { env: EnvKey }) {
       emptyText={EMPTY[env]}
     />
   );
-}
-
-/**
- * What a collection's items are on the map, from their geometry: "points"
- * when every item is a point, "shapes" when any is a line or polygon, and
- * "items" when none has a geometry.
- */
-function unitOf(c: Collection): HomeArea["unit"] {
-  const types = c.items.flatMap((i) => (i.geometry ? [i.geometry.type] : []));
-  if (!types.length) return "items";
-  return types.every((t) => t === "Point" || t === "MultiPoint") ? "points" : "shapes";
 }
 
 /**

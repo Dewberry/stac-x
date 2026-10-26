@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import type { FeatureCollection } from "geojson";
 import { assetNote, Assets } from "@/components/assets";
+import { CatalogLayout, InsideRows, type Inside } from "@/components/catalog-page";
 import { CopyButton } from "@/components/copy-button";
 import { PreviewButton } from "@/components/data-modal";
 import { DataPanel } from "@/components/data-panel";
-import { ChildCollectionLink, ItemHoverProvider, LinkedMap } from "@/components/item-hover";
+import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
 import { ItemsList } from "@/components/items-list";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
@@ -13,7 +14,7 @@ import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { childCollectionsOf, getCatalog, getCollection } from "@/lib/catalog";
-import { collectionAncestors } from "@/lib/collection-hierarchy";
+import { collectionAncestors, hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
 import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { fmtNum, fmtRange } from "@/lib/format";
@@ -21,7 +22,7 @@ import { dataFileOf } from "@/lib/data-file";
 import { formatTag } from "@/lib/data-preview";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
-import { assetHref, collectionHref, collectionJsonHref, itemHref } from "@/lib/utils";
+import { assetHref, collectionHref, collectionJsonHref, itemHref, scopeHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
@@ -36,12 +37,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * A collection keeps browsing on the left and its map on the right, like
- * the catalog. Assets and metadata follow the map. Item pages keep their
- * map at the top left. QC is recorded for the
- * collection as a whole and reviewed from Admin, so the page only shows its
- * state in the subtitle. Under the items, the first rows of the file they
- * came from, for a look at the data itself.
+ * A catalog (a folder, lib/collection-hierarchy.ts) gets its own page,
+ * components/catalog-page.tsx. A dataset keeps browsing on the left and its
+ * map on the right, like the catalog. Assets and metadata follow the map.
+ * Item pages keep their map at the top left. QC is recorded for the
+ * dataset as a whole and reviewed from Admin, so the page only shows its
+ * state in the subtitle. Under the items, the catalogs it holds, if any,
+ * and the first rows of the file the items came from, for a look at the
+ * data itself.
+ *
+ * The trail above a dataset goes through its catalogs, each opening the
+ * home page's rail on that catalog, where its other datasets are.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -51,7 +57,17 @@ export default async function CollectionPage({ params }: Props) {
   const c = catalog.collections.find((collection) => collection.id === id);
   if (!c) return <NotInEnv env={env} collection={id} />;
 
-  const children = childCollectionsOf(c, catalog.collections);
+  const tree = hierarchyOf(treeNodesOf(catalog.collections));
+  const ancestors = collectionAncestors(c, catalog.collections);
+  // Directly inside this version, with how much each holds.
+  const inside: Inside[] = childCollectionsOf(c, catalog.collections).map((child) => ({
+    collection: child,
+    datasetsBelow: tree.datasetsBelow(child.series.id),
+  }));
+  if (c.kind === "catalog") {
+    return <CatalogLayout env={env} c={c} ancestors={ancestors} inside={inside} datasetsBelow={tree.datasetsBelow(c.series.id)} />;
+  }
+
   const rows = itemRowsOf(c);
   const rowOf = new Map(rows.map((r) => [r.id, r]));
   // The file the items live in, for the Data panel.
@@ -91,7 +107,7 @@ export default async function CollectionPage({ params }: Props) {
     { key: "id", value: c.id, label: "Id" },
     ...(version ? [{ key: "version", value: version, label: "Version" }] : []),
     { key: "items", value: c.itemCount, label: "Items" },
-    ...(c.childCollectionCount > 0 ? [{ key: "child_collections", value: c.childCollectionCount, label: "Child collections" }] : []),
+    ...(inside.length > 0 ? [{ key: "inside", value: inside.length, label: insideTitle(inside) }] : []),
     {
       key: "bbox",
       value: c.bbox ? c.bbox.map((n) => n.toFixed(4)).join(", ") : null,
@@ -109,10 +125,9 @@ export default async function CollectionPage({ params }: Props) {
       <PageHead
         crumbs={[
           homeCrumb(env),
-          ...collectionAncestors(c, catalog.collections).map((parent) => ({
-            label: parent.title,
-            href: collectionHref(env, parent.id),
-          })),
+          ...ancestors.map((parent) => parent.kind === "catalog"
+            ? { label: parent.title, href: scopeHref(env, parent.series.id), catalog: true }
+            : { label: parent.title, href: collectionHref(env, parent.id) }),
           { label: c.title },
         ]}
         title={c.title}
@@ -122,9 +137,9 @@ export default async function CollectionPage({ params }: Props) {
             <span>
               <span className="ffx-num">{fmtNum(c.itemCount)}</span> {c.itemCount === 1 ? "item" : "items"}
             </span>
-            {c.childCollectionCount > 0 && (
+            {inside.length > 0 && (
               <span>
-                <span className="ffx-num">{fmtNum(c.childCollectionCount)}</span> {c.childCollectionCount === 1 ? "collection" : "collections"}
+                <span className="ffx-num">{fmtNum(inside.length)}</span> {insideTitle(inside).toLowerCase()}
               </span>
             )}
             {c.temporal[0] || c.temporal[1] ? (
@@ -194,35 +209,15 @@ export default async function CollectionPage({ params }: Props) {
               )}
             </CollapsiblePanel>
           )}
-          {children.length > 0 && (
-            <CollapsiblePanel title="Child collections" note={fmtNum(children.length)} id="child-collections" defaultOpen>
-              <ul className="sx-child-collections-list ffx-scroll divide-y divide-grid">
-                {children.map((child) => (
-                  <li key={child.id}>
-                    <ChildCollectionLink href={collectionHref(env, child.id)} preview={{
-                      url: `${collectionJsonHref(env, child.id)}/footprint?view=collection`,
-                      name: child.title,
-                      bbox: child.geometryErrors ? null : child.bbox,
-                    }}>
-                      <div className="sx-row-main">
-                        <div className="sx-row-title">{child.title}</div>
-                        <div className="sx-row-sub">
-                          {child.title !== child.id && <span className="ffx-id">{child.id}</span>}
-                          <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
-                          {child.childCollectionCount > 0 && <span><span className="ffx-num">{fmtNum(child.childCollectionCount)}</span> child {child.childCollectionCount === 1 ? "collection" : "collections"}</span>}
-                        </div>
-                        {child.description && <p className="sx-row-desc">{child.description}</p>}
-                      </div>
-                      <Icon d={ICONS.chevronRight} size={14} />
-                    </ChildCollectionLink>
-                  </li>
-                ))}
-              </ul>
-            </CollapsiblePanel>
-          )}
           <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
             <ItemsList env={env} collection={c.id} rows={rows} />
           </Panel>
+          {/* A dataset that also holds catalogs (Project Scoping's ten): they go along with it. */}
+          {inside.length > 0 && (
+            <Panel title={insideTitle(inside)} note={fmtNum(inside.length)} id="inside">
+              <InsideRows env={env} inside={inside} />
+            </Panel>
+          )}
           {/* The rows as the pipeline wrote them, under the items they are. */}
           {source && (
             <Panel
@@ -285,4 +280,9 @@ export default async function CollectionPage({ params }: Props) {
       </ItemHoverProvider>
     </div>
   );
+}
+
+/** "Catalogs inside" when that's all a dataset holds, which is the usual case; "Inside" when a dataset is among them. */
+function insideTitle(inside: Inside[]): string {
+  return inside.every((i) => i.collection.kind === "catalog") ? "Catalogs inside" : "Inside";
 }

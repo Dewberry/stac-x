@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, MultiPolygon } from "geojson";
 import { envMeta, type EnvKey } from "@/lib/env";
+import type { ItemUnit } from "@/lib/footprint";
 import type { Tint } from "@/lib/overview";
 import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
 import { hierarchyOf, searchCollections, type NodeKind } from "@/lib/collection-hierarchy";
@@ -92,7 +93,7 @@ export type HomeArea = {
   /** For a dataset, how many empty catalogs sit directly inside it (Project Scoping's ten). */
   emptyInside: number;
   /** What the items are on the map: all points, any shapes, or no geometry at all. */
-  unit: "points" | "shapes" | "items";
+  unit: ItemUnit;
   /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
   geometryError?: boolean;
   /** The footprint was too heavy to send with the page; it's fetched from the footprint route when picked. */

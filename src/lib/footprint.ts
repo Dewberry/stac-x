@@ -49,3 +49,17 @@ export function footprintOf(c: Collection, area: MapArea | null): Footprint {
 export function footprintBytes(f: Footprint): number {
   return JSON.stringify(f.features).length;
 }
+
+/** What a collection's items are on the map, for the figure beside its count: "450 points". */
+export type ItemUnit = "points" | "shapes" | "items";
+
+/**
+ * What a collection's items are on the map, from their geometry: "points"
+ * when every item is a point, "shapes" when any is a line or polygon, and
+ * "items" when none has a geometry.
+ */
+export function unitOf(c: Collection): ItemUnit {
+  const types = c.items.flatMap((i) => (i.geometry ? [i.geometry.type] : []));
+  if (!types.length) return "items";
+  return types.every((t) => t === "Point" || t === "MultiPoint") ? "points" : "shapes";
+}

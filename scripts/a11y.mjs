@@ -41,11 +41,14 @@ if (!home) {
 const collection = await firstLink(ENV, new RegExp(`${ENV}/collections/[^"/?#\\\\]+`));
 // A catalog opened in the home rail, when the catalog has catalogs.
 const scoped = await firstLink(ENV, new RegExp(`${ENV}\\?in=[^"&#\\\\]+`));
+// That catalog's own page, which is laid out apart from a dataset's.
+const catalogPage = scoped && `${ENV}/collections/${scoped.slice(scoped.indexOf("?in=") + 4)}`;
 const item = collection && (await firstLink(collection, new RegExp(`${collection}/items/[^"/?#\\\\]+`)));
 const pages = [
   "/signin",
   ENV,
   scoped,
+  catalogPage,
   collection,
   item,
   `${ENV}/admin`,

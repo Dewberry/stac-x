@@ -2,7 +2,7 @@
 
 import type { MouseEvent, ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
-import { withBase, withEnvHome } from "@/lib/utils";
+import { scopeHref as scopePath, withBase } from "@/lib/utils";
 
 /**
  * The home page opened on one catalog: `?in=basin-data`, so the view can
@@ -16,10 +16,9 @@ import { withBase, withEnvHome } from "@/lib/utils";
  * the browser, and the href is a real one for it.
  */
 
-/** The home page on a catalog, or the whole environment for null. */
-export function scopeHref(env: EnvKey, slug: string | null) {
-  const home = withBase(withEnvHome(env));
-  return slug ? `${home}?in=${encodeURIComponent(slug)}` : home;
+/** The home page on a catalog, or the whole environment for null, with the base path for a plain link. */
+function scopeHref(env: EnvKey, slug: string | null) {
+  return withBase(scopePath(env, slug));
 }
 
 export function goToScope(env: EnvKey, slug: string | null) {
