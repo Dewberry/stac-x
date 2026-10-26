@@ -45,10 +45,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
     license: c.license ?? "proprietary",
     keywords: c.keywords,
     providers: c.providers,
-    extent: {
-      spatial: { bbox: c.bbox ? [c.bbox] : [] },
-      temporal: { interval: [c.temporal] },
-    },
+    // A catalog's extent is the generator's placeholder; it's never passed on.
+    ...(c.kind === "dataset" ? { extent: { spatial: { bbox: c.bbox ? [c.bbox] : [] }, temporal: { interval: [c.temporal] } } } : {}),
     ...c.extra,
     ...(versioned ? { version: here?.label ?? c.version, deprecated: c.deprecated } : {}),
     ...(c.experimental ? { experimental: true } : {}),

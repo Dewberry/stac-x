@@ -34,18 +34,17 @@ function load(file) {
 }
 
 // Catalogs and datasets. A Collection with no items and no assets is a
-// catalog until the generator types it, leaf or not; a node with items and
-// children is a dataset that also holds catalogs.
+// catalog, leaf or not; a node with items and children is a dataset that
+// also holds catalogs.
 const { collectionParents, hierarchyOf, kindOf, searchCollections } = load(resolve(root, "collection-hierarchy.ts"));
-const node = (over) => ({ type: "Collection", itemCount: 0, linksItems: false, assets: {}, childCollectionHrefs: [], ...over });
-assert.equal(kindOf(node({ type: "Catalog" })), "catalog");
-assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "catalog");
+const node = (over) => ({ type: "Collection", itemCount: 0, assets: {}, childCollectionHrefs: [], ...over });
+// The type isn't read: every node is a Collection, folders included.
+assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "dataset");
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"] })), "catalog");
 assert.equal(kindOf(node({})), "catalog"); // An empty leaf is a shelf, not a dataset.
 assert.equal(kindOf(node({ itemCount: 1 })), "dataset");
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"], itemCount: 1 })), "dataset");
 assert.equal(kindOf(node({ assets: { plot: { href: "p.png" } } })), "dataset");
-assert.equal(kindOf(node({ linksItems: true })), "dataset"); // A parquet file with no rows yet.
 
 // The tree's shape in miniature: two roots with datasets, one without, a
 // same-named empty catalog in two places, and a dataset that holds catalogs.
@@ -133,6 +132,10 @@ if (process.argv.includes("--live")) {
   assert.equal(datasets.length, 7);
   assert.equal(nodes.length - datasets.length, 118);
   assert.deepEqual(Array.from(datasets, (d) => d.collection.itemCount).sort((a, b) => b - a), [450, 363, 192, 39, 2, 1, 1]);
+  assert.deepEqual(Array.from(datasets, (d) => d.name).sort(),
+    ["Existing Models", "Land Cover", "Project Scoping", "Storm Catalog", "Stream Gages", "Structure Inventory", "Terrain Base"]);
+  // The tree as the generator writes it: every node a Collection.
+  assert.ok(nodes.every((n) => n.collection.type === "Collection"));
   // Every dataset has items or assets; no catalog has either.
   assert.ok(datasets.every((d) => d.collection.itemCount > 0 || Object.keys(d.collection.assets).length > 0));
   assert.ok(nodes.every((n) => n.kind === "dataset" || (n.collection.itemCount === 0 && !Object.keys(n.collection.assets).length)));

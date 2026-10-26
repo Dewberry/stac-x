@@ -13,17 +13,17 @@ import type { Collection } from "./stac";
 export type NodeKind = "catalog" | "dataset";
 
 /**
- * A catalog when the STAC type says so. Until the generator types its
- * containers, a Collection with no items, no source of items and no
- * collection-level assets describes no data, so it's a container too, with
- * children or without: an empty leaf (an Archive folder, Grids' AEP Grids)
- * is a shelf waiting for a dataset, not a dataset with nothing in it. One
- * that links a parquet file with no rows yet is a dataset waiting for rows.
+ * Every node in the catalog is a STAC Collection, and stays one: the
+ * generator writes its folders as Collections with a placeholder extent,
+ * and the viewer never rewrites them. So a node is a catalog (a folder)
+ * when it has no items and no collection-level assets, with children or
+ * without: an empty leaf (an Archive folder, Grids' AEP Grids) is an empty
+ * folder. Anything with items or assets of its own is a dataset. The STAC
+ * type isn't read. It's worked out on every load, so a folder that gains
+ * items becomes a dataset with nothing to configure.
  */
-export function kindOf(c: Pick<Collection, "type" | "itemCount" | "assets" | "linksItems">): NodeKind {
-  if (c.type === "Catalog") return "catalog";
-  if (c.itemCount === 0 && !c.linksItems && Object.keys(c.assets).length === 0) return "catalog";
-  return "dataset";
+export function kindOf(c: Pick<Collection, "itemCount" | "assets">): NodeKind {
+  return c.itemCount === 0 && Object.keys(c.assets).length === 0 ? "catalog" : "dataset";
 }
 
 export type HierarchyNode = { slug: string; name: string; parentSlugs: string[]; kind: NodeKind };

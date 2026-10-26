@@ -135,6 +135,8 @@ export function CatalogLayout({
   const details: Entry[] = [
     { key: "id", value: c.id, label: "Id" },
     { key: "kind", value: "Catalog", label: "Kind" },
+    // The file under it is still a STAC Collection; say so, so the two nouns aren't confused.
+    { key: "stored_as", value: `${c.type} (STAC)`, label: "Stored as" },
     ...(type != null ? [{ key: "catalog_type", value: type, label: "Catalog type" }] : []),
     ...(spec != null ? [{ key: "specification_version", value: spec, label: "Specification version" }] : []),
   ];

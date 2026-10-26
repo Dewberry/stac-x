@@ -159,8 +159,8 @@ assert.equal(JSON.stringify(childCollectionsOf(catalog.collections.find((c) => c
 put(uri, doc);
 sources = [catalogUri];
 
-// A sub-catalog typed Catalog is a node of the tree, and a catalog; the
-// catalog the environment is read from isn't a node.
+// A sub-catalog typed Catalog is still a node of the tree (a catalog, as it
+// has no items or assets); the catalog the environment is read from isn't.
 const subUri = "file:///checks/sub/catalog.json";
 put(catalogUri, { type: "Catalog", id: "root", links: [{ rel: "child", href: "sub/catalog.json" }] });
 put(subUri, { type: "Catalog", id: "sub", title: "Sub", description: "A folder", links: [{ rel: "child", href: "../collection.json" }] });
@@ -181,9 +181,8 @@ put(parquet, { items: [], collections: {} });
 put(uri, { ...doc, assets: {}, links: [{ rel: "items", href: "items.parquet" }] });
 c = (await snapshot()).collections[0];
 assert.equal(c.itemCount, 0);
-// A linked file with no rows yet still makes it a dataset, not a folder.
-assert.equal(c.linksItems, true);
-assert.equal(c.kind, "dataset");
+// No items and no assets is a folder, whatever it links.
+assert.equal(c.kind, "catalog");
 put(uri, { ...doc, links: [{ rel: "items", href: "items.parquet" }] });
 put(parquet, { items: [{ id: "one", collection: "old-id", properties: {}, links: [], assets: {}, geometry: null, bbox: null }], collections: {} });
 c = (await snapshot()).collections[0];

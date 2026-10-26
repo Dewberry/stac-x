@@ -343,7 +343,6 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     return {
       id,
       type: _t === "Catalog" ? "Catalog" : "Collection",
-      linksItems: linksItemsOf(cache, sources),
       // Classified in build().
       kind: "dataset",
       title: collectionName(typeof title === "string" ? title : null, id),
@@ -385,7 +384,6 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
   return {
     id,
     type: "Collection",
-    linksItems: linksItemsOf(cache, sources),
     kind: "dataset",
     title: collectionName(null, id),
     sourceTitle: null,
@@ -413,19 +411,6 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
     geometryErrors,
     items,
   };
-}
-
-/**
- * Whether a collection has somewhere its items come from, even an empty one:
- * a parquet file of its own, or a collection.json that links a parquet file
- * or item documents. A dataset whose file has no rows yet is still a dataset.
- */
-function linksItemsOf(cache: Cache, sources: string[]): boolean {
-  return sources.some((uri) => {
-    if (!isJsonSource(uri)) return true;
-    const s = cache.sources.get(uri);
-    return !!s?.parquet || (s?.dependencies?.length ?? 0) > 0;
-  });
 }
 
 /** Loaded direct children, not descendants, missing documents, or self-links. */
