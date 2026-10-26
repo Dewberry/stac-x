@@ -33,18 +33,18 @@ function load(file) {
   return loaded.exports;
 }
 
-// Catalogs and datasets. A container Collection (no items, no assets, has
-// children) is a catalog until the generator types it; a node with items
-// and children is a dataset that also holds catalogs.
+// Catalogs and datasets. A Collection with no items and no assets is a
+// catalog until the generator types it, leaf or not; a node with items and
+// children is a dataset that also holds catalogs.
 const { collectionParents, hierarchyOf, kindOf, searchCollections } = load(resolve(root, "collection-hierarchy.ts"));
 const node = (over) => ({ type: "Collection", itemCount: 0, assets: {}, childCollectionHrefs: [], ...over });
 assert.equal(kindOf(node({ type: "Catalog" })), "catalog");
 assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "catalog");
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"] })), "catalog");
+assert.equal(kindOf(node({})), "catalog"); // An empty leaf is a shelf, not a dataset.
+assert.equal(kindOf(node({ itemCount: 1 })), "dataset");
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"], itemCount: 1 })), "dataset");
-assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"], assets: { plot: { href: "p.png" } } })), "dataset");
-assert.equal(kindOf(node({})), "dataset"); // A leaf with nothing in it is still a dataset, not a folder.
-assert.equal(kindOf(node({ childCollectionHrefs: undefined })), "dataset");
+assert.equal(kindOf(node({ assets: { plot: { href: "p.png" } } })), "dataset");
 
 // The tree's shape in miniature: two roots with datasets, one without, a
 // same-named empty catalog in two places, and a dataset that holds catalogs.
