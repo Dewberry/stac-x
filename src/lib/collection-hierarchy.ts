@@ -51,11 +51,22 @@ export function collectionAncestors(collection: Collection, collections: Collect
       parents.set(href, list);
     }
   }
+  // A version the folder doesn't link itself (an earlier one, reached
+  // through the current version's links) sits where its other versions do.
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const parentOf = (c: Collection, seen: Set<string>): Collection | undefined => {
+    const hrefs = [c.docHref, ...c.series.versions.map((v) => byId.get(v.id)?.docHref)];
+    for (const href of hrefs) {
+      const parent = href ? parents.get(href)?.find((candidate) => !seen.has(candidate.id)) : undefined;
+      if (parent) return parent;
+    }
+    return undefined;
+  };
   const ancestors: Collection[] = [];
   const seen = new Set([collection.id]);
   let current = collection;
   while (current.docHref) {
-    const parent = parents.get(current.docHref)?.find((candidate) => !seen.has(candidate.id));
+    const parent = parentOf(current, seen);
     if (!parent) break;
     ancestors.push(parent);
     seen.add(parent.id);

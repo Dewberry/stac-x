@@ -92,7 +92,17 @@ export type Provider = {
 };
 
 export type Collection = {
+  /**
+   * What this app calls the collection: its URL, its key in the catalog.
+   * Usually the STAC id. When several versions of a collection share one
+   * STAC id (the generator writes basin-data-dams-nid at 0.1, 0.2 and 0.3,
+   * each in its own file), the current one keeps the bare id and the
+   * others get a version suffix, basin-data-dams-nid-v0.2, so each has a
+   * page of its own. See build() in catalog.ts.
+   */
   id: string;
+  /** The id as the STAC document has it, for the JSON and anywhere the id is shown. */
+  stacId: string;
   /** The STAC type its document has. Derived collections are Collections. */
   type: "Catalog" | "Collection";
   /** A catalog (a folder) or a dataset; see kindOf in collection-hierarchy.ts. */
@@ -157,7 +167,15 @@ export type Collection = {
 export type Series = {
   /** The shared id, e.g. "gages" for gages-v1 and gages-v2. */
   id: string;
-  versions: { id: string; label: string | null; deprecated: boolean; qc: QcStatus }[];
+  versions: {
+    id: string;
+    stacId: string;
+    label: string | null;
+    /** The file the version's metadata came from, which tells versions with one STAC id apart. */
+    file: string | null;
+    deprecated: boolean;
+    qc: QcStatus;
+  }[];
   latest: string;
 };
 

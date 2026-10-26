@@ -8,7 +8,7 @@ import { collectionName } from "./format";
 import { NotStac, readItems } from "./parquet";
 import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
 import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
-import { awsAvailable, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
+import { awsAvailable, baseName, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
 /**
@@ -57,8 +57,12 @@ type CollectionDoc = Record<string, unknown> | null;
 
 type Cache = {
   sources: Map<string, SourceState>;
-  /** The source files, and for each one reached through a collection's child link, that collection's file. */
-  listing: { at: number; uris: string[]; parents: Record<string, string>; errors: string[] } | null;
+  /**
+   * The source files; for each one reached through a collection's child
+   * link, that collection's file; and the ones reached only through
+   * another version's links (absent on a listing from before those were followed).
+   */
+  listing: { at: number; uris: string[]; parents: Record<string, string>; versions?: string[]; errors: string[] } | null;
   docs: Map<string, { at: number; doc: CollectionDoc }>;
   building: Promise<Catalog> | null;
   /** The last catalog built, served while the next one is checked. Null until the first build and after a write. */
@@ -160,19 +164,24 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     if (!uris.includes(key)) cache.sources.delete(key);
   }
 
+  const nodeIds = nodeIdsOf(cache, uris, new Set(listing.versions ?? []));
   const byCollection = new Map<string, CatalogItem[]>();
+  const stacIds = new Map<string, string>();
   const collectionSources = new Map<string, string[]>();
   const sourcesOut: Catalog["sources"] = [];
   for (const uri of uris) {
     const s = cache.sources.get(uri)!;
     if (s.skipped) continue;
+    const nodeOf = (stacId: string) => nodeIds.get(`${uri}|${stacId}`) ?? stacId;
     // Documents name real collections even when there are no item rows.
     const ids = new Set([
       ...s.items.map((i) => i.collection),
       ...Object.entries(s.embedded).filter(([id, doc]) => (doc.type === "Collection" || doc.type === "Catalog") && doc.id === id).map(([id]) => id),
     ]);
-    sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(ids), error: s.error });
-    for (const id of ids) {
+    sourcesOut.push({ uri, itemCount: s.items.length, collections: Array.from(ids, nodeOf), error: s.error });
+    for (const stacId of ids) {
+      const id = nodeOf(stacId);
+      stacIds.set(id, stacId);
       if (!byCollection.has(id)) byCollection.set(id, []);
       const sources = collectionSources.get(id) ?? [];
       sources.push(uri);
@@ -180,9 +189,10 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     }
     if (s.error) errors.push(`${uri}: ${s.error}`);
     for (const item of s.items) {
-      const list = byCollection.get(item.collection) ?? [];
+      const id = nodeOf(item.collection);
+      const list = byCollection.get(id) ?? [];
       list.push({ ...item, source: uri });
-      byCollection.set(item.collection, list);
+      byCollection.set(id, list);
     }
   }
 
@@ -193,12 +203,13 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   const collections: Collection[] = [];
   for (const [id, items] of Array.from(byCollection.entries()).sort(([a], [b]) => a.localeCompare(b))) {
     const sources = collectionSources.get(id)!;
+    const stacId = stacIds.get(id) ?? id;
     try {
-      collections.push(await describeCollection(cache, id, items, sources, now));
+      collections.push(await describeCollection(cache, id, stacId, items, sources, now));
     } catch (e) {
       console.error(`stac-x: describing collection ${id} failed, so it's shown from its items:`, e);
       try {
-        collections.push(derivedCollection(cache, id, items, sources));
+        collections.push(derivedCollection(cache, id, stacId, items, sources));
       } catch (e2) {
         errors.push(`${id}: ${message(e2)}`);
         console.error(`stac-x: collection ${id} couldn't be read at all, so it's left out:`, e2);
@@ -210,7 +221,6 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
   // so it sits at the top of the tree for now.
   const loadedHrefs = new Set(collections.map((c) => c.docHref).filter((h): h is string => !!h));
   for (const c of collections) {
-    c.childCollectionCount = childCollectionsOf(c, collections).length;
     c.kind = kindOf(c);
     const parent = c.docHref ? listing.parents[c.docHref] : undefined;
     c.parentMissing = !!parent && !loadedHrefs.has(parent);
@@ -224,6 +234,16 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     console.error("stac-x: grouping collection versions failed, so each is shown on its own:", e);
     for (const c of collections) c.series = lone(c.id);
   }
+  // An earlier version of a dataset is a dataset, even one whose file
+  // holds metadata alone (the first cut of a dataset often has no rows
+  // yet): it's reviewed and opened as one, not shown as an empty folder.
+  for (const c of collections) {
+    if (c.kind === "catalog" && c.series.versions.length > 1 &&
+        collections.some((o) => o.series === c.series && o.kind === "dataset")) {
+      c.kind = "dataset";
+    }
+  }
+  for (const c of collections) c.childCollectionCount = childCollectionsOf(c, collections).length;
 
   return { collections, sources: sourcesOut, errors, refreshedAt: new Date(now).toISOString() };
 }
@@ -232,6 +252,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
   if (cache.listing && now - cache.listing.at < refreshMs) return cache.listing;
   const uris: string[] = [];
   const parents: Record<string, string> = {};
+  const versions: string[] = [];
   const errors: string[] = [];
   for (const entry of configuredSources(env)) {
     try {
@@ -244,6 +265,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
         // Each collection reached through child links is its own source.
         const found = await collectionsOf(uri);
         uris.push(...found.collections);
+        versions.push(...found.versions);
         Object.assign(parents, found.parents);
         for (const m of found.missing) {
           errors.push(`${m.href}: ${m.error}`);
@@ -255,9 +277,62 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
       console.error(`stac-x: listing ${entry} failed:`, e);
     }
   }
-  cache.listing = { at: now, uris: Array.from(new Set(uris)), parents, errors };
+  cache.listing = { at: now, uris: Array.from(new Set(uris)), parents, versions, errors };
   return cache.listing;
 }
+
+/**
+ * What each source's collections are called in this app, for the ones
+ * that can't just use their STAC id.
+ *
+ * The generator writes every version of a dataset under the same id, one
+ * file per version (collection-v.0.2.json, collection-v.0.3.json), and the
+ * Version extension's links tell them apart. Each has to be its own
+ * collection here, with its own page and QC record, so when several JSON
+ * sources carry a document with one id, the one the folder links as a
+ * child keeps the bare id (the highest version, if it links several) and
+ * the others are named with their version, basin-data-dams-nid-v0.2. That
+ * reads as a version suffix to versions.ts too, so the grouping sees them
+ * as one series either way. The map is keyed by source and STAC id; a pair
+ * that isn't in it goes by the STAC id.
+ */
+function nodeIdsOf(cache: Cache, uris: string[], viaVersionLink: Set<string>): Map<string, string> {
+  const docs = new Map<string, { uri: string; version: string | null }[]>();
+  for (const uri of uris) {
+    const s = cache.sources.get(uri);
+    if (!s || s.skipped || !isJsonSource(uri)) continue;
+    for (const [id, doc] of Object.entries(s.embedded)) {
+      if ((doc.type !== "Collection" && doc.type !== "Catalog") || doc.id !== id) continue;
+      const v = doc.version;
+      docs.set(id, [...(docs.get(id) ?? []), { uri, version: typeof v === "string" || typeof v === "number" ? String(v) : null }]);
+    }
+  }
+  const byVersion = (a: { version: string | null }, b: { version: string | null }) =>
+    (a.version ?? "").localeCompare(b.version ?? "", "en", { numeric: true });
+  const taken = new Set(docs.keys());
+  const out = new Map<string, string>();
+  for (const [id, list] of docs) {
+    if (list.length < 2) continue;
+    const linked = list.filter((d) => !viaVersionLink.has(d.uri));
+    const current = (linked.length ? linked : list).sort(byVersion).at(-1)!;
+    for (const d of list) {
+      if (d === current) continue;
+      let node = `${id}-v${d.version ?? baseName(d.uri).replace(/\.json$/i, "")}`;
+      // The same id and version twice over is a generator slip; the file name keeps them apart.
+      if (taken.has(node)) node = `${node}-${baseName(d.uri).replace(/\.json$/i, "")}`;
+      taken.add(node);
+      out.set(`${d.uri}|${id}`, node);
+      // Said once per file, not on every refresh.
+      if (!named.has(`${d.uri}|${node}`)) {
+        named.add(`${d.uri}|${node}`);
+        console.log(`stac-x: ${id} has several versions under one id, so ${baseName(d.uri)} is ${node} here`);
+      }
+    }
+  }
+  return out;
+}
+
+const named = new Set<string>();
 
 async function refreshSource(cache: Cache, uri: string, now: number) {
   const existing = cache.sources.get(uri);
@@ -326,21 +401,25 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
  * metadata, and is derived from the items otherwise. The derived form is
  * honest about being derived: fromDocument is false and the page says so.
  */
-async function describeCollection(cache: Cache, id: string, items: CatalogItem[], sources: string[], now: number): Promise<Collection> {
-  const docHref = docHrefOf(items) ?? sources.find((uri) => isJsonSource(uri) && cache.sources.get(uri)?.embedded[id]) ?? null;
+async function describeCollection(cache: Cache, id: string, stacId: string, items: CatalogItem[], sources: string[], now: number): Promise<Collection> {
+  const docHref = docHrefOf(items) ?? sources.find((uri) => isJsonSource(uri) && cache.sources.get(uri)?.embedded[stacId]) ?? null;
   // A catalog's collection.json is itself a source, already read.
-  const read = (docHref && cache.sources.get(docHref)?.embedded?.[id]) || (await collectionDoc(cache, docHref, now));
-  const embeddedIn = read ? undefined : sources.find((uri) => cache.sources.get(uri)?.embedded?.[id]);
-  const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn)!.embedded[id] : null);
+  const read = (docHref && cache.sources.get(docHref)?.embedded?.[stacId]) || (await collectionDoc(cache, docHref, now));
+  const embeddedIn = read ? undefined : sources.find((uri) => cache.sources.get(uri)?.embedded?.[stacId]);
+  const doc = read ?? (embeddedIn ? cache.sources.get(embeddedIn)!.embedded[stacId] : null);
   // Relative asset hrefs are relative to the file the metadata came from.
   const docBase = read ? docHref : embeddedIn ?? null;
-  if (!doc) return derivedCollection(cache, id, items, sources);
+  if (!doc) return derivedCollection(cache, id, stacId, items, sources);
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
-  const { qc, history, geometryErrors } = recordsOf(cache, id, items, sources);
+  const { qc, history, geometryErrors } = recordsOf(cache, stacId, items, sources);
   {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
-    const docBbox = ext?.spatial?.bbox?.[0];
+    // The generator gives a collection with no data yet a stand-in extent
+    // (the whole country) and says so in its ffrd block. That isn't an
+    // extent to draw or to put against the area, so it's read as none.
+    const placeholder = (doc.ffrd as { extent_is_placeholder?: unknown } | undefined)?.extent_is_placeholder === true;
+    const docBbox = placeholder ? undefined : ext?.spatial?.bbox?.[0];
     const docInterval = ext?.temporal?.interval?.[0];
     const {
       id: _id, title, description, license, keywords, providers, extent: _extent, links,
@@ -350,10 +429,11 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     void _id; void _extent; void _v; void _x;
     return {
       id,
+      stacId,
       type: _t === "Catalog" ? "Catalog" : "Collection",
       // Classified in build().
       kind: "dataset",
-      title: collectionName(typeof title === "string" ? title : null, id),
+      title: collectionName(typeof title === "string" ? title : null, stacId),
       sourceTitle: typeof title === "string" && title ? title : null,
       description: typeof description === "string" ? description : null,
       license: typeof license === "string" ? license : null,
@@ -393,13 +473,14 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
 }
 
 /** A collection described from its items alone, when there's no document or the document can't be used. */
-function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sources: string[]): Collection {
-  const { qc, history, geometryErrors } = recordsOf(cache, id, items, sources);
+function derivedCollection(cache: Cache, id: string, stacId: string, items: CatalogItem[], sources: string[]): Collection {
+  const { qc, history, geometryErrors } = recordsOf(cache, stacId, items, sources);
   return {
     id,
+    stacId,
     type: "Collection",
     kind: "dataset",
-    title: collectionName(null, id),
+    title: collectionName(null, stacId),
     sourceTitle: null,
     description: null,
     license: null,
@@ -430,13 +511,22 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
   };
 }
 
-/** Loaded direct children, not descendants, missing documents, or self-links. */
+/**
+ * Loaded direct children, not descendants, missing documents, or
+ * self-links. A child with several versions is listed once, as its latest,
+ * whichever version the parent's link names.
+ */
 export function childCollectionsOf(parent: Collection, collections: Collection[]): Collection[] {
   // The fallback handles catalogs cached before this field existed during hot reload.
   const hrefs = new Set(parent.childCollectionHrefs ?? []);
-  return collections
-    .filter((c) => c.id !== parent.id && c.docHref !== null && hrefs.has(c.docHref))
-    .sort((a, b) => a.title.localeCompare(b.title));
+  const latest = (c: Collection) => collections.find((o) => o.id === c.series.latest) ?? c;
+  const out = new Map<string, Collection>();
+  for (const c of collections) {
+    if (c.id === parent.id || c.docHref === null || !hrefs.has(c.docHref)) continue;
+    const l = latest(c);
+    if (l.id !== parent.id) out.set(l.id, l);
+  }
+  return [...out.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /** The collection document the items link to, if any. */

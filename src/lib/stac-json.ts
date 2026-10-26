@@ -124,6 +124,10 @@ async function readJsonItems(links: StacLink[], collection: string, uri: string)
   return { items: [...items.values()], dependencies };
 }
 
+/** The Version extension's links from one document to another version of it. */
+const VERSION_LINK = (l: StacLink) =>
+  typeof l?.href === "string" && ["latest-version", "predecessor-version", "successor-version"].includes(l.rel);
+
 /**
  * Every collection and sub-catalog a catalog reaches through its child
  * links; the catalog it starts from isn't one of them. A sub-catalog is a
@@ -134,16 +138,29 @@ async function readJsonItems(links: StacLink[], collection: string, uri: string)
  * collection reached through another collection's child link, `parents`
  * names that collection's file (the first one found), so the tree can tell
  * a node that's top-level by design from one whose parent didn't load.
+ *
+ * Once the children are in, each one's predecessor-, successor- and
+ * latest-version links are followed too. A generator usually links a
+ * folder to the current version of a dataset only, and the earlier ones
+ * hang off it by those links (collection-v.0.3.json names
+ * collection-v.0.2.json as its predecessor), so this is the only way they
+ * get read. A version found this way counts as sitting in the same folder
+ * as the one that named it, and is listed in `versions`, so the catalog
+ * can tell which copy of a shared id the folder actually links. One whose
+ * file is gone is skipped quietly: an old version missing isn't a broken
+ * catalog.
  */
 export async function collectionsOf(
   catalogUri: string,
-): Promise<{ collections: string[]; parents: Record<string, string>; missing: { href: string; error: string }[] }> {
+): Promise<{ collections: string[]; parents: Record<string, string>; versions: string[]; missing: { href: string; error: string }[] }> {
   const collections: string[] = [];
   const parents: Record<string, string> = {};
+  const versions: string[] = [];
   const missing: { href: string; error: string }[] = [];
   const seen = new Set<string>();
+  const docs = new Map<string, Record<string, unknown>>();
   const start = parseRef(catalogUri).uri;
-  const walk = async (uri: string, from: string | null) => {
+  const walk = async (uri: string, from: string | null, asVersion = false) => {
     if (seen.has(uri)) return;
     seen.add(uri);
     if (from && from !== start) parents[uri] = from;
@@ -151,11 +168,15 @@ export async function collectionsOf(
     try {
       doc = (await readJson<Record<string, unknown>>(uri)).value;
     } catch (e) {
-      missing.push({ href: uri, error: e instanceof NotFound ? "not found" : e instanceof Error ? e.message : String(e) });
+      const error = e instanceof NotFound ? "not found" : e instanceof Error ? e.message : String(e);
+      if (asVersion) console.log(`stac-x: ${uri}, linked as another version, couldn't be read (${error}), so it's left out`);
+      else missing.push({ href: uri, error });
       return;
     }
     if (doc?.type === "Collection" || (doc?.type === "Catalog" && uri !== start)) {
       collections.push(uri);
+      docs.set(uri, doc);
+      if (asVersion) versions.push(uri);
     } else if (doc?.type !== "Catalog") {
       missing.push({ href: uri, error: "not a STAC Catalog or Collection" });
       return;
@@ -170,7 +191,22 @@ export async function collectionsOf(
     );
   };
   await walk(start, null);
-  return { collections, parents, missing };
+
+  // Other versions, after every child is known, so a version the folder
+  // links itself is a child first. Each round can turn up more (0.3 names
+  // 0.2, which names 0.1), so it runs until nothing new is found.
+  for (let done = 0; done < collections.length; ) {
+    const batch = collections.slice(done);
+    done = collections.length;
+    await Promise.all(
+      batch.flatMap((uri) => {
+        const links = Array.isArray(docs.get(uri)?.links) ? (docs.get(uri)!.links as StacLink[]) : [];
+        // The linked version sits in the folder this one does.
+        return links.filter(VERSION_LINK).map((l) => walk(resolveHref(l.href, uri), parents[uri] ?? start, true));
+      }),
+    );
+  }
+  return { collections, parents, versions, missing };
 }
 
 export async function readCollectionJson(uri: string): Promise<JsonStac> {

@@ -52,7 +52,7 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
           title={missing ? "Not found" : `Not in ${here} yet`}
           aside={
             sibling && (
-              <MessageRow href={collectionHref(env, sibling.id)} title={sibling.id} sub={`${siblingName} of it, in ${here}`} />
+              <MessageRow href={collectionHref(env, sibling.id)} title={sibling.stacId} sub={`${siblingName} of it, in ${here}`} />
             )
           }
           actions={

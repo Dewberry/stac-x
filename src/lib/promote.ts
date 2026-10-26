@@ -77,15 +77,16 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
     copied.push(target);
   }
 
+  // Sidecars are keyed by the id the file's own metadata gives the collection.
   const names = copied.map(baseName);
   for (const target of copied) {
     await updateEdits(target, (edits) => {
-      delete edits.collections[c.id];
-      logEvent(edits, c.id, { kind: "received", at, from: env, files: names });
+      delete edits.collections[c.stacId];
+      logEvent(edits, c.stacId, { kind: "received", at, from: env, files: names });
     });
   }
   await updateEdits(c.sources[0], (edits) => {
-    logEvent(edits, c.id, { kind: "promoted", at, to: to.key, files: names });
+    logEvent(edits, c.stacId, { kind: "promoted", at, to: to.key, files: names });
   });
 
   invalidate(to.key);

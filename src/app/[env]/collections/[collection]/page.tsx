@@ -106,8 +106,10 @@ export default async function CollectionPage({ params }: Props) {
   ];
 
   const version = c.series.versions.find((v) => v.id === c.id)?.label ?? c.version;
+  // Versions that share one STAC id are told apart by their files instead.
+  const sameId = c.series.versions.length > 1 && c.series.versions.every((v) => v.stacId === c.stacId);
   const meta: Entry[] = [
-    { key: "id", value: c.id, label: "Id" },
+    { key: "id", value: c.stacId, label: "Id" },
     ...(version ? [{ key: "version", value: version, label: "Version" }] : []),
     { key: "items", value: c.itemCount, label: "Items" },
     ...(inside.length > 0 ? [{ key: "inside", value: inside.length, label: insideTitle(inside) }] : []),
@@ -160,7 +162,7 @@ export default async function CollectionPage({ params }: Props) {
                 key: v.id,
                 href: collectionHref(env, v.id),
                 name: versionName(v.label),
-                id: v.id,
+                id: sameId ? v.file ?? v.stacId : v.stacId,
                 latest: v.id === c.series.latest,
                 deprecated: v.deprecated,
                 qc: v.qc,

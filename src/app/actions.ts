@@ -43,7 +43,9 @@ export async function saveQcAction(_prev: SaveState, form: FormData): Promise<Sa
     if (to?.key === "prod" && !input.note) {
       return { ok: false, error: "Add a note saying what was checked. It's the record of why this went to Production." };
     }
-    const edit = await saveEdit(source, collection, input);
+    // The sidecar is keyed by the id the file's own metadata gives the
+    // collection, which an older version shares with the current one.
+    const edit = await saveEdit(source, c.stacId, input);
     invalidate(env, source);
     let promotedTo: EnvKey | null = null;
     // A collection that can't be copied on yet keeps its approval and stays

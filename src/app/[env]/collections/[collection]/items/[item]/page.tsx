@@ -50,8 +50,16 @@ export default async function ItemPage({ params }: Props) {
   const item = c.items.find((x) => x.id === id);
   if (!item) notFound();
   const version = c.series.versions.length > 1 ? c.series.versions.find((v) => v.id === c.id)?.label ?? null : null;
-  const versions = itemVersions(c, item, (await getCatalog(env)).collections);
+  const { collections } = await getCatalog(env);
+  const versions = itemVersions(c, item, collections);
   const key = (v: ItemVersion) => `${v.collection}/${v.item}`;
+  // What tells a version's collection apart under its name: its STAC id,
+  // or its file when every version of this collection shares one id.
+  const sameId = c.series.versions.length > 1 && c.series.versions.every((v) => v.stacId === c.stacId);
+  const versionId = (id: string) => {
+    const v = c.series.versions.find((x) => x.id === id);
+    return sameId ? v?.file ?? v?.stacId ?? id : collections.find((x) => x.id === id)?.stacId ?? id;
+  };
 
   const p = item.properties;
   const kind = itemKindLabel(c, item);
@@ -124,7 +132,7 @@ export default async function ItemPage({ params }: Props) {
                 key: key(v),
                 href: itemHref(env, v.collection, v.item),
                 name: v.label ? versionName(v.label) : v.rel ? REL_NAME[v.rel] : key(v) === `${c.id}/${item.id}` ? "This version" : versionName(null),
-                id: v.item === item.id ? v.collection : v.item,
+                id: v.item === item.id ? versionId(v.collection) : v.item,
                 latest: v.latest,
                 deprecated: v.deprecated,
                 qc: v.qc,
@@ -222,7 +230,7 @@ export default async function ItemPage({ params }: Props) {
               <div className="sx-row-main">
                 <div className="sx-row-title">{collectionLabel}</div>
                 <div className="sx-row-sub">
-                  {c.title !== c.id && <span className="ffx-id">{c.id}</span>}
+                  {c.title !== c.stacId && <span className="ffx-id">{c.stacId}</span>}
                   <span>
                     <span className="ffx-num">{fmtNum(c.itemCount)}</span> items
                   </span>

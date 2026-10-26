@@ -14,9 +14,13 @@ import type { Collection, Series, StacLink } from "./stac";
  * (HLSL30_2.0, usgs-lcmap-conus-v13), so collections whose ids differ only by
  * a version suffix are grouped too. A bare trailing number (reach-12) isn't a
  * version; it needs a "v" or a dot.
+ *
+ * Versions that share one STAC id come in already told apart by catalog.ts,
+ * which names the older ones with a version suffix of the same shape
+ * (basin-data-dams-nid-v0.2), so they group like any other.
  */
 
-type Input = Pick<Collection, "id" | "version" | "deprecated" | "experimental" | "docHref" | "versionLinks" | "qc">;
+type Input = Pick<Collection, "id" | "stacId" | "version" | "deprecated" | "experimental" | "docHref" | "versionLinks" | "qc">;
 
 const SUFFIX = /^(.+?)[-_.](?:v(\d+(?:\.\d+)*)|(\d+\.\d+(?:\.\d+)*))$/i;
 
@@ -100,7 +104,9 @@ export function groupVersions<C extends Input>(collections: C[]): Map<string, Se
       latest,
       versions: ordered.map((c) => ({
         id: c.id,
+        stacId: c.stacId,
         label: c.version ?? splitVersion(c.id)?.label ?? null,
+        file: c.docHref ? c.docHref.split("/").pop() ?? null : null,
         deprecated: c.deprecated,
         qc: c.qc?.qc ?? "pending",
       })),
