@@ -96,25 +96,25 @@ JSON reads and ETag checks run eight files at a time; GeoParquet is still
 recommended for large collections. Changes to linked items or pages are
 picked up at the configured refresh interval, even if the collection is unchanged.
 
-Every node is read as either a dataset or a catalog (a folder that holds
+Every node is read as either a dataset or a folder (a node that only holds
 other nodes), worked out from what it holds on every load. A collection with
 items, or with a link to where its items are (a GeoParquet file, even with
 zero rows yet, or JSON items), is a dataset. Otherwise a document typed
-`Catalog` is a catalog; a leaf with collection-level assets is a dataset (a
-bundle of files); a node with children stays a catalog even when a manifest
-or README is attached to it; and anything with nothing in it is a catalog.
+`Catalog` is a folder; a leaf with collection-level assets is a dataset (a
+bundle of files); a node with children stays a folder even when a manifest
+or README is attached to it; and anything with nothing in it is a folder.
 A node whose parent document was listed but didn't load sits at the top of
 the list and its row says so. Missing or unreadable linked files still report
 an error; they aren't treated as intentionally empty collections.
 
-The home page lists datasets, grouped under the top-level catalog each sits
-in. Catalogs are never rows: a heading opens one in the rail (`?in=<slug>`),
-with its datasets under the catalogs inside it and its empty catalogs folded
-at the end, and top-level catalogs with nothing in them yet are named at the
-foot of the list. Search matches datasets and catalogs by title and
+The home page lists datasets, grouped under the top-level folder each sits
+in. Folders are never rows: a heading opens one in the rail (`?in=<slug>`),
+with its datasets under the folders inside it and its empty folders folded
+at the end, and top-level folders with nothing in them yet are named at the
+foot of the list. Search matches datasets and folders by title and
 description, without bringing in a match's descendants, and lists the two
-apart; catalogs that share a name are one row that opens to where each sits.
-The review counts, the map and the Admin queue cover datasets only. A catalog's
+apart; folders that share a name are one row that opens to where each sits.
+The review counts, the map and the Admin queue cover datasets only. A folder's
 page shows what's inside it and where it sits, with no map, items or review
 state. Loaded children whose parents couldn't be loaded stay at the top level,
 and rootless cyclic branches stay visible rather than disappearing.
