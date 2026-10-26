@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import type { QcStatus } from "@/lib/stac";
@@ -19,6 +19,12 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * catalog they're in, and each heading is a link that opens that catalog in
  * the rail. Top-level catalogs with nothing in them yet are named at the
  * foot of the list, not as rows.
+ *
+ * A search lists what matches in two parts: the datasets, each with the
+ * catalogs it sits in, and then the catalogs, one row per name, since a
+ * name like Archive can be a folder in seven places. Neither part brings
+ * along what's inside a match. The line under the box says plainly when
+ * nothing reviewable matched.
  *
  * With a catalog open (?in=, home-scope.tsx) the head is that catalog's:
  * the way back, its name and description, and how many datasets and empty
@@ -40,11 +46,15 @@ export type Group = { key: string; catalog: { slug: string; name: string } | nul
 /** What the search found, while there is one. */
 export type Search = {
   q: string;
-  /** Matching datasets, under the review filter. */
-  collections: number;
-  /** Some datasets are out of the rail for not matching. */
-  hidden: boolean;
+  /** Matching datasets, before the review filter. */
+  datasets: number;
 };
+
+/**
+ * Catalogs that match a search and share a name, each with the catalogs it
+ * sits in, top first: all of them, and those below the opened catalog.
+ */
+export type CatalogHit = { name: string; places: { area: HomeArea; path: string[]; within: string[] }[] };
 
 const WIDE_SCREEN = "(min-width: 64rem)";
 
@@ -52,6 +62,79 @@ const plural = (n: number, one: string, many: string) => `${fmtNum(n)} ${n === 1
 
 /** How many empty catalogs the fold shows before "Show all". */
 const FOLD_FIRST = 6;
+
+const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+/** A small count as a word, for a sentence: "seven places". */
+const word = (n: number) => WORDS[n] ?? fmtNum(n);
+/** "A", "A and B", "A, B and C". */
+const listOf = (parts: string[]) => parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+
+/** Whether a catalog has anything in it yet, for its row. */
+const catalogNote = (a: HomeArea) => a.datasetsBelow ? plural(a.datasetsBelow, "dataset", "datasets") : "Nothing in it yet";
+
+/**
+ * The line under the search box, and a note for the list when nothing that
+ * can be reviewed matched: "No datasets match “archive”. 7 empty catalogs
+ * are named Archive."
+ */
+function summaryOf(search: Search, hits: CatalogHit[], opened: HomeArea | null): { line: string; note: string | null } {
+  const places = hits.flatMap((h) => h.places);
+  const catalogs = places.length;
+  const allEmpty = places.every((p) => !p.area.datasetsBelow);
+  const noun = allEmpty ? (catalogs === 1 ? "empty catalog" : "empty catalogs") : catalogs === 1 ? "catalog" : "catalogs";
+  const quoted = `“${search.q}”`;
+  if (search.datasets && catalogs) {
+    return { line: `${plural(search.datasets, "dataset", "datasets")} and ${fmtNum(catalogs)} ${noun} match ${quoted}.`, note: null };
+  }
+  if (search.datasets) return { line: `${plural(search.datasets, "dataset matches", "datasets match")} ${quoted}.`, note: null };
+  if (!catalogs) return { line: `Nothing matches ${quoted}.`, note: null };
+  const name = hits.length === 1 ? hits[0].name : null;
+  const what = name
+    ? `${fmtNum(catalogs)} ${noun} ${catalogs === 1 ? "is" : "are"} named ${name}.`
+    : `${fmtNum(catalogs)} ${noun} ${catalogs === 1 ? "matches" : "match"}.`;
+  let note: string | null = null;
+  if (allEmpty) {
+    const a = name && /^[aeiou]/i.test(name) ? "An" : "A";
+    note = !name
+      ? "Nothing to review here. None of these catalogs holds a dataset yet."
+      : catalogs === 1
+        ? `Nothing to review here. ${a} ${name} folder exists in one place in the tree, but it doesn't hold a dataset yet.`
+        : `Nothing to review here. ${a} ${name} folder exists in ${word(catalogs)} places in ${opened ? opened.name : "the tree"}, but none of them holds a dataset yet.`;
+  }
+  return { line: `No datasets match ${quoted}. ${what}`, note };
+}
+
+/**
+ * Where the catalogs that share a name sit, by the catalog they're under
+ * one level down from where the rail is: "one under Conformance and two
+ * under Production". Past three of those it's just how many.
+ */
+function whereEach(hit: CatalogHit, opened: HomeArea | null): string {
+  const byTop = new Map<string, number>();
+  for (const p of hit.places) byTop.set(p.within[0] ?? "", (byTop.get(p.within[0] ?? "") ?? 0) + 1);
+  const tops = [...byTop].sort(([a], [b]) => a.localeCompare(b));
+  const here = opened ? `directly in ${opened.name}` : "at the top level";
+  const where = tops.length > 3
+    ? `under ${word(tops.length)} ${opened ? "catalogs in it" : "top-level catalogs"}`
+    : tops.length > 1 && tops.every(([top, n]) => top && n === 1)
+      ? `one each under ${listOf(tops.map(([top]) => top))}`
+      : listOf(tops.map(([top, n]) => (top ? `${word(n)} under ${top}` : `${word(n)} ${here}`)));
+  return `${fmtNum(hit.places.length)} catalogs share this name, ${where}. Open to see where each sits.`;
+}
+
+/** The searched-for text underlined wherever it is in a name, in river blue. */
+function Hit({ text, q }: { text: string; q: string }) {
+  if (!q) return <>{text}</>;
+  const lower = text.toLowerCase();
+  const out: ReactNode[] = [];
+  let at = 0;
+  for (let i = lower.indexOf(q); i >= 0; i = lower.indexOf(q, i + q.length)) {
+    out.push(text.slice(at, i), <mark key={i} className="sx-hit">{text.slice(i, i + q.length)}</mark>);
+    at = i + q.length;
+  }
+  out.push(text.slice(at));
+  return <>{out}</>;
+}
 
 export function HomeRail({
   env,
@@ -64,8 +147,9 @@ export function HomeRail({
   catalogsInside,
   trail,
   childCollections,
-  scopeCount,
-  parentPaths,
+  total,
+  paths,
+  catalogHits,
   groups,
   byState,
   notice,
@@ -102,9 +186,12 @@ export function HomeRail({
   trail: HomeArea[];
   /** What's directly inside the open dataset. */
   childCollections: HomeArea[];
-  /** Every dataset by default; matching datasets during search. */
-  scopeCount: number;
-  parentPaths: Record<string, string[]>;
+  /** Every dataset the rail is about: all of them, or the opened catalog's. */
+  total: number;
+  /** While searching, the catalogs each matching dataset sits in, top first. */
+  paths: Record<string, string[]>;
+  /** While searching, the matching catalogs, by name. */
+  catalogHits: CatalogHit[];
   groups: Group[];
   /** How many datasets are in each review state. */
   byState: Record<QcStatus, number>;
@@ -129,6 +216,8 @@ export function HomeRail({
 }) {
   const listRef = useRef<HTMLUListElement>(null);
   const shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
+  const summary = search ? summaryOf(search, catalogHits, opened) : null;
+  const hitPlaces = catalogHits.reduce((n, h) => n + h.places.length, 0);
   const anything = datasetCount > 0 || emptyRoots.length > 0;
 
   // Opening or leaving a catalog replaces the whole rail, so focus goes to
@@ -195,7 +284,7 @@ export function HomeRail({
             <h2 ref={titleRef} tabIndex={-1}>Datasets</h2>
             {/* How many datasets, and how many of them are showing while a filter or search hides some. */}
             <span className="sx-rail-count ffx-num">
-              {shownCount === scopeCount ? fmtNum(scopeCount) : `${fmtNum(shownCount)} of ${fmtNum(scopeCount)}`}
+              {shownCount === total ? fmtNum(total) : `${fmtNum(shownCount)} of ${fmtNum(total)}`}
             </span>
             {rootsWithData > 0 && !search && (
               <span className="sx-rail-in">in {plural(rootsWithData, "catalog", "catalogs")}</span>
@@ -227,15 +316,12 @@ export function HomeRail({
         {/* Said once the search or filter changes. The lines below show the
             same, but a status region that mounts with its text is often missed. */}
         <p className="sr-only" role="status">
-          {search ? `${plural(search.collections, "dataset", "datasets")} found.` : ""}
+          {summary?.line ?? ""}
           {filter ? ` Showing ${QC_LABEL[filter]} only` : ""}
         </p>
-        {search && (
+        {summary && (
           <p className="sx-search-line" aria-hidden="true">
-            <b>
-              <span className="ffx-num">{search.collections}</span> {search.collections === 1 ? "dataset found" : "datasets found"}
-            </b>{" "}
-            &ldquo;{search.q}&rdquo;
+            {summary.line}
           </p>
         )}
         {/* The review states with their counts: the legend for the open
@@ -286,6 +372,11 @@ export function HomeRail({
         {opened && !opened.datasetsBelow && !emptyInOpened.length && <li className="sx-empty">Nothing in it yet.</li>}
         {groups.map((g) => (
           <li key={g.key} className="sx-group">
+            {search && (
+              <h3 className="sx-shead">
+                {g.rows.length === 1 ? "Dataset" : "Datasets"} · <span className="ffx-num">{fmtNum(g.rows.length)}</span>
+              </h3>
+            )}
             {g.catalog && (
               <h3 className="sx-ghead">
                 <ScopeLink env={env} slug={g.catalog.slug}>
@@ -306,7 +397,8 @@ export function HomeRail({
                     area={a}
                     childCollections={open ? childCollections : []}
                     trail={open ? trail : []}
-                    parentPaths={parentPaths[a.slug] ?? []}
+                    path={paths[a.slug]}
+                    q={search?.q ?? ""}
                     active={(selected ?? hovered) === a.slug}
                     previewing={preview === a.slug}
                     preview={preview}
@@ -345,9 +437,23 @@ export function HomeRail({
             </ul>
           </li>
         )}
-        {search && search.hidden && (
+        {search && catalogHits.length > 0 && (
+          <li className="sx-group">
+            <h3 className="sx-shead">
+              {catalogHits.every((h) => h.places.every((p) => !p.area.datasetsBelow)) ? "Catalogs with nothing in them yet" : "Catalogs"}
+              {" · "}
+              <span className="ffx-num">{fmtNum(hitPlaces)}</span>
+            </h3>
+            <ul>
+              {catalogHits.map((hit) => (
+                <CatalogHitRow key={hit.name.toLowerCase()} env={env} hit={hit} q={search.q} opened={opened} />
+              ))}
+            </ul>
+          </li>
+        )}
+        {summary?.note && <li className="sx-rail-fold">{summary.note}</li>}
+        {search && (
           <li className="sx-rail-fold">
-            {groups.length ? "No other datasets match." : "No datasets match."}{" "}
             <button
               type="button"
               onClick={() => {
@@ -361,6 +467,63 @@ export function HomeRail({
         )}
       </ul>
     </aside>
+  );
+}
+
+/**
+ * Catalogs that matched a search under one name. One alone is a link to it
+ * with where it sits; several are one row that opens to a line for each,
+ * with its whole path, each a link that opens it in the rail.
+ */
+function CatalogHitRow({ env, hit, q, opened }: { env: EnvKey; hit: CatalogHit; q: string; opened: HomeArea | null }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  if (hit.places.length === 1) {
+    const { area, path } = hit.places[0];
+    return (
+      <li>
+        <ScopeLink env={env} slug={area.slug} className="sx-crow">
+          <FolderGlyph />
+          <span className="sx-crow-main">
+            <span className="sx-crow-name">
+              <Hit text={area.name} q={q} />
+            </span>
+            <span className="sx-crow-sub">{path.length ? path.join(" › ") : "Top-level catalog"}</span>
+          </span>
+          <span className="sx-crow-note">{catalogNote(area)}</span>
+        </ScopeLink>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <button type="button" className="sx-crow" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+        <FolderGlyph />
+        <span className="sx-crow-main">
+          <span className="sx-crow-name">
+            <Hit text={hit.name} q={q} /> · <span className="ffx-num">{fmtNum(hit.places.length)}</span>
+          </span>
+          <span className="sx-crow-sub">{whereEach(hit, opened)}</span>
+        </span>
+        <Chevron />
+      </button>
+      <ul id={id} className="sx-cplaces" hidden={!open}>
+        {hit.places.map(({ area, path }) => (
+          <li key={area.slug}>
+            <ScopeLink env={env} slug={area.slug} className="sx-erow">
+              <FolderGlyph />
+              <span className="sx-erow-name">
+                {path.map((p, i) => (
+                  <span key={i}>{p} › </span>
+                ))}
+                <b>{area.name}</b>
+              </span>
+              <span className="sx-erow-note">{catalogNote(area)}</span>
+            </ScopeLink>
+          </li>
+        ))}
+      </ul>
+    </li>
   );
 }
 
@@ -478,7 +641,8 @@ function AreaRow({
   area,
   childCollections,
   trail,
-  parentPaths,
+  path,
+  q,
   active,
   previewing,
   preview,
@@ -493,7 +657,9 @@ function AreaRow({
   childCollections: HomeArea[];
   trail: HomeArea[];
   /** Where the dataset sits, shown only while searching. */
-  parentPaths: string[];
+  path?: string[];
+  /** The search, to underline in the name. */
+  q: string;
   active: boolean;
   previewing: boolean;
   preview: string | null;
@@ -517,9 +683,10 @@ function AreaRow({
         onBlur={() => onHover(null)}
       >
         <span className="sx-row-main">
-          <span className="sx-row-title">{area.name}</span>
-          {parentPaths.map((path) => <span key={path} className="sx-row-parent">Under {path}</span>)}
-          <AreaSub area={area} open={open} />
+          <span className="sx-row-title">
+            <Hit text={area.name} q={q} />
+          </span>
+          <AreaSub area={area} open={open} path={path} />
         </span>
         <span className="sx-row-aside">
           {/* An eye beside the count on the row the map is previewing. Its

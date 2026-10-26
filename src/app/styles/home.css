@@ -377,11 +377,12 @@
     height: 32px;
   }
 }
-/* Under the search box: how many collections the search found. */
+/* Under the search box: what the search found, in a sentence. */
 .sx-search-line {
   margin: -2px 0 0;
   font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
+  line-height: var(--ffx-t-micro-lh);
+  color: var(--ffx-ink-sec);
 }
 .sx-search-line b {
   font-weight: 600;
@@ -496,6 +497,88 @@
 .sx-ghead a > svg:last-child {
   flex: none;
   color: var(--ffx-ink-mut);
+}
+/* A search's two parts, datasets then catalogs: labeled like the catalog
+   headings, but they're labels, not links. */
+.sx-shead {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-sunken);
+  font: 600 var(--ffx-t-tiny) / 1.3 var(--ffx-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-sec);
+}
+.sx-shead .ffx-num {
+  margin-left: 0.35em;
+}
+@media (min-width: 64rem) {
+  .sx-shead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+}
+/* A catalog that matched, or several sharing a name: the folder, the name
+   in secondary ink so it reads quieter than a dataset, and where it is. */
+.sx-crow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--ffx-rule);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--ffx-ink-sec);
+  text-decoration: none;
+  cursor: pointer;
+}
+.sx-crow:hover {
+  background: var(--ffx-surface-sunken);
+}
+.sx-crow:focus-visible {
+  outline-offset: -2px;
+}
+.sx-crow > .sx-folder,
+.sx-crow > .sx-chev {
+  color: var(--ffx-ink-mut);
+}
+.sx-crow-main {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.sx-crow-name {
+  font-size: var(--ffx-t-base);
+  line-height: 18px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.sx-crow-sub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ffx-ink-mut);
+  overflow-wrap: anywhere;
+}
+.sx-crow-note {
+  flex: none;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+/* Where each of the catalogs sharing a name sits, under its row. */
+.sx-cplaces {
+  border-bottom: 1px solid var(--ffx-rule);
+}
+.sx-cplaces .sx-erow-name b {
+  font-weight: 600;
 }
 /* Top-level catalogs with nothing in them yet, named at the foot of the
    list rather than listed as rows. */
@@ -636,10 +719,24 @@
   color: var(--ffx-ink);
   overflow-wrap: anywhere;
 }
-.sx-row-parent {
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
+/* In search results, the catalogs a dataset sits in lead its line. */
+.sx-row-path {
   overflow-wrap: anywhere;
+}
+.sx-row-path .sx-folder {
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+/* The searched-for text in a name: underlined in river blue, not filled,
+   so the name stays as readable as the rest. */
+mark.sx-hit {
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ffx-river) 50%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 /* One run of text, not the flex row .sx-row-sub is elsewhere, so the
   spaces around each middle dot stay. */

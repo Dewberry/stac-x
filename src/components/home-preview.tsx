@@ -30,15 +30,24 @@ export const COVERAGE_LABEL: Record<NonNullable<HomeArea["coverage"]>, string> =
 };
 
 /**
- * The line under a dataset's name in the rail: its review state once
- * someone has decided it, the years it covers, where it is against the
- * area, the empty catalogs it holds, and its version when there are
- * earlier ones (an open row has that in its facts instead). Each part
- * shows only when it says something, so a row can be just "Whole area".
+ * The line under a dataset's name in the rail: in search results the
+ * catalogs it sits in, then its review state once someone has decided it,
+ * the years it covers, where it is against the area, the empty catalogs it
+ * holds, and its version when there are earlier ones (an open row has that
+ * in its facts instead). Each part shows only when it says something, so a
+ * row can be just "Whole area".
  */
-export function AreaSub({ area, open }: { area: HomeArea; open?: boolean }) {
+export function AreaSub({ area, open, path }: { area: HomeArea; open?: boolean; path?: string[] }) {
   const state = stateOf(area);
   const parts: ReactNode[] = [];
+  // In search results, where it sits leads the line.
+  if (path?.length)
+    parts.push(
+      <span className="sx-row-path">
+        <FolderGlyph />
+        {path.join(" › ")}
+      </span>,
+    );
   if (state !== "pending")
     parts.push(
       <span className="sx-row-qc" data-qc={state}>

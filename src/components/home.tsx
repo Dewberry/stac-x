@@ -10,7 +10,7 @@ import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
 import { hierarchyOf, searchCollections, type NodeKind } from "@/lib/collection-hierarchy";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
-import { HomeRail, type Group } from "./home-rail";
+import { HomeRail, type CatalogHit, type Group } from "./home-rail";
 import { HomeSplit } from "./home-split";
 import { ItemHoverContext } from "./item-hover";
 import type { ItemRow } from "./items-list";
@@ -242,16 +242,36 @@ export function HomeConsole({
     for (const a of scope) counts[stateOf(a)]++;
     return counts;
   }, [scope]);
-  const parentPaths = useMemo(() => searching
-    ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.pathOf(a.slug).length ? [hierarchy.pathOf(a.slug).join(" / ")] : []]))
+  // While searching, where each matching dataset sits, for its row.
+  const paths = useMemo(() => searching
+    ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.pathOf(a.slug)]))
     : {}, [hierarchy, searching, shown]);
+  // Catalogs that match, in the opened catalog or anywhere, one entry per
+  // name: an Archive folder in seven places is one row that opens to seven.
+  const catalogHits = useMemo<CatalogHit[]>(() => {
+    if (!q) return [];
+    const below = opened ? hierarchy.descendants([opened.slug]) : null;
+    const catalogs = areas.filter((a) => a.kind === "catalog" && a.slug !== opened?.slug && (!below || below.has(a.slug)));
+    const byName = new Map<string, CatalogHit>();
+    for (const a of searchCollections(catalogs, q)) {
+      const key = a.name.toLowerCase();
+      let hit = byName.get(key);
+      if (!hit) byName.set(key, (hit = { name: a.name, places: [] }));
+      const trail = hierarchy.ancestorsOf(a.slug);
+      // Inside an opened catalog, where it sits is said from there.
+      const from = opened ? trail.findIndex((t) => t.slug === opened.slug) + 1 : 0;
+      hit.places.push({ area: a, path: trail.map((t) => t.name), within: trail.slice(from).map((t) => t.name) });
+    }
+    for (const hit of byName.values()) hit.places.sort((x, y) => x.path.join(" ").localeCompare(y.path.join(" ")));
+    return [...byName.values()].sort((x, y) => x.name.localeCompare(y.name));
+  }, [q, areas, opened, hierarchy]);
   // Datasets under the catalog they sit in one level down from where the
   // rail is: a top-level catalog on the landing, a catalog inside the opened
   // one when one's open. Catalogs by name. Datasets directly at that level
   // come first, under no heading.
   const groups = useMemo<Group[]>(() => {
     if (!shown.length) return [];
-    if (searching) return [{ key: "all", catalog: null, rows: shown }];
+    if (searching) return [{ key: "found", catalog: null, rows: shown }];
     const byHead = new Map<string, Group>();
     for (const a of shown) {
       const trail = hierarchy.ancestorsOf(a.slug);
@@ -453,8 +473,9 @@ export function HomeConsole({
             catalogsInside={(slug) => hierarchy.catalogsBelow(slug)}
             trail={trail}
             childCollections={childCollections}
-            scopeCount={scope.length}
-            parentPaths={parentPaths}
+            total={inView.length}
+            paths={paths}
+            catalogHits={catalogHits}
             groups={groups}
             byState={byState}
             notice={notice}
@@ -463,7 +484,7 @@ export function HomeConsole({
             onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}
             onQuery={(value) => { resetSelection(); setQuery(value); }}
-            search={searching ? { q, collections: shown.length, hidden: shown.length < inView.length } : null}
+            search={searching ? { q, datasets: scope.length } : null}
             selected={activeSelected}
             hovered={activeHovered}
             preview={preview}
