@@ -231,7 +231,7 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
       // Only shown when something is wrong. The details go to the server log.
       notice={
         catalog.errors.length > 0 || failed.size > 0
-          ? "Some datasets or catalogs couldn't be loaded and may be missing. Try again in a minute."
+          ? "Some datasets or folders couldn't be loaded and may be missing. Try again in a minute."
           : null
       }
       emptyText={EMPTY[env]}

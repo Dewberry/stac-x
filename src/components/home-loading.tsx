@@ -36,8 +36,8 @@ export function HomeLoading({ railShare }: { railShare: number }) {
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="m10.5 10.5 3 3" strokeLinecap="round" />
               </svg>
-              <span className="sr-only">Search datasets and catalogs</span>
-              <input type="search" placeholder="Search datasets and catalogs" disabled />
+              <span className="sr-only">Search datasets and folders</span>
+              <input type="search" placeholder="Search datasets and folders" disabled />
             </label>
             {/* Where the review states go, so the rows don't jump when they arrive. */}
             <div className="sx-loading-states" />

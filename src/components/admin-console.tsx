@@ -84,7 +84,7 @@ const SORTS: { value: Sort; label: string }[] = [
 
 // The labels say what they do on their own, since a phone hides "Group by".
 const GROUPINGS: { value: Grouping; label: string }[] = [
-  { value: "catalog", label: "By catalog" },
+  { value: "catalog", label: "By folder" },
   { value: "none", label: "Not grouped" },
 ];
 
@@ -192,12 +192,12 @@ export function AdminConsole({
   // the tab, so an empty tab doesn't claim they all can be.
   const sendable = rows.filter((r) => r.sendable).length;
   const approveNote = !next
-    ? "Catalogs are never approved on their own."
+    ? "Folders are never approved on their own."
     : sendable === rows.length
-      ? `Approving a dataset sends it to ${next.label}. Catalogs are never approved on their own.`
+      ? `Approving a dataset sends it to ${next.label}. Folders are never approved on their own.`
       : sendable === 0
-        ? `Approving a dataset records the decision here; sending it to ${next.label} along with the catalog path it sits in is coming soon. Catalogs are never approved on their own.`
-        : `Approving a dataset sends it to ${next.label}, except one read from a STAC catalog, which keeps its approval here until sending those is built. Catalogs are never approved on their own.`;
+        ? `Approving a dataset records the decision here; sending it to ${next.label} along with the folder path it sits in is coming soon. Folders are never approved on their own.`
+        : `Approving a dataset sends it to ${next.label}, except one read from a STAC catalog, which keeps its approval here until sending those is built. Folders are never approved on their own.`;
 
   const stats = useMemo(() => {
     const waiting = rows.filter((r) => statusOf(r) === "pending");
@@ -258,7 +258,7 @@ export function AdminConsole({
           <dd>{fmtNum(stats.waiting)}</dd>
           <dd className="sx-stat-note">
             Datasets.
-            {catalogCount > 0 && <> The {plural(catalogCount, "catalog", "catalogs")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.</>}
+            {catalogCount > 0 && <> The {plural(catalogCount, "folder", "folders")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.</>}
           </dd>
         </div>
         <div className="sx-stat">
@@ -589,7 +589,7 @@ function QueueTable({
                         Older version
                       </span>
                     )}
-                    {r.emptyInside > 0 && <span>Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>}
+                    {r.emptyInside > 0 && <span>Also holds {plural(r.emptyInside, "empty folder", "empty folders")}</span>}
                   </span>
                 </td>
                 <td className="ffx-r ffx-num">{fmtNum(r.itemCount)}</td>
@@ -666,7 +666,7 @@ function QueueCards({
                   </Link>
                   <span className="ffx-id sx-qcard-id">{r.id}</span>
                   {r.emptyInside > 0 && (
-                    <span className="sx-qcard-holds">Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>
+                    <span className="sx-qcard-holds">Also holds {plural(r.emptyInside, "empty folder", "empty folders")}</span>
                   )}
                   <span className="sx-qcard-facts">
                     <span className="ffx-num">{fmtNum(r.itemCount)} items</span>

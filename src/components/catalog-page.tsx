@@ -39,10 +39,10 @@ function summaryOf(datasetsBelow: number, inside: Inside[]): string {
   const catalogs = inside.filter((i) => i.collection.kind === "catalog");
   const empty = catalogs.filter((i) => !i.datasetsBelow).length;
   if (datasetsBelow) {
-    const tail = empty === 1 ? "1 catalog inside with nothing in it yet" : `${fmtNum(empty)} catalogs inside with nothing in them yet`;
+    const tail = empty === 1 ? "1 folder inside with nothing in it yet" : `${fmtNum(empty)} folders inside with nothing in them yet`;
     return empty ? `${plural(datasetsBelow, "dataset", "datasets")} · ${tail}` : plural(datasetsBelow, "dataset", "datasets");
   }
-  return catalogs.length ? `${plural(catalogs.length, "catalog inside", "catalogs inside")} · no datasets anywhere below yet` : "Nothing in it yet";
+  return catalogs.length ? `${plural(catalogs.length, "folder inside", "folders inside")} · no datasets anywhere below yet` : "Nothing in it yet";
 }
 
 /** A dataset inside a catalog: its name and review state, its count at the right. */
@@ -134,7 +134,7 @@ export function CatalogLayout({
   const spec = ffrdField(c, "specification_version");
   const details: Entry[] = [
     { key: "id", value: c.id, label: "Id" },
-    { key: "kind", value: "Catalog", label: "Kind" },
+    { key: "kind", value: "Folder", label: "Kind" },
     // The file under it is still a STAC Collection; say so, so the two nouns aren't confused.
     { key: "stored_as", value: `${c.type} (STAC)`, label: "Stored as" },
     ...(type != null ? [{ key: "catalog_type", value: type, label: "Catalog type" }] : []),
@@ -156,7 +156,7 @@ export function CatalogLayout({
         }
         subtitle={
           <>
-            <span className="sx-kind">Catalog</span>
+            <span className="sx-kind">Folder</span>
             <span>{summaryOf(datasetsBelow, inside)}</span>
           </>
         }
@@ -180,8 +180,8 @@ export function CatalogLayout({
           <Panel title="Inside" note={inside.length ? fmtNum(inside.length) : undefined} id="inside">
             {inside.length > 0 && <InsideRows env={env} inside={inside} />}
             <p className="sx-inside-note">
-              A catalog is a folder. It has no extent, no items and no review state of its own; datasets that land
-              inside it get reviewed one by one.
+              A folder has no extent, no items and no review state of its own; the datasets that land inside it
+              get reviewed one by one.
             </p>
           </Panel>
         </div>

@@ -82,7 +82,7 @@ function summaryOf(search: Search, hits: CatalogHit[], opened: HomeArea | null):
   const places = hits.flatMap((h) => h.places);
   const catalogs = places.length;
   const allEmpty = places.every((p) => !p.area.datasetsBelow);
-  const noun = allEmpty ? (catalogs === 1 ? "empty catalog" : "empty catalogs") : catalogs === 1 ? "catalog" : "catalogs";
+  const noun = allEmpty ? (catalogs === 1 ? "empty folder" : "empty folders") : catalogs === 1 ? "folder" : "folders";
   const quoted = `“${search.q}”`;
   if (search.datasets && catalogs) {
     return { line: `${plural(search.datasets, "dataset", "datasets")} and ${fmtNum(catalogs)} ${noun} match ${quoted}.`, note: null };
@@ -97,7 +97,7 @@ function summaryOf(search: Search, hits: CatalogHit[], opened: HomeArea | null):
   if (allEmpty) {
     const a = name && /^[aeiou]/i.test(name) ? "An" : "A";
     note = !name
-      ? "Nothing to review here. None of these catalogs holds a dataset yet."
+      ? "Nothing to review here. None of these folders holds a dataset yet."
       : catalogs === 1
         ? `Nothing to review here. ${a} ${name} folder exists in one place in the tree, but it doesn't hold a dataset yet.`
         : `Nothing to review here. ${a} ${name} folder exists in ${word(catalogs)} places in ${opened ? opened.name : "the tree"}, but none of them holds a dataset yet.`;
@@ -116,11 +116,11 @@ function whereEach(hit: CatalogHit, opened: HomeArea | null): string {
   const tops = [...byTop].sort(([a], [b]) => a.localeCompare(b));
   const here = opened ? `directly in ${opened.name}` : "at the top level";
   const where = tops.length > 3
-    ? `under ${word(tops.length)} ${opened ? "catalogs in it" : "top-level catalogs"}`
+    ? `under ${word(tops.length)} ${opened ? "folders in it" : "top-level folders"}`
     : tops.length > 1 && tops.every(([top, n]) => top && n === 1)
       ? `one each under ${listOf(tops.map(([top]) => top))}`
       : listOf(tops.map(([top, n]) => (top ? `${word(n)} under ${top}` : `${word(n)} ${here}`)));
-  return `${fmtNum(hit.places.length)} catalogs share this name, ${where}. Open to see where each sits.`;
+  return `${fmtNum(hit.places.length)} folders share this name, ${where}. Open to see where each sits.`;
 }
 
 /** The searched-for text underlined wherever it is in a name, in river blue. */
@@ -283,13 +283,13 @@ export function HomeRail({
                 <>
                   {" · "}
                   {emptyInOpened.length === 1
-                    ? "1 catalog inside it with nothing in it yet"
-                    : `${fmtNum(emptyInOpened.length)} catalogs inside it with nothing in them yet`}
+                    ? "1 folder inside it with nothing in it yet"
+                    : `${fmtNum(emptyInOpened.length)} folders inside it with nothing in them yet`}
                 </>
               )}
             </p>
             <Link href={opened.href} className="sx-rail-page">
-              Catalog page
+              Folder page
               <Icon d={ICONS.chevronRight} size={12} />
             </Link>
           </>
@@ -301,7 +301,7 @@ export function HomeRail({
               {shownCount === total ? fmtNum(total) : `${fmtNum(shownCount)} of ${fmtNum(total)}`}
             </span>
             {rootsWithData > 0 && allInCatalogs && !search && (
-              <span className="sx-rail-in">in {plural(rootsWithData, "catalog", "catalogs")}</span>
+              <span className="sx-rail-in">in {plural(rootsWithData, "folder", "folders")}</span>
             )}
           </div>
         )}
@@ -311,10 +311,10 @@ export function HomeRail({
               <circle cx="7" cy="7" r="4.5" />
               <path d="m10.5 10.5 3 3" strokeLinecap="round" />
             </svg>
-            <span className="sr-only">{opened ? `Search in ${opened.name}` : "Search datasets and catalogs"}</span>
+            <span className="sr-only">{opened ? `Search in ${opened.name}` : "Search datasets and folders"}</span>
             <input
               type="search"
-              placeholder={opened ? `Search in ${opened.name}` : "Search datasets and catalogs"}
+              placeholder={opened ? `Search in ${opened.name}` : "Search datasets and folders"}
               value={query}
               onChange={(e) => onQuery(e.target.value)}
             />
@@ -438,7 +438,7 @@ export function HomeRail({
         {!opened && !search && emptyRoots.length > 0 && (
           <li className="sx-empty-roots">
             <p>
-              {plural(emptyRoots.length, "top-level catalog", "top-level catalogs")} with no datasets yet.{" "}
+              {plural(emptyRoots.length, "top-level folder", "top-level folders")} with no datasets yet.{" "}
               {emptyRoots.length === 1
                 ? "It holds folders only and will show up above once a dataset lands in it."
                 : "They hold folders only and will show up above once a dataset lands in them."}
@@ -458,7 +458,7 @@ export function HomeRail({
         {search && catalogHits.length > 0 && (
           <li className="sx-group">
             <h3 className="sx-shead">
-              {catalogHits.every((h) => h.places.every((p) => !p.area.datasetsBelow)) ? "Catalogs with nothing in them yet" : "Catalogs"}
+              {catalogHits.every((h) => h.places.every((p) => !p.area.datasetsBelow)) ? "Folders with nothing in them yet" : "Folders"}
               {" · "}
               <span className="ffx-num">{fmtNum(hitPlaces)}</span>
             </h3>
@@ -506,7 +506,7 @@ function CatalogHitRow({ env, hit, q, opened }: { env: EnvKey; hit: CatalogHit; 
             <span className="sx-crow-name">
               <Hit text={area.name} q={q} />
             </span>
-            <span className="sx-crow-sub">{path.length ? path.join(" › ") : "Top-level catalog"}</span>
+            <span className="sx-crow-sub">{path.length ? path.join(" › ") : "Top-level folder"}</span>
           </span>
           <span className="sx-crow-note">{catalogNote(area)}</span>
         </ScopeLink>
@@ -615,7 +615,7 @@ function EmptyFold({
           className="sx-ehead"
           aria-expanded={open}
           aria-controls={listId}
-          aria-label={`Catalogs inside ${opened.name} with nothing in them yet, ${catalogs.length}`}
+          aria-label={`Folders inside ${opened.name} with nothing in them yet, ${catalogs.length}`}
           onClick={() => setOpen(!open)}
         >
           <Chevron />
@@ -631,7 +631,7 @@ function EmptyFold({
                 <ScopeLink env={env} slug={c.slug} className="sx-erow">
                   <FolderGlyph />
                   <span className="sx-erow-name">{c.name}</span>
-                  {inside > 0 && <span className="sx-erow-note">{plural(inside, "catalog inside", "catalogs inside")}</span>}
+                  {inside > 0 && <span className="sx-erow-note">{plural(inside, "folder inside", "folders inside")}</span>}
                 </ScopeLink>
               </li>
             );

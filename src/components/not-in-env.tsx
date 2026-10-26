@@ -48,7 +48,7 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
       <div className="sx-msg-stage">
         <MessageCard
           mark={missing ? "missing" : "elsewhere"}
-          kicker={missing ? "404" : catalog ? "Catalog" : "Collection"}
+          kicker={missing ? "404" : catalog ? "Folder" : "Collection"}
           title={missing ? "Collection not found" : `Not in ${here} yet`}
           aside={
             sibling && (
@@ -82,7 +82,7 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
               <p>
                 <code className="ffx-id">{collection}</code> is in {new Intl.ListFormat("en-US").format(found.map((k) => envMeta(k).label))}.{" "}
                 {catalog
-                  ? `A catalog is in ${here} once a dataset inside it is.`
+                  ? `A folder is in ${here} once a dataset inside it is.`
                   : envMeta(env).onPath
                     ? `A dataset reaches ${here} when it's approved in the environment before it.`
                     : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`}

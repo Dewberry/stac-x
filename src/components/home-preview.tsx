@@ -58,9 +58,9 @@ export function AreaSub({ area, open, path }: { area: HomeArea; open?: boolean; 
   if (area.years) parts.push(<span className="ffx-num">{area.years}</span>);
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
   if (area.geometryError) parts.push("Geometry couldn't be read");
-  if (area.parentMissing) parts.push("Its catalog couldn't be read");
+  if (area.parentMissing) parts.push("Its folder couldn't be read");
   if (area.emptyInside)
-    parts.push(`Also holds ${fmtNum(area.emptyInside)} empty ${area.emptyInside === 1 ? "catalog" : "catalogs"}`);
+    parts.push(`Also holds ${fmtNum(area.emptyInside)} empty ${area.emptyInside === 1 ? "folder" : "folders"}`);
   return (
     <span className="sx-row-sub">
       {parts.map((p, i) => (
