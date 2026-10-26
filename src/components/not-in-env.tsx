@@ -48,8 +48,8 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
       <div className="sx-msg-stage">
         <MessageCard
           mark={missing ? "missing" : "elsewhere"}
-          kicker={missing ? "404" : catalog ? "Folder" : "Collection"}
-          title={missing ? "Collection not found" : `Not in ${here} yet`}
+          kicker={missing ? "404" : catalog ? "Folder" : "Dataset"}
+          title={missing ? "Not found" : `Not in ${here} yet`}
           aside={
             sibling && (
               <MessageRow href={collectionHref(env, sibling.id)} title={sibling.id} sub={`${siblingName} of it, in ${here}`} />
