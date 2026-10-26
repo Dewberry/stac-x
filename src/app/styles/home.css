@@ -287,6 +287,85 @@
 .sx-rail-in {
   margin-left: -4px;
 }
+/* The rail's title takes focus when a catalog is opened or left, from
+   code; there's nothing to do on it, so no ring. */
+.sx-rail-title h2:focus {
+  outline: none;
+}
+/* With a catalog open: the way back, its name with a folder and the kind
+   beside it, its description, and what's in it. */
+.sx-rail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  min-height: 24px;
+  margin: -4px 0 -6px -2px;
+  font-size: var(--ffx-t-micro);
+  font-weight: 500;
+  color: var(--ffx-active-text);
+  text-decoration: none;
+}
+.sx-rail-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-rail-title h2.sx-scope-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sx-scope-title .sx-folder {
+  color: var(--ffx-ink-mut);
+}
+.sx-scope-desc p {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink-sec);
+}
+.sx-readmore {
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-micro);
+  font-weight: 500;
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+/* On a phone the description is two lines until Read more. */
+@media (max-width: 63.99rem) {
+  .sx-scope-desc p:not([data-open]) {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+  .sx-rail-title h2.sx-scope-title {
+    font-size: 20px;
+    line-height: 24px;
+  }
+}
+@media (min-width: 64rem) {
+  .sx-readmore {
+    display: none;
+  }
+}
+.sx-scope-counts {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ffx-ink-mut);
+}
+.sx-scope-counts b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
 .sx-rail-head .ffx-field {
   height: 36px;
   padding-inline: 12px;
@@ -444,6 +523,85 @@
 }
 .sx-empty-roots a:hover {
   text-decoration-thickness: 2px;
+}
+/* An opened catalog's empty catalogs, folded under one heading at the end
+   of the list. Each is a quiet link row, indented under the heading, in
+   secondary ink so they read as shelves next to the datasets above. */
+.sx-ehead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-sunken);
+  font: 600 var(--ffx-t-tiny) / 1.3 var(--ffx-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ffx-ink-sec);
+  cursor: pointer;
+}
+.sx-ehead:hover {
+  color: var(--ffx-ink);
+}
+.sx-ehead:focus-visible {
+  outline-offset: -2px;
+}
+.sx-erow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 16px 0 40px;
+  font-size: var(--ffx-t-small);
+  line-height: 18px;
+  color: var(--ffx-ink-sec);
+  text-decoration: none;
+}
+.sx-erow:hover {
+  background: var(--ffx-surface-sunken);
+  color: var(--ffx-ink);
+}
+.sx-erow:hover .sx-erow-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-erow:focus-visible {
+  outline-offset: -2px;
+}
+.sx-erow .sx-folder {
+  color: var(--ffx-ink-mut);
+}
+.sx-erow-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sx-erow-note {
+  margin-left: auto;
+  font-size: var(--ffx-t-micro);
+  white-space: nowrap;
+  color: var(--ffx-ink-mut);
+}
+.sx-eshow {
+  margin: 4px 16px 12px 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--ffx-t-small);
+  font-weight: 500;
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+@media (max-width: 39.99rem) {
+  .sx-erow {
+    min-height: 44px;
+  }
 }
 /* A row: the name over one line of facts, the count and its unit at the
    right, and a rule under it so each row has an edge. */
@@ -655,6 +813,16 @@
 }
 .sx-pv-grid .ffx-id {
   font-size: 11px;
+}
+/* Where an open dataset sits: each catalog a link, underlined since it's
+   in a line of text. */
+.sx-pv-in {
+  color: var(--ffx-active-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sx-pv-in:hover {
+  text-decoration-thickness: 2px;
 }
 /* The count as a figure with its unit, in the phone's sheet header. */
 .sx-pv-figs {

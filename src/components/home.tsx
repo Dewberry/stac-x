@@ -1,7 +1,7 @@
 "use client";
 
 import nextDynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, MultiPolygon } from "geojson";
 import { envMeta, type EnvKey } from "@/lib/env";
@@ -25,9 +25,12 @@ import { stateOf } from "./qc-mark";
  * The rail's rows are datasets, grouped under the top-level catalog each
  * sits in; catalogs are never rows (lib/collection-hierarchy.ts). Top-level
  * catalogs with no dataset anywhere below them are named once at the foot
- * of the list. The review states in the head count datasets only and are
- * the legend for the marks and the review filter in one. Search matches
- * datasets by title and description.
+ * of the list. A heading opens its catalog in the rail (?in=,
+ * home-scope.tsx): the rail and the map narrow to that catalog's datasets,
+ * one level of headings down, with its empty catalogs folded at the end.
+ * The review states in the head count datasets only and are the legend for
+ * the marks and the review filter in one. Search matches datasets by title
+ * and description.
  * Selecting a dataset opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
@@ -82,6 +85,8 @@ export type HomeArea = {
   itemCount: number;
   /** Loaded parent series, for grouping under catalogs. */
   parentSlugs: string[];
+  /** For a catalog with datasets, where the map goes when it's opened in the rail. */
+  frame: [number, number, number, number] | null;
   /** Datasets anywhere below it. Zero for a catalog means it's empty. */
   datasetsBelow: number;
   /** For a dataset, how many empty catalogs sit directly inside it (Project Scoping's ten). */
@@ -195,9 +200,27 @@ export function HomeConsole({
 
   const hierarchy = useMemo(() => hierarchyOf(areas), [areas]);
   const datasets = useMemo(() => areas.filter((a) => a.kind === "dataset"), [areas]);
+  // The catalog opened in the rail, from ?in= (home-scope.tsx). A slug that
+  // isn't a catalog here, or isn't here at all, opens nothing.
+  const inParam = useSearchParams().get("in");
+  const opened = useMemo(() => {
+    const a = inParam ? bySlug.get(inParam) : null;
+    return a?.kind === "catalog" ? a : null;
+  }, [inParam, bySlug]);
+  // The datasets the rail is about: all of them, or the opened catalog's.
+  const inView = useMemo(() => {
+    if (!opened) return datasets;
+    const below = hierarchy.descendants([opened.slug]);
+    return datasets.filter((a) => below.has(a.slug));
+  }, [datasets, opened, hierarchy]);
   // Review facets count this scope before applying the selected QC state.
-  const scope = useMemo(() => q ? searchCollections(datasets, q) : datasets, [datasets, q]);
+  const scope = useMemo(() => q ? searchCollections(inView, q) : inView, [inView, q]);
   const shown = useMemo(() => scope.filter((a) => !filter || stateOf(a) === filter), [scope, filter]);
+  // The opened catalog's empty catalogs, directly inside it.
+  const emptyInOpened = useMemo(
+    () => opened ? hierarchy.childrenOf(opened.slug).filter((c) => hierarchy.isEmpty(c.slug)) : [],
+    [opened, hierarchy],
+  );
   // Top-level catalogs that hold a dataset, and those that hold none yet.
   const roots = useMemo(() => {
     const top = areas.filter((a) => hierarchy.roots.has(a.slug) && a.kind === "catalog");
@@ -222,22 +245,33 @@ export function HomeConsole({
   const parentPaths = useMemo(() => searching
     ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.pathOf(a.slug).length ? [hierarchy.pathOf(a.slug).join(" / ")] : []]))
     : {}, [hierarchy, searching, shown]);
-  // Datasets under their top-level catalog, catalogs by name. Datasets at the
-  // top level, in a catalog with no folders, come first, under no heading.
+  // Datasets under the catalog they sit in one level down from where the
+  // rail is: a top-level catalog on the landing, a catalog inside the opened
+  // one when one's open. Catalogs by name. Datasets directly at that level
+  // come first, under no heading.
   const groups = useMemo<Group[]>(() => {
     if (!shown.length) return [];
     if (searching) return [{ key: "all", catalog: null, rows: shown }];
-    const byRoot = new Map<string, Group>();
+    const byHead = new Map<string, Group>();
     for (const a of shown) {
-      const root = hierarchy.rootCatalogOf(a.slug);
-      const key = root?.slug ?? "";
-      let g = byRoot.get(key);
-      if (!g) byRoot.set(key, (g = { key: key || "top", catalog: root ? { slug: root.slug, name: root.name } : null, rows: [] }));
+      const trail = hierarchy.ancestorsOf(a.slug);
+      const head = trail[opened ? trail.findIndex((t) => t.slug === opened.slug) + 1 : 0];
+      const catalog = head?.kind === "catalog" ? head : null;
+      const key = catalog?.slug ?? "";
+      let g = byHead.get(key);
+      if (!g) byHead.set(key, (g = { key: key || "top", catalog: catalog ? { slug: catalog.slug, name: catalog.name } : null, rows: [] }));
       g.rows.push(a);
     }
-    return [...byRoot.values()].sort((x, y) =>
+    return [...byHead.values()].sort((x, y) =>
       !x.catalog ? -1 : !y.catalog ? 1 : x.catalog.name.localeCompare(y.catalog.name) || x.key.localeCompare(y.key));
-  }, [shown, searching, hierarchy]);
+  }, [shown, searching, hierarchy, opened]);
+  // The way back out of the opened catalog: its parent, or the landing.
+  const openedParent = useMemo(() => opened ? (hierarchy.ancestorsOf(opened.slug).at(-1) ?? null) : null, [opened, hierarchy]);
+  // Where the open dataset sits, for its facts.
+  const trail = useMemo(
+    () => current ? hierarchy.ancestorsOf(current.slug).filter((t) => t.kind === "catalog") : [],
+    [current, hierarchy],
+  );
 
   // The collection pointed at, a beat after the pointer gets there, so
   // sweeping down the list doesn't flash every footprint on the way. The
@@ -382,7 +416,8 @@ export function HomeConsole({
               areas={mapAreas}
               items={mapItems}
               area={area}
-              frame={frame}
+              frame={opened?.frame ?? frame}
+              frameName={opened?.frame ? opened.name : null}
               shown={activeSelected}
               preview={preview}
               areaHighlight={areaHighlight}
@@ -398,6 +433,7 @@ export function HomeConsole({
             <HomePreview
               env={env}
               area={current}
+              trail={trail}
               childCollections={childCollections}
               preview={preview}
               onHover={setHovered}
@@ -411,6 +447,11 @@ export function HomeConsole({
             datasetCount={datasets.length}
             rootsWithData={roots.full}
             emptyRoots={roots.empty}
+            opened={opened}
+            openedParent={openedParent}
+            emptyInOpened={emptyInOpened}
+            catalogsInside={(slug) => hierarchy.catalogsBelow(slug)}
+            trail={trail}
             childCollections={childCollections}
             scopeCount={scope.length}
             parentPaths={parentPaths}
@@ -422,7 +463,7 @@ export function HomeConsole({
             onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}
             onQuery={(value) => { resetSelection(); setQuery(value); }}
-            search={searching ? { q, collections: shown.length, hidden: shown.length < datasets.length } : null}
+            search={searching ? { q, collections: shown.length, hidden: shown.length < inView.length } : null}
             selected={activeSelected}
             hovered={activeHovered}
             preview={preview}

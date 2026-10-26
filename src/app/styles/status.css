@@ -76,3 +76,22 @@
   background: color-mix(in srgb, var(--ffx-active) 12%, var(--ffx-surface));
   white-space: nowrap;
 }
+
+/* "Catalog" beside a catalog's name, in the rail and on its page: a label
+   for the kind of thing it is, in gray so it never reads as a QC state. */
+.sx-kind {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 1.25rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  font-size: var(--ffx-t-tiny);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ffx-ink-sec);
+  background: var(--ffx-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--ffx-rule);
+  white-space: nowrap;
+}

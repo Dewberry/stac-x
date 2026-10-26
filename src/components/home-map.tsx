@@ -302,6 +302,7 @@ export function HomeMap({
   items,
   area,
   frame,
+  frameName,
   shown,
   preview,
   areaHighlight,
@@ -319,6 +320,8 @@ export function HomeMap({
   area: FocusArea | null;
   /** Where the map opens and what the fit button goes back to: west, south, east, north. */
   frame: [number, number, number, number];
+  /** What the frame is when it isn't the area: the catalog opened in the rail. */
+  frameName?: string | null;
   /** The selected collection. */
   shown: string | null;
   /** The collection pointed at in the rail; its footprint is drawn over the selected one's as a preview. */
@@ -595,6 +598,17 @@ export function HomeMap({
     m.fitBounds([[w, s], [e, n]], { ...fitPadding(), maxZoom: FIT_MAX_ZOOM, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 750 });
   }, [fitSlug]);
 
+  // A catalog opened or closed in the rail moves the frame. With nothing
+  // picked, the map goes there; a pick keeps the map on the pick, and
+  // closing it goes back to the new frame.
+  const frameKey = frame.join(",");
+  const frameSeen = useRef(frameKey);
+  useEffect(() => {
+    if (frameSeen.current === frameKey) return;
+    frameSeen.current = frameKey;
+    if (!shownRef.current) fitFrameRef.current();
+  }, [frameKey]);
+
   // The list is built each render; only a change in what's drawn matters.
   const drawnKey = drawn.join("|");
   useEffect(() => {
@@ -662,7 +676,7 @@ export function HomeMap({
           {framedArea && (
             <button type="button" className="sx-map-pill" onClick={() => fitFrameRef.current()}>
               <Icon d={ICONS.fit} size={12} />
-              Framed to {framedArea.name} · <b>Show {area ? area.name : "everything"}</b>
+              Framed to {framedArea.name} · <b>Show {frameName ?? (area ? area.name : "everything")}</b>
             </button>
           )}
         </span>

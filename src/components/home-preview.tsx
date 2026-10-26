@@ -7,6 +7,7 @@ import { fmtNum } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
 import { ItemsList } from "./items-list";
+import { ScopeLink } from "./home-scope";
 import { Chevron, FolderGlyph } from "./icons";
 import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
 
@@ -148,12 +149,26 @@ export function fmtSpan(t: HomeArea["temporal"]): string | null {
 type Fact = { label: string; value: ReactNode; wide?: boolean };
 
 /**
- * What the open row says about a collection besides its description, each
- * only when the catalog has it. `brief` is the phone's sheet, whose header
- * already carries the dates: just the version and the id.
+ * What the open row says about a dataset besides its description, each
+ * only when the catalog has it. First where it sits, each catalog a link
+ * that opens it in the rail. `brief` is the phone's sheet, whose header
+ * already carries the dates: where it sits, the version and the id.
  */
-function factsOf(area: HomeArea, brief?: boolean): Fact[] {
+function factsOf(env: EnvKey, area: HomeArea, trail: HomeArea[], brief?: boolean): Fact[] {
   const facts: Fact[] = [];
+  if (trail.length)
+    facts.push({
+      label: "In",
+      wide: true,
+      value: trail.map((t, i) => (
+        <Fragment key={t.slug}>
+          {i > 0 && " › "}
+          <ScopeLink env={env} slug={t.slug} className="sx-pv-in">
+            {t.name}
+          </ScopeLink>
+        </Fragment>
+      )),
+    });
   if (area.version)
     facts.push({
       label: "Version",
@@ -178,10 +193,10 @@ function factsOf(area: HomeArea, brief?: boolean): Fact[] {
 }
 
 /** The description, the facts, the QC line and the last note. `brief` is the phone's sheet, with the short facts. */
-export function PreviewBody({ area, brief }: { area: HomeArea; brief?: boolean }) {
+export function PreviewBody({ env, area, trail, brief }: { env: EnvKey; area: HomeArea; trail: HomeArea[]; brief?: boolean }) {
   const state = stateOf(area);
   const note = (state === "needs_revision" || state === "rejected") && area.qc?.note ? area.qc.note : null;
-  const facts = factsOf(area, brief);
+  const facts = factsOf(env, area, trail, brief);
   return (
     <div className="sx-pv">
       {area.blurb && <p className="sx-pv-desc">{area.blurb}</p>}
@@ -312,6 +327,7 @@ function ChildCollections({ collections, preview, onHover }: {
 export function OpenRow({
   env,
   area,
+  trail,
   childCollections,
   preview,
   onHover,
@@ -320,6 +336,8 @@ export function OpenRow({
 }: {
   env: EnvKey;
   area: HomeArea;
+  /** The catalogs it sits in, top first. */
+  trail: HomeArea[];
   childCollections: HomeArea[];
   preview: string | null;
   onHover: (slug: string | null) => void;
@@ -329,7 +347,7 @@ export function OpenRow({
   return (
     <div className="sx-row-more">
       <ChildCollections collections={childCollections} preview={preview} onHover={onHover} />
-      <PreviewBody area={area} />
+      <PreviewBody env={env} area={area} trail={trail} />
       <WayIn area={area} />
       {(area.itemCount > 0 || !childCollections.length) && <Items env={env} area={area} rows={rows} activeIds={activeIds} />}
     </div>
@@ -348,6 +366,7 @@ const DRAG = 40;
 export function HomePreview({
   env,
   area,
+  trail,
   childCollections,
   preview,
   onHover,
@@ -357,6 +376,7 @@ export function HomePreview({
 }: {
   env: EnvKey;
   area: HomeArea;
+  trail: HomeArea[];
   childCollections: HomeArea[];
   preview: string | null;
   onHover: (slug: string | null) => void;
@@ -431,7 +451,7 @@ export function HomePreview({
         </button>
       </div>
       <div className="sx-preview-body">
-        <PreviewBody area={area} brief />
+        <PreviewBody env={env} area={area} trail={trail} brief />
         <WayIn area={area} />
       </div>
       <ChildCollections collections={childCollections} preview={preview} onHover={onHover} />

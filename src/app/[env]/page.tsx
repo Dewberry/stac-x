@@ -168,6 +168,7 @@ async function HomeData({ env }: { env: EnvKey }) {
       jsonHref: collectionJsonHref(env, c.id),
       itemCount: c.itemCount,
       parentSlugs: [],
+      frame: null,
       datasetsBelow: 0,
       emptyInside: 0,
       unit: broken ? "items" : unitOf(c),
@@ -195,6 +196,17 @@ async function HomeData({ env }: { env: EnvKey }) {
   for (const a of areas) {
     a.datasetsBelow = tree.datasetsBelow(a.slug);
     if (a.kind === "dataset") a.emptyInside = tree.childrenOf(a.slug).filter((c) => tree.isEmpty(c.slug)).length;
+  }
+  // Where the map goes when a catalog is opened in the rail: its datasets'
+  // boxes, leaving out the ones that reach beyond the area (a storm domain,
+  // a national inventory), so a catalog of basin-wide data opens on the
+  // basin and one of a single watershed opens on that watershed.
+  const bySlug = new Map(areas.map((a) => [a.slug, a]));
+  for (const a of areas) {
+    if (a.kind !== "catalog" || !a.datasetsBelow) continue;
+    const below = [...tree.descendants([a.slug])].map((s) => bySlug.get(s)!).filter((d) => d.kind === "dataset" && d.bbox);
+    const near = area ? below.filter((d) => d.coverage !== "beyond") : below;
+    a.frame = near.length ? mapFrame(null, near.map((d) => d.bbox)) : area?.bbox ?? null;
   }
 
   return (

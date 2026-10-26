@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import type { QcStatus } from "@/lib/stac";
-import { withEnvHome } from "@/lib/utils";
 import type { HomeArea, Rows } from "./home";
 import { AreaSub, countOf, OpenRow, UnitGlyph } from "./home-preview";
-import { FolderGlyph, Icon, ICONS } from "./icons";
+import { ScopeLink } from "./home-scope";
+import { Chevron, FolderGlyph, Icon, ICONS } from "./icons";
 import type { ItemRow } from "./items-list";
 import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
 
@@ -20,6 +19,13 @@ import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
  * catalog they're in, and each heading is a link that opens that catalog in
  * the rail. Top-level catalogs with nothing in them yet are named at the
  * foot of the list, not as rows.
+ *
+ * With a catalog open (?in=, home-scope.tsx) the head is that catalog's:
+ * the way back, its name and description, and how many datasets and empty
+ * catalogs are in it. Its datasets are the rows, under the catalogs inside
+ * it that hold them, and its empty catalogs fold under one heading at the
+ * end. Opening or leaving a catalog moves focus to the rail's title and
+ * says what's showing.
  *
  * The selected row opens in place (OpenRow) with the dataset's
  * description, its review state, the way in and its items. Pointing at a
@@ -44,16 +50,19 @@ const WIDE_SCREEN = "(min-width: 64rem)";
 
 const plural = (n: number, one: string, many: string) => `${fmtNum(n)} ${n === 1 ? one : many}`;
 
-/** The home page scoped to one catalog (see home.tsx). */
-export function scopeHref(env: EnvKey, slug: string) {
-  return `${withEnvHome(env)}?in=${encodeURIComponent(slug)}`;
-}
+/** How many empty catalogs the fold shows before "Show all". */
+const FOLD_FIRST = 6;
 
 export function HomeRail({
   env,
   datasetCount,
   rootsWithData,
   emptyRoots,
+  opened,
+  openedParent,
+  emptyInOpened,
+  catalogsInside,
+  trail,
   childCollections,
   scopeCount,
   parentPaths,
@@ -81,6 +90,16 @@ export function HomeRail({
   rootsWithData: number;
   /** Top-level catalogs with no dataset anywhere below them, by name. */
   emptyRoots: HomeArea[];
+  /** The catalog open in the rail, if one is. */
+  opened: HomeArea | null;
+  /** The catalog it's in, for the way back; null at the top level. */
+  openedParent: HomeArea | null;
+  /** The empty catalogs directly inside the opened one, by name. */
+  emptyInOpened: HomeArea[];
+  /** How many catalogs are directly inside a catalog. */
+  catalogsInside: (slug: string) => number;
+  /** The catalogs the open dataset sits in, top first. */
+  trail: HomeArea[];
   /** What's directly inside the open dataset. */
   childCollections: HomeArea[];
   /** Every dataset by default; matching datasets during search. */
@@ -112,6 +131,18 @@ export function HomeRail({
   const shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
   const anything = datasetCount > 0 || emptyRoots.length > 0;
 
+  // Opening or leaving a catalog replaces the whole rail, so focus goes to
+  // its title. Not on the first render: a link to a catalog lands there
+  // without taking focus from the page.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const openedSlug = opened?.slug ?? null;
+  const seenScope = useRef(openedSlug);
+  useEffect(() => {
+    if (seenScope.current === openedSlug) return;
+    seenScope.current = openedSlug;
+    titleRef.current?.focus();
+  }, [openedSlug]);
+
   // Scroll the list so the open row's head is in view, below its sticky
   // catalog heading. Done by hand rather than scrollIntoView, which would
   // scroll the page too.
@@ -131,26 +162,68 @@ export function HomeRail({
   return (
     <aside id="dataset-list" className="sx-rail" aria-label="Datasets">
       <div className="sx-rail-head">
-        <div className="sx-rail-title">
-          <h2>Datasets</h2>
-          {/* How many datasets, and how many of them are showing while a filter or search hides some. */}
-          <span className="sx-rail-count ffx-num">
-            {shownCount === scopeCount ? fmtNum(scopeCount) : `${fmtNum(shownCount)} of ${fmtNum(scopeCount)}`}
-          </span>
-          {rootsWithData > 0 && !search && (
-            <span className="sx-rail-in">in {plural(rootsWithData, "catalog", "catalogs")}</span>
-          )}
-        </div>
-        {anything && (
+        {opened ? (
+          <>
+            <ScopeLink env={env} slug={openedParent?.slug ?? null} className="sx-rail-back">
+              <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M7.5 2.5 4 6l3.5 3.5" />
+              </svg>
+              {openedParent ? openedParent.name : "All datasets"}
+            </ScopeLink>
+            <div className="sx-rail-title">
+              <h2 ref={titleRef} tabIndex={-1} className="sx-scope-title">
+                <FolderGlyph />
+                {opened.name}
+              </h2>
+              <span className="sx-kind">Catalog</span>
+            </div>
+            {opened.blurb && <ScopeDesc key={opened.slug} text={opened.blurb} />}
+            <p className="sx-scope-counts">
+              <b>{opened.datasetsBelow ? plural(opened.datasetsBelow, "dataset", "datasets") : "No datasets yet"}</b>
+              {emptyInOpened.length > 0 && (
+                <>
+                  {" · "}
+                  {emptyInOpened.length === 1
+                    ? "1 catalog inside it with nothing in it yet"
+                    : `${fmtNum(emptyInOpened.length)} catalogs inside it with nothing in them yet`}
+                </>
+              )}
+            </p>
+          </>
+        ) : (
+          <div className="sx-rail-title">
+            <h2 ref={titleRef} tabIndex={-1}>Datasets</h2>
+            {/* How many datasets, and how many of them are showing while a filter or search hides some. */}
+            <span className="sx-rail-count ffx-num">
+              {shownCount === scopeCount ? fmtNum(scopeCount) : `${fmtNum(shownCount)} of ${fmtNum(scopeCount)}`}
+            </span>
+            {rootsWithData > 0 && !search && (
+              <span className="sx-rail-in">in {plural(rootsWithData, "catalog", "catalogs")}</span>
+            )}
+          </div>
+        )}
+        {anything && (!opened || opened.datasetsBelow > 0) && (
           <label className="ffx-field">
             <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
               <circle cx="7" cy="7" r="4.5" />
               <path d="m10.5 10.5 3 3" strokeLinecap="round" />
             </svg>
-            <span className="sr-only">Search datasets and catalogs</span>
-            <input type="search" placeholder="Search datasets and catalogs" value={query} onChange={(e) => onQuery(e.target.value)} />
+            <span className="sr-only">{opened ? `Search in ${opened.name}` : "Search datasets and catalogs"}</span>
+            <input
+              type="search"
+              placeholder={opened ? `Search in ${opened.name}` : "Search datasets and catalogs"}
+              value={query}
+              onChange={(e) => onQuery(e.target.value)}
+            />
           </label>
         )}
+        {/* What's showing, said when a catalog is opened or left. Its own
+            region, so a search doesn't say it again. */}
+        <p className="sr-only" role="status">
+          {opened
+            ? `Showing ${opened.name}, ${plural(opened.datasetsBelow, "dataset", "datasets")}`
+            : `Showing all datasets, ${fmtNum(datasetCount)}`}
+        </p>
         {/* Said once the search or filter changes. The lines below show the
             same, but a status region that mounts with its text is often missed. */}
         <p className="sr-only" role="status">
@@ -167,7 +240,7 @@ export function HomeRail({
         )}
         {/* The review states with their counts: the legend for the open
             row's mark, and a filter. Datasets only; catalogs aren't reviewed. */}
-        {datasetCount > 0 && (
+        {datasetCount > 0 && (!opened || opened.datasetsBelow > 0) && (
           <div className="sx-rail-states" role="group" aria-label="Filter by review state">
             {STATE_ORDER.map((st) => (
               <button
@@ -207,17 +280,20 @@ export function HomeRail({
         </p>
       )}
       <ul ref={listRef} className="sx-rail-list ffx-scroll">
-        {groups.length === 0 && !search && <li className="sx-empty">{datasetCount ? "No datasets match." : emptyText}</li>}
+        {groups.length === 0 && !search && (!opened || (opened.datasetsBelow > 0 && filter)) && (
+          <li className="sx-empty">{datasetCount ? "No datasets match." : emptyText}</li>
+        )}
+        {opened && !opened.datasetsBelow && !emptyInOpened.length && <li className="sx-empty">Nothing in it yet.</li>}
         {groups.map((g) => (
           <li key={g.key} className="sx-group">
             {g.catalog && (
               <h3 className="sx-ghead">
-                <Link href={scopeHref(env, g.catalog.slug)}>
+                <ScopeLink env={env} slug={g.catalog.slug}>
                   <FolderGlyph />
                   <span className="sx-ghead-name">{g.catalog.name}</span>
                   <span className="sx-ghead-count">{plural(g.rows.length, "dataset", "datasets")}</span>
                   <Icon d={ICONS.chevronRight} size={12} />
-                </Link>
+                </ScopeLink>
               </h3>
             )}
             <ul>
@@ -229,6 +305,7 @@ export function HomeRail({
                     env={env}
                     area={a}
                     childCollections={open ? childCollections : []}
+                    trail={open ? trail : []}
                     parentPaths={parentPaths[a.slug] ?? []}
                     active={(selected ?? hovered) === a.slug}
                     previewing={preview === a.slug}
@@ -244,8 +321,11 @@ export function HomeRail({
             </ul>
           </li>
         ))}
+        {opened && !search && emptyInOpened.length > 0 && (
+          <EmptyFold key={opened.slug} env={env} opened={opened} catalogs={emptyInOpened} catalogsInside={catalogsInside} />
+        )}
         {/* Top-level catalogs with nothing in them yet: named, not listed as rows or counted. */}
-        {!search && emptyRoots.length > 0 && (
+        {!opened && !search && emptyRoots.length > 0 && (
           <li className="sx-empty-roots">
             <p>
               {plural(emptyRoots.length, "top-level catalog", "top-level catalogs")} with no datasets yet.{" "}
@@ -256,10 +336,10 @@ export function HomeRail({
             <ul>
               {emptyRoots.map((r) => (
                 <li key={r.slug}>
-                  <Link href={scopeHref(env, r.slug)}>
+                  <ScopeLink env={env} slug={r.slug}>
                     <FolderGlyph />
                     {r.name}
-                  </Link>
+                  </ScopeLink>
                 </li>
               ))}
             </ul>
@@ -284,10 +364,120 @@ export function HomeRail({
   );
 }
 
+/**
+ * The opened catalog's description. On a phone it's two lines until Read
+ * more, which stays as Show less so focus has somewhere to be.
+ */
+function ScopeDesc({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [open, setOpen] = useState(false);
+  // Whether two lines cut it off, measured while it's folded.
+  const [cut, setCut] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      if (!el.dataset.open) setCut(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const id = useId();
+  return (
+    <div className="sx-scope-desc">
+      <p ref={ref} id={id} data-open={open || undefined}>
+        {text}
+      </p>
+      {(cut || open) && (
+        <button type="button" className="sx-readmore" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+          {open ? "Show less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The opened catalog's empty catalogs, folded under one heading, open to
+ * start. The first few show; Show all brings the rest in place and moves
+ * focus to the first of them, since the button goes.
+ */
+function EmptyFold({
+  env,
+  opened,
+  catalogs,
+  catalogsInside,
+}: {
+  env: EnvKey;
+  opened: HomeArea;
+  catalogs: HomeArea[];
+  catalogsInside: (slug: string) => number;
+}) {
+  const [open, setOpen] = useState(true);
+  const [all, setAll] = useState(false);
+  const listId = useId();
+  const listRef = useRef<HTMLUListElement>(null);
+  const revealed = useRef(false);
+  useEffect(() => {
+    if (!all || !revealed.current) return;
+    revealed.current = false;
+    listRef.current?.querySelectorAll("a")[FOLD_FIRST]?.focus();
+  }, [all]);
+  const rows = all ? catalogs : catalogs.slice(0, FOLD_FIRST);
+  return (
+    <li className="sx-empties">
+      <h3>
+        <button
+          type="button"
+          className="sx-ehead"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-label={`Catalogs inside ${opened.name} with nothing in them yet, ${catalogs.length}`}
+          onClick={() => setOpen(!open)}
+        >
+          <Chevron />
+          Nothing in them yet · <span className="ffx-num">{fmtNum(catalogs.length)}</span>
+        </button>
+      </h3>
+      <div id={listId} hidden={!open}>
+        <ul ref={listRef}>
+          {rows.map((c) => {
+            const inside = catalogsInside(c.slug);
+            return (
+              <li key={c.slug}>
+                <ScopeLink env={env} slug={c.slug} className="sx-erow">
+                  <FolderGlyph />
+                  <span className="sx-erow-name">{c.name}</span>
+                  {inside > 0 && <span className="sx-erow-note">{plural(inside, "catalog inside", "catalogs inside")}</span>}
+                </ScopeLink>
+              </li>
+            );
+          })}
+        </ul>
+        {!all && catalogs.length > FOLD_FIRST && (
+          <button
+            type="button"
+            className="sx-eshow"
+            onClick={() => {
+              revealed.current = true;
+              setAll(true);
+            }}
+          >
+            Show all {fmtNum(catalogs.length)}
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function AreaRow({
   env,
   area,
   childCollections,
+  trail,
   parentPaths,
   active,
   previewing,
@@ -301,6 +491,7 @@ function AreaRow({
   env: EnvKey;
   area: HomeArea;
   childCollections: HomeArea[];
+  trail: HomeArea[];
   /** Where the dataset sits, shown only while searching. */
   parentPaths: string[];
   active: boolean;
@@ -349,7 +540,7 @@ function AreaRow({
           </span>
         </span>
       </button>
-      {open && <OpenRow env={env} area={area} childCollections={childCollections} preview={preview} onHover={onHover} rows={rows} activeIds={activeIds} />}
+      {open && <OpenRow env={env} area={area} trail={trail} childCollections={childCollections} preview={preview} onHover={onHover} rows={rows} activeIds={activeIds} />}
     </li>
   );
 }
