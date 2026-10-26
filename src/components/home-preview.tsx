@@ -299,7 +299,7 @@ function ChildCollections({ collections, preview, onHover }: {
         setOpen(event.currentTarget.open);
         if (!event.currentTarget.open) onHover(null);
       }}>
-      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">{collections.every((c) => c.kind === "catalog") ? "Catalogs inside" : "Inside"} <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
+      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">{collections.every((c) => c.kind === "catalog") ? "Folders inside" : "Inside"} <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
       <div className="sx-item-block">
         <ul className="sx-item-list">
           {collections.map((child) => (

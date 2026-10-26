@@ -300,7 +300,7 @@ export default async function CollectionPage({ params }: Props) {
   );
 }
 
-/** "Catalogs inside" when that's all a dataset holds, which is the usual case; "Inside" when a dataset is among them. */
+/** "Folders inside" when that's all a dataset holds, which is the usual case; "Inside" when a dataset is among them. */
 function insideTitle(inside: Inside[]): string {
-  return inside.every((i) => i.collection.kind === "catalog") ? "Catalogs inside" : "Inside";
+  return inside.every((i) => i.collection.kind === "catalog") ? "Folders inside" : "Inside";
 }

@@ -274,7 +274,7 @@ export function HomeRail({
                 <FolderGlyph />
                 {opened.name}
               </h2>
-              <span className="sx-kind">Catalog</span>
+              <span className="sx-kind">Folder</span>
             </div>
             {opened.blurb && <ScopeDesc key={opened.slug} text={opened.blurb} />}
             <p className="sx-scope-counts">
