@@ -9,13 +9,16 @@ import { DataMap } from "@/components/map";
 import { MetadataPanel, type Entry } from "@/components/meta-table";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
+import { VersionMenu } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
-import { getCollection } from "@/lib/catalog";
+import { getCatalog, getCollection } from "@/lib/catalog";
 import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
 import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
-import { collectionHref, itemJsonHref } from "@/lib/utils";
+import { itemVersions, type ItemVersion } from "@/lib/item-versions";
+import { VERSION_RELS } from "@/lib/stac";
+import { collectionHref, itemHref, itemJsonHref } from "@/lib/utils";
 import { versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +49,8 @@ export default async function ItemPage({ params }: Props) {
   const item = c.items.find((x) => x.id === id);
   if (!item) notFound();
   const version = c.series.versions.length > 1 ? c.series.versions.find((v) => v.id === c.id)?.label ?? null : null;
+  const versions = itemVersions(c, item, (await getCatalog(env)).collections);
+  const key = (v: ItemVersion) => `${v.collection}/${v.item}`;
 
   const p = item.properties;
   const kind = itemKindLabel(c, item);
@@ -81,8 +86,11 @@ export default async function ItemPage({ params }: Props) {
     .filter(([k]) => !CORE.includes(k) && !SPATIAL.has(k.split(":").pop()!))
     .map(([key, value]) => ({ key, value }));
 
-  const links = item.links.filter((l) => !["self", "parent", "root", "collection"].includes(l.rel));
-  const structural = item.links.filter((l) => ["self", "parent", "root", "collection"].includes(l.rel));
+  // Version links open from the version picker, so they're listed with the
+  // other STAC links rather than as resources.
+  const isStructural = (rel: string) => ["self", "parent", "root", "collection", ...VERSION_RELS].includes(rel);
+  const links = item.links.filter((l) => !isStructural(l.rel));
+  const structural = item.links.filter((l) => isStructural(l.rel));
 
   return (
     <div className="sx-page">
@@ -105,6 +113,23 @@ export default async function ItemPage({ params }: Props) {
               </span>
             )}
           </>
+        }
+        nav={
+          versions.length > 1 ? (
+            <VersionMenu
+              current={`${c.id}/${item.id}`}
+              noun="versions of this item"
+              versions={versions.map((v) => ({
+                key: key(v),
+                href: itemHref(env, v.collection, v.item),
+                name: v.label ? versionName(v.label) : v.rel ? REL_NAME[v.rel] : key(v) === `${c.id}/${item.id}` ? "This version" : versionName(null),
+                id: v.item === item.id ? v.collection : v.item,
+                latest: v.latest,
+                deprecated: v.deprecated,
+                qc: v.qc,
+              }))}
+            />
+          ) : undefined
         }
         actions={
           <>
@@ -237,6 +262,13 @@ export default async function ItemPage({ params }: Props) {
     </div>
   );
 }
+
+/** For a version only a link names. */
+const REL_NAME = {
+  "predecessor-version": "Previous version",
+  "successor-version": "Next version",
+  "latest-version": "Latest version",
+} as const;
 
 function plural(n: number, word: string): string {
   return `${fmtNum(n)} ${word}${n === 1 ? "" : "s"}`;

@@ -4,41 +4,53 @@ import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon, ICONS } from "./icons";
 import { QcChip } from "./qc-chip";
-import type { EnvKey } from "@/lib/env";
-import type { Series } from "@/lib/stac";
-import { collectionHref } from "@/lib/utils";
+import type { QcStatus } from "@/lib/stac";
 import { versionName } from "@/lib/versions";
 
+export type VersionChoice = {
+  /** Tells the choices apart; the current one's key is `current`. */
+  key: string;
+  href: string;
+  /** The name shown, e.g. "Version 2" or "Previous version". */
+  name: string;
+  /** The id under the name: the collection's, or the item's when that's what differs. */
+  id: string;
+  latest: boolean;
+  deprecated: boolean;
+  qc: QcStatus;
+};
+
 /**
- * The versions of a collection in this environment, newest first, each with
- * its review state. Picking one opens that version's page. Only shown when
- * there's more than one version to pick from.
+ * The versions of a collection or an item in this environment, newest first,
+ * each with its review state. Picking one opens that version's page. Only
+ * shown when there's more than one version to pick from.
  */
-export function VersionMenu({ env, current, series }: { env: EnvKey; current: string; series: Series }) {
-  const here = series.versions.find((v) => v.id === current);
-  const newest = [...series.versions].reverse();
+export function VersionMenu({ current, versions, noun = "versions" }: { current: string; versions: VersionChoice[]; noun?: string }) {
+  const here = versions.find((v) => v.key === current);
+  const name = here?.name ?? versionName(null);
+  const newest = [...versions].reverse();
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger className="ffx-btn ffx-btn-sm" aria-label={`${versionName(here?.label ?? null)}. Change version`}>
-        {versionName(here?.label ?? null)}
+      <DropdownMenu.Trigger className="ffx-btn ffx-btn-sm" aria-label={`${name}. Change version`}>
+        {name}
         <Icon d={ICONS.chevron} size={10} />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content className="ffx-menu sx-version-menu" align="end" sideOffset={6} collisionPadding={12}>
           <DropdownMenu.Label className="px-2.5 pb-1.5 pt-1 text-micro text-ink-mut">
-            {series.versions.length} versions
+            {versions.length} {noun}
           </DropdownMenu.Label>
           <DropdownMenu.RadioGroup value={current}>
             {newest.map((v) => (
-              <DropdownMenu.RadioItem key={v.id} value={v.id} asChild>
+              <DropdownMenu.RadioItem key={v.key} value={v.key} asChild>
                 <Link
-                  href={collectionHref(env, v.id)}
+                  href={v.href}
                   className="ffx-menu-item sx-version-item"
-                  aria-current={v.id === current ? "page" : undefined}
+                  aria-current={v.key === current ? "page" : undefined}
                 >
                   <span className="sx-version-name">
-                    <span>{versionName(v.label)}</span>
-                    {v.id === series.latest && <span className="sx-tag">Latest</span>}
+                    <span>{v.name}</span>
+                    {v.latest && <span className="sx-tag">Latest</span>}
                     {v.deprecated && <span className="sx-tag" data-tone="muted">Deprecated</span>}
                   </span>
                   <span className="sx-version-sub">

@@ -149,7 +149,22 @@ export default async function CollectionPage({ params }: Props) {
             <QcChip status={c.qc?.qc} />
           </>
         }
-        nav={c.series.versions.length > 1 ? <VersionMenu env={env} current={c.id} series={c.series} /> : undefined}
+        nav={
+          c.series.versions.length > 1 ? (
+            <VersionMenu
+              current={c.id}
+              versions={c.series.versions.map((v) => ({
+                key: v.id,
+                href: collectionHref(env, v.id),
+                name: versionName(v.label),
+                id: v.id,
+                latest: v.id === c.series.latest,
+                deprecated: v.deprecated,
+                qc: v.qc,
+              }))}
+            />
+          ) : undefined
+        }
         actions={
           <>
             <PreviewButton
