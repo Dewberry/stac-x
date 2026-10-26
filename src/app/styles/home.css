@@ -173,8 +173,9 @@
 }
 
 /* The console. On a phone the map is a band across the top and the rail a
-   plain block under it. From lg the rail is a fixed width, the map takes
-   the rest, both full height, and one handle on the seam hides the rail. */
+   plain block under it. From lg they sit side by side, full height, with
+   the rail taking --rail of the width (set by components/home-split.tsx)
+   and a divider between them that drags. */
 .sx-console {
   display: flex;
   flex-direction: column;
@@ -1416,7 +1417,7 @@ button.sx-map-pill svg {
 @media (min-width: 64rem) {
   .sx-console {
     flex: 1;
-    flex-direction: row-reverse;
+    flex-direction: row;
     min-width: 0;
     min-height: 0;
   }
@@ -1425,44 +1426,69 @@ button.sx-map-pill svg {
     min-width: 0;
     height: auto;
   }
+  /* The minimums match RAIL_MIN_PX and MAP_MIN_PX in home-split.tsx. */
+  /* The map comes first in the source, so a screen reader reaches it
+     first as before; the rail is ordered to the left. */
   .sx-rail {
-    width: 372px;
+    order: -2;
+    width: clamp(320px, var(--rail, 50%), calc(100% - 360px));
     flex: none;
     min-height: 0;
     border-right: 1px solid var(--ffx-rule);
   }
-  /* The seam handle: a white tab on the map's left edge, centered. It
-     follows the edge when the rail goes, so it's where it was clicked. */
-  .sx-console {
-    position: relative;
-  }
-  .sx-console[data-rail="hidden"] .sx-rail {
-    display: none;
-  }
+  /* The divider: no width of its own, a strip over the rail's border that
+     picks up the pointer, with a small grip in the middle. It's last in
+     the source, after the rail, so it's ordered to sit between the panes. */
   .sx-seam {
-    position: absolute;
+    position: relative;
     z-index: 3;
+    order: -1;
+    flex: none;
+    display: block;
+    width: 12px;
+    margin: 0 -6px;
+    cursor: col-resize;
+    touch-action: none;
+  }
+  /* Focus shows as the full-height line and the filled grip below; the
+     usual ring would box the strip and double the line. */
+  .sx-seam:focus-visible {
+    outline: none;
+  }
+  .sx-seam::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 5px;
+    width: 2px;
+    background: transparent;
+    transition: background-color 0.12s;
+  }
+  .sx-seam::after {
+    content: "";
+    position: absolute;
     top: 50%;
-    left: 372px;
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 56px;
-    padding: 0;
-    border: 0;
-    border-radius: 0 8px 8px 0;
+    left: 2px;
+    width: 8px;
+    height: 40px;
+    border: 1px solid var(--ffx-rule);
+    border-radius: 4px;
     background: var(--ffx-surface);
     box-shadow: var(--ffx-shadow-card);
-    color: var(--ffx-ink-sec);
     transform: translateY(-50%);
-    cursor: pointer;
+    transition: background-color 0.12s, border-color 0.12s;
   }
-  .sx-console[data-rail="hidden"] .sx-seam {
-    left: 0;
+  .sx-seam:hover::before,
+  .sx-seam:focus-visible::before,
+  .sx-seam[data-dragging]::before {
+    background: var(--ffx-active);
   }
-  .sx-seam:hover {
-    color: var(--ffx-ink);
-    background: var(--ffx-surface-sunken);
+  .sx-seam:hover::after,
+  .sx-seam:focus-visible::after,
+  .sx-seam[data-dragging]::after {
+    border-color: var(--ffx-active);
+    background: var(--ffx-active);
   }
   /* Positioned, so what's absolutely placed inside it (the sr-only labels
      in an open row) is clipped with the rest instead of stretching the page. */

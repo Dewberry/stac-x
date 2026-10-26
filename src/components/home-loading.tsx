@@ -7,12 +7,12 @@ import { areaOutline, mapArea } from "@/lib/map-area";
  * shape: the deployment's area traced where the map goes (when one is set),
  * and placeholder rows in the rail. Next streams the real page in over it.
  */
-export function HomeLoading() {
+export function HomeLoading({ railShare }: { railShare: number }) {
   const area = mapArea();
   const outline = area && areaOutline(area);
   return (
     <div className="sx-home" aria-busy="true">
-      <div className="sx-console">
+      <div className="sx-console" style={{ "--rail": `${railShare}%` } as React.CSSProperties}>
         <div className="sx-console-map sx-loading-map">
           {outline && (
             <svg className="sx-loading-area" viewBox={outline.viewBox} preserveAspectRatio="xMidYMid meet" aria-hidden="true">

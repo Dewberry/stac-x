@@ -148,6 +148,7 @@ export function HomeConsole({
   items,
   emptyText,
   notice,
+  railShare,
 }: {
   env: EnvKey;
   areas: HomeArea[];
@@ -160,6 +161,8 @@ export function HomeConsole({
   emptyText: string;
   /** A problem loading the catalog, shown at the top of the list. */
   notice?: string | null;
+  /** The dataset list's share of the width, in percent (lib/rail-share.ts). */
+  railShare: number;
 }) {
   const router = useRouter();
   const [hovered, setHovered] = useState<string | null>(null);
@@ -454,7 +457,7 @@ export function HomeConsole({
                 : `Previewing ${previewArea.name} on the map.`
             : ""}
         </p>
-        <HomeSplit>
+        <HomeSplit initial={railShare}>
           <div className="sx-console-map">
             <HomeMap
               areas={mapAreas}

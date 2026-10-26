@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import type { FeatureCollection } from "geojson";
 import { HomeConsole, type HomeArea } from "@/components/home";
 import type { ItemRow } from "@/components/items-list";
@@ -10,6 +11,7 @@ import { footprintBytes, footprintOf, INLINE_MAX, unitOf, type Footprint } from 
 import { itemRowsOf } from "@/lib/item-rows";
 import { areaShare, inArea, mapArea, mapFrame } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
+import { RAIL_COOKIE, railShare } from "@/lib/rail-share";
 import type { Collection } from "@/lib/stac";
 import { collectionHref, collectionJsonHref } from "@/lib/utils";
 
@@ -50,16 +52,17 @@ const EMPTY: Record<EnvKey, string> = {
 
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {
   const env = await pageEnv(params);
+  const rail = railShare((await cookies()).get(RAIL_COOKIE)?.value);
   // The catalog can take seconds to read from S3. The loading state goes
   // out first and the console streams in over it.
   return (
-    <Suspense fallback={<HomeLoading />}>
-      <HomeData env={env} />
+    <Suspense fallback={<HomeLoading railShare={rail} />}>
+      <HomeData env={env} railShare={rail} />
     </Suspense>
   );
 }
 
-async function HomeData({ env }: { env: EnvKey }) {
+async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) {
   const catalog = await getCatalog(env);
   const area = mapArea();
   // A collection with several versions is one area, drawn and counted from
@@ -227,6 +230,7 @@ async function HomeData({ env }: { env: EnvKey }) {
           : null
       }
       emptyText={EMPTY[env]}
+      railShare={railShare}
     />
   );
 }
