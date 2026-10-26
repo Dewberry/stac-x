@@ -1472,7 +1472,7 @@ button.sx-map-pill svg {
      first as before; the rail is ordered to the left. */
   .sx-rail {
     order: -2;
-    width: clamp(320px, var(--rail, 50%), calc(100% - 360px));
+    width: clamp(320px, var(--rail, 33%), calc(100% - 360px));
     flex: none;
     min-height: 0;
     border-right: 1px solid var(--ffx-rule);

@@ -14,8 +14,8 @@ const STEP = 5;
  * The console's two panes and the divider between them, which drags (or
  * takes the arrow keys) to give the dataset list or the map more room. It
  * follows the window splitter pattern: a focusable separator whose value
- * is the list's share of the width. Double-click puts it back in the
- * middle. Only on a wide screen; a phone has the map over the list.
+ * is the list's share of the width. Double-click puts it back at the
+ * default. Only on a wide screen; a phone has the map over the list.
  */
 export function HomeSplit({ initial, children }: { initial: number; children: ReactNode }) {
   const [share, setShare] = useState(initial);
