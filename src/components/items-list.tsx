@@ -89,6 +89,18 @@ export function ItemsList({
     for (const r of rows) if (r.label && !r.hideId) (seen.has(r.label) ? twice : seen).add(r.label);
     return twice;
   }, [rows]);
+  // A row's React key. Ids should be unique in a collection, but a scraped
+  // one can carry different items under one id (two models both called
+  // BoxelderCreek), so a repeat gets a suffix. Keyed on the row itself, it
+  // stays put through a search or a sort.
+  const keys = useMemo(() => {
+    const n = new Map<string, number>();
+    return new Map(rows.map((r) => {
+      const k = n.get(r.id) ?? 0;
+      n.set(r.id, k + 1);
+      return [r, k ? `${r.id}#${k}` : r.id];
+    }));
+  }, [rows]);
   // Where every row is already in view, there's nothing to search for.
   const searchable = all > 0 && (!compact || all > WINDOW);
   const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / PAGE));
@@ -186,7 +198,7 @@ export function ItemsList({
         <div className="sx-item-block" data-more={more || undefined}>
           <div ref={blockRef} className="sx-item-list" onScroll={onScroll}>
             {slice.map((r) => (
-              <Link key={r.id} className="sx-item" {...rowProps(r)}>
+              <Link key={keys.get(r)} className="sx-item" {...rowProps(r)}>
                 {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
                 {r.label && !repeated.has(r.label) ? (
                   <span className="sx-item-name">{mark(r.label, q)}</span>
@@ -206,7 +218,7 @@ export function ItemsList({
       ) : (
         <div ref={rowsRef} className="sx-rows sx-items-rows ffx-scroll">
           {slice.map((r) => (
-            <Link key={r.id} className="sx-row" {...rowProps(r)}>
+            <Link key={keys.get(r)} className="sx-row" {...rowProps(r)}>
               <div className="sx-row-main">
                 <div className="sx-row-title">
                   {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
