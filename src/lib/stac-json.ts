@@ -2,7 +2,7 @@ import "server-only";
 
 import { readItems, toGeometry } from "./parquet";
 import type { StacAsset, StacItem, StacLink } from "./stac";
-import { head, NotFound, parseRef, readJson } from "./storage";
+import { head, isS3, NotFound, parseRef, readJson } from "./storage";
 
 /**
  * A static STAC catalog in, STAC items out.
@@ -149,6 +149,13 @@ const VERSION_LINK = (l: StacLink) =>
  * can tell which copy of a shared id the folder actually links. One whose
  * file is gone is skipped quietly: an old version missing isn't a broken
  * catalog.
+ *
+ * Only links into the catalog's own bucket (or, for a local catalog, the
+ * local disk) are followed. The generator also writes predecessor links
+ * across environments (Development's stream-gages names the copy in the
+ * Sandbox bucket as its predecessor), and that copy belongs to the other
+ * environment: it's reviewed there, and this app already says where a
+ * collection's other copies are.
  */
 export async function collectionsOf(
   catalogUri: string,
@@ -195,6 +202,8 @@ export async function collectionsOf(
   // Other versions, after every child is known, so a version the folder
   // links itself is a child first. Each round can turn up more (0.3 names
   // 0.2, which names 0.1), so it runs until nothing new is found.
+  const store = isS3(start) ? start.slice(0, start.indexOf("/", "s3://".length) + 1) : null;
+  const inStore = (uri: string) => (store ? uri.startsWith(store) : !isS3(uri));
   for (let done = 0; done < collections.length; ) {
     const batch = collections.slice(done);
     done = collections.length;
@@ -202,7 +211,15 @@ export async function collectionsOf(
       batch.flatMap((uri) => {
         const links = Array.isArray(docs.get(uri)?.links) ? (docs.get(uri)!.links as StacLink[]) : [];
         // The linked version sits in the folder this one does.
-        return links.filter(VERSION_LINK).map((l) => walk(resolveHref(l.href, uri), parents[uri] ?? start, true));
+        return links.filter(VERSION_LINK).flatMap((l) => {
+          const target = resolveHref(l.href, uri);
+          if (inStore(target)) return [walk(target, parents[uri] ?? start, true)];
+          if (!seen.has(target)) {
+            seen.add(target);
+            console.log(`stac-x: ${uri} names ${target} as its ${l.rel}, which is outside this catalog's bucket, so it's left to its own environment`);
+          }
+          return [];
+        });
       }),
     );
   }
