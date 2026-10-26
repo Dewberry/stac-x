@@ -147,6 +147,7 @@ async function HomeData({ env }: { env: EnvKey }) {
       slug: c.series.id,
       id: c.id,
       name: c.title,
+      kind: c.kind,
       inArea: !!area && !!bbox && inArea(area, [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]),
       bbox,
       blurb: c.description ?? undefined,

@@ -3,6 +3,7 @@ import "server-only";
 import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
+import { kindOf } from "./collection-hierarchy";
 import { collectionName } from "./format";
 import { NotStac, readItems } from "./parquet";
 import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
@@ -204,7 +205,10 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     }
   }
   // Count the same loaded children the collection page can link to.
-  for (const c of collections) c.childCollectionCount = childCollectionsOf(c, collections).length;
+  for (const c of collections) {
+    c.childCollectionCount = childCollectionsOf(c, collections).length;
+    c.kind = kindOf(c);
+  }
   try {
     const series = groupVersions(collections);
     for (const c of collections) c.series = series.get(c.id)!;
@@ -338,6 +342,9 @@ async function describeCollection(cache: Cache, id: string, items: CatalogItem[]
     void _id; void _extent; void _v; void _x; void _t;
     return {
       id,
+      type: "Collection",
+      // Classified in build(), once its children are known.
+      kind: "dataset",
       title: collectionName(typeof title === "string" ? title : null, id),
       sourceTitle: typeof title === "string" && title ? title : null,
       description: typeof description === "string" ? description : null,
@@ -376,6 +383,8 @@ function derivedCollection(cache: Cache, id: string, items: CatalogItem[], sourc
   const { qc, history, geometryErrors } = recordsOf(cache, id, items, sources);
   return {
     id,
+    type: "Collection",
+    kind: "dataset",
     title: collectionName(null, id),
     sourceTitle: null,
     description: null,

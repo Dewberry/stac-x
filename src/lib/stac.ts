@@ -1,3 +1,4 @@
+import type { NodeKind } from "./collection-hierarchy";
 import type { EnvKey } from "./env";
 import type { Geometry } from "geojson";
 
@@ -92,6 +93,10 @@ export type Provider = {
 
 export type Collection = {
   id: string;
+  /** The STAC type its document has. Derived collections are Collections. */
+  type: "Catalog" | "Collection";
+  /** A catalog (a folder) or a dataset; see kindOf in collection-hierarchy.ts. */
+  kind: NodeKind;
   /** The name to show, from collectionName. */
   title: string;
   /** The title as the collection.json has it, or null when it has none. */

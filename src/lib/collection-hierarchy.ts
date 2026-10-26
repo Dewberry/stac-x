@@ -1,12 +1,29 @@
-/** Loaded collection relationships and root/descendant search, shared by server and client. */
+/**
+ * The catalog tree, shared by server and client: which loaded nodes are
+ * catalogs (folders) and which are datasets, how they nest, and search.
+ *
+ * A catalog has a title, a description and children, and nothing else: no
+ * extent, no items, no review state. A dataset has items or assets of its
+ * own and is the only thing that's counted, reviewed, drawn or promoted. A
+ * dataset can still have children (Project Scoping holds ten empty
+ * catalogs); they travel with it.
+ */
 import type { Collection } from "./stac";
 
-export type HierarchyNode = { slug: string; name: string; parentSlugs: string[] };
+export type NodeKind = "catalog" | "dataset";
 
-/** A container or collection-level asset is content too, even with no direct items. */
-export function hasCollectionContent(node: { itemCount: number; childCollectionCount: number; assetCount: number }): boolean {
-  return node.itemCount > 0 || node.childCollectionCount > 0 || node.assetCount > 0;
+/**
+ * A catalog when the STAC type says so. Until the generator types its
+ * containers, a Collection with no items and no collection-level assets
+ * but with child links is a container too.
+ */
+export function kindOf(c: Pick<Collection, "type" | "itemCount" | "assets" | "childCollectionHrefs">): NodeKind {
+  if (c.type === "Catalog") return "catalog";
+  if (c.itemCount === 0 && Object.keys(c.assets).length === 0 && (c.childCollectionHrefs?.length ?? 0) > 0) return "catalog";
+  return "dataset";
 }
+
+export type HierarchyNode = { slug: string; name: string; parentSlugs: string[]; kind: NodeKind };
 
 /** A stable root-to-parent breadcrumb path from loaded child links, with cycle protection. */
 export function collectionAncestors(collection: Collection, collections: Collection[]): Collection[] {
@@ -52,12 +69,21 @@ export function collectionParents(collections: Collection[], visibleIds: Set<str
   return new Map([...parents].map(([slug, ids]) => [slug, [...ids].sort()]));
 }
 
+/** The latest version of every series as tree nodes, for the server's pages. */
+export function treeNodesOf(collections: Collection[]): (HierarchyNode & { collection: Collection })[] {
+  const latest = collections.filter((c) => c.series.latest === c.id);
+  const parents = collectionParents(collections, new Set(latest.map((c) => c.id)));
+  return latest.map((c) => ({ slug: c.series.id, name: c.title, parentSlugs: parents.get(c.series.id) ?? [], kind: c.kind, collection: c }));
+}
+
 /** An index over only loaded, visible versions. Missing parents leave an orphan at the top level. */
 export function hierarchyOf<T extends HierarchyNode>(nodes: T[]) {
   const bySlug = new Map(nodes.map((n) => [n.slug, n]));
-  const parents = new Map(nodes.map((n) => [n.slug, [...new Set(n.parentSlugs)].filter((s) => s !== n.slug && bySlug.has(s))]));
+  const parents = new Map(nodes.map((n) => [n.slug, [...new Set(n.parentSlugs)].filter((s) => s !== n.slug && bySlug.has(s)).sort()]));
   const children = new Map(nodes.map((n) => [n.slug, [] as string[]]));
   for (const [child, ids] of parents) for (const parent of ids) children.get(parent)!.push(child);
+  const byName = (a: string, b: string) => bySlug.get(a)!.name.localeCompare(bySlug.get(b)!.name) || a.localeCompare(b);
+  for (const list of children.values()) list.sort(byName);
 
   function descendants(seeds: Iterable<string>): Set<string> {
     const found = new Set<string>();
@@ -77,27 +103,68 @@ export function hierarchyOf<T extends HierarchyNode>(nodes: T[]) {
   // their otherwise unreachable branch visible until its links are fixed.
   for (const n of nodes) if (!reachable.has(n.slug)) roots.add(n.slug);
 
-  function parentPaths(slug: string): string[] {
-    const paths = new Set<string>();
-    const walk = (at: string, path: string[], seen: Set<string>) => {
-      const next = parents.get(at)!.filter((p) => !seen.has(p));
-      if (!next.length) {
-        if (path.length) paths.add(path.join(" / "));
-        return;
-      }
-      for (const p of next) walk(p, [bySlug.get(p)!.name, ...path], new Set([...seen, p]));
-    };
-    walk(slug, [], new Set([slug]));
-    return [...paths].sort();
+  // Each node's datasets anywhere below it, counted once.
+  const below = new Map<string, number>();
+  function datasetsBelow(slug: string): number {
+    let n = below.get(slug);
+    if (n === undefined) {
+      n = 0;
+      for (const d of descendants([slug])) if (d !== slug && bySlug.get(d)!.kind === "dataset") n++;
+      below.set(slug, n);
+    }
+    return n;
   }
-  return { roots, descendants, parentPaths };
+
+  /** Direct children, by name. */
+  const childrenOf = (slug: string): T[] => (children.get(slug) ?? []).map((s) => bySlug.get(s)!);
+
+  /**
+   * The catalogs directly inside a node. The rail and the catalog page list
+   * direct children; deeper ones are reached by opening those.
+   */
+  const catalogsBelow = (slug: string): number => childrenOf(slug).filter((c) => c.kind === "catalog").length;
+
+  /** A catalog with no dataset anywhere below it. */
+  const isEmpty = (slug: string): boolean => bySlug.get(slug)?.kind === "catalog" && datasetsBelow(slug) === 0;
+
+  /**
+   * One ancestor trail, root first, for headings, breadcrumbs and search
+   * rows. The tree is strict, so there's one; with a shared child, the first
+   * parent by slug wins.
+   */
+  function ancestorsOf(slug: string): T[] {
+    const out: T[] = [];
+    const seen = new Set([slug]);
+    let at = parents.get(slug)?.find((p) => !seen.has(p));
+    while (at) {
+      out.unshift(bySlug.get(at)!);
+      seen.add(at);
+      at = parents.get(at)!.find((p) => !seen.has(p));
+    }
+    return out;
+  }
+
+  /** Ancestor titles, root first. */
+  const pathOf = (slug: string): string[] => ancestorsOf(slug).map((n) => n.name);
+
+  /** The top-level catalog a node sits under, or null for a root. */
+  const rootCatalogOf = (slug: string): T | null => {
+    const top = ancestorsOf(slug)[0];
+    return top?.kind === "catalog" ? top : null;
+  };
+
+  return { roots, descendants, childrenOf, datasetsBelow, catalogsBelow, isEmpty, ancestorsOf, pathOf, rootCatalogOf };
 }
 
-/** A matching parent includes its descendants even when their own text doesn't match. */
-export function searchCollections<T extends HierarchyNode & { blurb?: string }>(nodes: T[], query: string, hierarchy = hierarchyOf(nodes)): T[] {
+export type Hierarchy<T extends HierarchyNode> = ReturnType<typeof hierarchyOf<T>>;
+
+/**
+ * Datasets and catalogs whose title or description has the text in it. A
+ * match doesn't bring its descendants along: a parent named Storm doesn't
+ * make everything under it a storm.
+ */
+export function searchCollections<T extends HierarchyNode & { blurb?: string }>(nodes: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
-  if (!q) return nodes.filter((n) => hierarchy.roots.has(n.slug));
-  const matches = nodes.filter((n) => [n.name, n.blurb].some((text) => text?.toLowerCase().includes(q)));
-  const included = hierarchy.descendants(matches.map((n) => n.slug));
-  return nodes.filter((n) => included.has(n.slug));
+  if (!q) return [];
+  return nodes.filter((n) => [n.name, n.blurb].some((text) => text?.toLowerCase().includes(q)));
 }

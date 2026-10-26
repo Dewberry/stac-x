@@ -4,7 +4,6 @@ import { useLayoutEffect, useRef } from "react";
 import type { EnvKey } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
 import type { QcStatus } from "@/lib/stac";
-import { hasCollectionContent } from "@/lib/collection-hierarchy";
 import type { HomeArea, Rows } from "./home";
 import { AreaSub, countOf, OpenRow, UnitGlyph } from "./home-preview";
 import type { ItemRow } from "./items-list";
@@ -50,8 +49,6 @@ export function HomeRail({
   byState,
   notice,
   emptyText,
-  hideEmpty,
-  onHideEmpty,
   filter,
   onFilter,
   query,
@@ -77,8 +74,6 @@ export function HomeRail({
   notice?: string | null;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
-  hideEmpty: boolean;
-  onHideEmpty: (value: boolean) => void;
   filter: QcStatus | null;
   onFilter: (v: QcStatus | null) => void;
   query: string;
@@ -111,7 +106,7 @@ export function HomeRail({
     const bottom = top + row.offsetHeight;
     if (top - headH < list.scrollTop) list.scrollTop = top - headH;
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = Math.min(top - headH, bottom - list.clientHeight);
-  }, [selected, hideEmpty]);
+  }, [selected]);
 
   return (
     <aside id="collections-pane" className="sx-rail" aria-label="Collections">
@@ -122,16 +117,6 @@ export function HomeRail({
           <span className="sx-rail-count ffx-num">
             {shownCount === scopeCount ? fmtNum(scopeCount) : `${fmtNum(shownCount)} of ${fmtNum(scopeCount)}`}
           </span>
-          {/* Parents and collection assets remain browsable even with zero direct items. */}
-          <button
-            type="button"
-            className="sx-group-switch"
-            aria-pressed={hideEmpty}
-            onClick={() => onHideEmpty(!hideEmpty)}
-          >
-            <span className="sx-switch" aria-hidden="true" />
-            Hide empty collections
-          </button>
         </div>
         {areas.length > 0 && (
           <label className="ffx-field">
@@ -146,7 +131,6 @@ export function HomeRail({
         {/* Said once the search or filter changes. The lines below show the
             same, but a status region that mounts with its text is often missed. */}
         <p className="sr-only" role="status">
-          {hideEmpty ? `Empty collections hidden. ${shownCount} collections shown. Collections with children or assets are kept.` : "Empty collections included."}
           {search ? `${search.collections} ${search.collections === 1 ? "collection found" : "collections found"}, including descendants of matching parents.` : ""}
           {filter ? ` Showing ${QC_LABEL[filter]} only` : ""}
         </p>
@@ -213,12 +197,12 @@ export function HomeRail({
             <ul>
               {g.rows.map((a) => {
                 const open = selected === a.slug;
-                const children = areas.filter((child) => child.slug !== a.slug && child.parentSlugs.includes(a.slug) && (!hideEmpty || hasCollectionContent(child)));
+                const children = areas.filter((child) => child.slug !== a.slug && child.parentSlugs.includes(a.slug));
                 return (
                   <AreaRow
                     key={a.slug}
                     env={env}
-                    area={hideEmpty ? { ...a, childCollectionCount: children.length } : a}
+                    area={a}
                     childCollections={open ? children : []}
                     parentPaths={parentPaths[a.slug] ?? []}
                     active={(selected ?? hovered) === a.slug}

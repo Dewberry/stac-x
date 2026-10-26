@@ -2,12 +2,12 @@
 
 import nextDynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, MultiPolygon } from "geojson";
 import { envMeta, type EnvKey } from "@/lib/env";
 import type { Tint } from "@/lib/overview";
 import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
-import { hasCollectionContent, hierarchyOf, searchCollections } from "@/lib/collection-hierarchy";
+import { hierarchyOf, searchCollections, type NodeKind } from "@/lib/collection-hierarchy";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
 import { HomeRail, type Group } from "./home-rail";
@@ -55,6 +55,8 @@ export type HomeArea = {
   /** The latest version's collection id, for the item links. */
   id: string;
   name: string;
+  /** A catalog (a folder) or a dataset; see lib/collection-hierarchy.ts. */
+  kind: NodeKind;
   /** The middle of its extent is in the deployment's area. */
   inArea: boolean;
   bbox: [number, number, number, number] | null;
@@ -124,42 +126,8 @@ export type Member = {
   end?: string | null;
 };
 
-// Reset the old opt-in preference once: existing browsers should also start
-// with empty collections hidden. Explicit choices made from here are kept.
-const EMPTY_KEY = "sx-home-hide-empty-v2";
 /** How long, in ms, the pointer rests on a collection before the map previews it. */
 const PREVIEW_DELAY = 120;
-
-/**
- * The empty filter, a per-viewer preference kept in localStorage. Read
- * through useSyncExternalStore so the server render (empty collections hidden) and
- * the browser's agree, and so a change in another tab carries over.
- */
-// Kept here too, for when storage is blocked.
-let hideEmptyInMemory = true;
-function readHideEmpty(): boolean {
-  try {
-    const v = localStorage.getItem(EMPTY_KEY);
-    return v === null ? hideEmptyInMemory : v === "true";
-  } catch {
-    return hideEmptyInMemory;
-  }
-}
-function subscribeHideEmpty(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  window.addEventListener(EMPTY_KEY, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(EMPTY_KEY, onChange);
-  };
-}
-function saveHideEmpty(value: boolean) {
-  hideEmptyInMemory = value;
-  try {
-    localStorage.setItem(EMPTY_KEY, String(value));
-  } catch {}
-  window.dispatchEvent(new Event(EMPTY_KEY));
-}
 
 /** A collection's items as the rail lists them: null until fetched, "error" when they couldn't be. */
 export type Rows = ItemRow[] | "error" | null;
@@ -194,7 +162,6 @@ export function HomeConsole({
   // The item under the cursor, in the rows or on the map, by id.
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [filter, setFilter] = useState<QcStatus | null>(null);
-  const hideEmpty = useSyncExternalStore(subscribeHideEmpty, readHideEmpty, () => true);
   // Whether the last selected collection is in the area, which outlines
   // the area more heavily.
   const [pickedInArea, setPickedInArea] = useState<boolean | null>(null);
@@ -227,15 +194,14 @@ export function HomeConsole({
   const hierarchy = useMemo(() => hierarchyOf(areas), [areas]);
   // Search all levels; a matching parent brings its descendants along.
   // Review facets count this scope before applying the selected QC state.
-  const searchScope = useMemo(() => searchCollections(areas, q, hierarchy), [areas, q, hierarchy]);
-  const scope = useMemo(() => hideEmpty ? searchScope.filter(hasCollectionContent) : searchScope, [searchScope, hideEmpty]);
+  const scope = useMemo(() => q ? searchCollections(areas, q) : areas.filter((a) => hierarchy.roots.has(a.slug)), [areas, q, hierarchy]);
   const shown = useMemo(() => scope.filter((a) => !filter || stateOf(a) === filter), [scope, filter]);
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
   const childCollections = useMemo(() => activeSelected
-    ? areas.filter((child) => child.slug !== activeSelected && child.parentSlugs.includes(activeSelected) && (!hideEmpty || hasCollectionContent(child)))
-    : [], [areas, activeSelected, hideEmpty]);
+    ? areas.filter((child) => child.slug !== activeSelected && child.parentSlugs.includes(activeSelected))
+    : [], [areas, activeSelected]);
   // An open parent's children can be previewed without becoming top-level rows.
   const previewableIds = useMemo(() => new Set([...shownIds, ...childCollections.map((child) => child.slug)]), [shownIds, childCollections]);
   const activeHovered = hovered && shownIds.has(hovered) ? hovered : null;
@@ -245,7 +211,7 @@ export function HomeConsole({
     return counts;
   }, [scope]);
   const parentPaths = useMemo(() => searching
-    ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.parentPaths(a.slug)]))
+    ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.pathOf(a.slug).length ? [hierarchy.pathOf(a.slug).join(" / ")] : []]))
     : {}, [hierarchy, searching, shown]);
   const groups = useMemo<Group[]>(() => shown.length ? [{ key: "all", label: null, rows: shown }] : [], [shown]);
 
@@ -425,8 +391,6 @@ export function HomeConsole({
             byState={byState}
             notice={notice}
             emptyText={emptyText}
-            hideEmpty={hideEmpty}
-            onHideEmpty={(value) => { resetSelection(); saveHideEmpty(value); }}
             filter={filter}
             onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}

@@ -24,24 +24,20 @@ export function HomeLoading() {
             Loading the catalog…
           </p>
         </div>
-        <aside className="sx-rail" aria-label="Collections">
+        <aside className="sx-rail" aria-label="Datasets">
           {/* The same head as the console's, inert, so it's there before the
               rows are. */}
           <div className="sx-rail-head">
             <div className="sx-rail-title">
-              <h2>Collections</h2>
-              <button type="button" className="sx-group-switch" aria-pressed="true" disabled>
-                <span className="sx-switch" aria-hidden="true" />
-                Hide empty collections
-              </button>
+              <h2>Datasets</h2>
             </div>
             <label className="ffx-field">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="m10.5 10.5 3 3" strokeLinecap="round" />
               </svg>
-              <span className="sr-only">Search collections</span>
-              <input type="search" placeholder="Search collections" disabled />
+              <span className="sr-only">Search datasets and catalogs</span>
+              <input type="search" placeholder="Search datasets and catalogs" disabled />
             </label>
             {/* Where the review states go, so the rows don't jump when they arrive. */}
             <div className="sx-loading-states" />
