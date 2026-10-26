@@ -146,9 +146,17 @@ export function isJsonType(type: string | null | undefined, href?: string) {
   return Boolean((type && /json/i.test(type)) || (href && /\.(geo)?json$/i.test(href.split("?")[0])));
 }
 
-/** Whether the app can show the first rows (or the document) of an asset. */
+/**
+ * A plain text file, by its name: .txt. Not by a text/plain media type
+ * alone, since writers put that on .prj files, logs and binaries alike.
+ */
+export function isTextType(_type: string | null | undefined, href?: string) {
+  return Boolean(href && /\.txt$/i.test(href.split("?")[0]));
+}
+
+/** Whether the app can show the first rows (or the document, or the text) of an asset. */
 export function isPreviewable(type: string | null | undefined, href: string) {
-  return isParquetType(type, href) || isCsvType(type, href) || isJsonType(type, href);
+  return isParquetType(type, href) || isCsvType(type, href) || isJsonType(type, href) || isTextType(type, href);
 }
 
 /**

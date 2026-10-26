@@ -3,10 +3,11 @@
  * (lib/parquet.ts, lib/text-preview.ts) and the dialog that shows it
  * (components/data-modal.tsx). A file with rows (parquet, CSV, a GeoJSON
  * feature collection, a JSON array of like objects) previews as a table;
- * any other JSON previews as a tree. No server imports here.
+ * any other JSON previews as a tree; a .txt file previews as its text.
+ * No server imports here.
  */
 
-import { isCsvType, isParquetType } from "./format";
+import { isCsvType, isParquetType, isTextType } from "./format";
 
 /** What a column holds, in the words the table shows under its name. */
 export type ColumnKind =
@@ -38,12 +39,21 @@ export type JsonPreview = {
   byteLength: number;
 };
 
-export type Preview = TablePreview | JsonPreview;
+export type TextPreview = {
+  kind: "text";
+  text: string;
+  /** Only the head of the file was read; the rest is in the file. */
+  truncated: boolean;
+  byteLength: number;
+};
+
+export type Preview = TablePreview | JsonPreview | TextPreview;
 
 /** The tag beside a file's name in the preview dialog: what kind of file it is. */
 export function formatTag(type: string | null | undefined, href: string): string {
   if (isParquetType(type, href)) return "parquet";
   if (isCsvType(type, href)) return "csv";
+  if (isTextType(type, href)) return "text";
   if (/geo\+json/i.test(type ?? "") || /\.geojson$/i.test(href.split("?")[0])) return "geojson";
   return "json";
 }

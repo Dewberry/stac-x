@@ -73,7 +73,7 @@ export function PreviewButton({
         className={className}
         onClick={() => setOpen(true)}
         aria-label={ariaLabel}
-        title={mode === "json" ? "Read it here" : "Preview the first rows"}
+        title={mode === "json" || format === "text" ? "Read it here" : "Preview the first rows"}
       >
         {icon && <Icon d={icon} size={12} />} {children}
       </button>
@@ -158,12 +158,13 @@ function DataDialog({
   const fetching = state.status === "loading" || (state.status === "done" && state.limit !== limit);
   const table = d?.kind === "table" ? d : null;
   const doc = d?.kind === "json" ? d : null;
+  const plain = d?.kind === "text" ? d : null;
   const shown = table ? table.rows.length : 0;
   // With the count unknown (a CSV read from its head), a full page means there may be more.
   const more = table ? (table.totalRows === null ? shown >= limit : table.totalRows > shown) : false;
   const foot = table && (table.totalRows === null ? shown >= FIRST : table.totalRows > FIRST);
   // The width follows what's shown; before that's known, what was asked for.
-  const kind = d?.kind ?? (mode === "json" ? "json" : "table");
+  const kind = d?.kind ?? (mode === "json" ? "json" : format === "text" ? "text" : "table");
 
   useEffect(() => {
     if (fetching || !focusRest.current) return;
@@ -191,7 +192,9 @@ function DataDialog({
       ]
     : doc
       ? [describe(doc.value), fmtBytes(doc.byteLength)]
-      : [state.status === "error" ? "Couldn't read the file." : "Reading…"];
+      : plain
+        ? [plain.truncated ? "The beginning" : "The whole file", fmtBytes(plain.byteLength)]
+        : [state.status === "error" ? "Couldn't read the file." : "Reading…"];
 
   return (
     // The click handler only closes on a backdrop click; Escape and the Close
@@ -233,6 +236,7 @@ function DataDialog({
             </div>
           )}
           {doc && <CopyButton text={JSON.stringify(doc.value, null, 2)} label="Copy JSON" />}
+          {plain && !plain.truncated && plain.text && <CopyButton text={plain.text} label="Copy text" />}
           {actions}
           <button type="button" className="sx-sheet-btn" aria-label="Close" onClick={() => ref.current?.close()}>
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -241,7 +245,13 @@ function DataDialog({
           </button>
         </div>
       </div>
-      <div className="sx-dm-scroll" ref={scrollRef}>
+      {/* Plain text has nothing to tab to, so the area takes focus itself and
+          the arrow keys scroll it (WCAG 2.1.1). */}
+      <div
+        className="sx-dm-scroll"
+        ref={scrollRef}
+        {...(plain?.text ? { tabIndex: 0, role: "region", "aria-label": `Text of ${file}` } : {})}
+      >
         {state.status === "error" ? (
           <p className="sx-dm-note sx-form-error">Couldn&apos;t read the file: {state.error}</p>
         ) : table ? (
@@ -256,8 +266,14 @@ function DataDialog({
           ) : (
             <JsonTree value={doc.value} />
           )
+        ) : plain ? (
+          plain.text ? (
+            <pre className="sx-json-text sx-plain-text">{plain.text}</pre>
+          ) : (
+            <p className="sx-dm-note">The file is empty.</p>
+          )
         ) : (
-          <Loading>{mode === "json" ? "Reading the document…" : "Reading the first rows…"}</Loading>
+          <Loading>{mode === "json" ? "Reading the document…" : format === "text" ? "Reading the file…" : "Reading the first rows…"}</Loading>
         )}
       </div>
       {doc && view === "tree" && (
@@ -271,6 +287,13 @@ function DataDialog({
             <button type="button" className="sx-linkbtn" onClick={() => scrollRef.current && setTreeOpen(scrollRef.current, false)}>
               Collapse all
             </button>
+          </span>
+        </div>
+      )}
+      {plain?.truncated && (
+        <div className="sx-dm-foot">
+          <span className="sx-dm-note">
+            This is the first {fmtBytes(new TextEncoder().encode(plain.text).length)} of {fmtBytes(plain.byteLength)}. Download it to read the rest.
           </span>
         </div>
       )}

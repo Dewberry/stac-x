@@ -1,12 +1,15 @@
 import "server-only";
 
-import type { ColumnKind, JsonPreview, Preview, TablePreview } from "./data-preview";
+import type { ColumnKind, JsonPreview, Preview, TablePreview, TextPreview } from "./data-preview";
 import { isIsoDate } from "./format";
 import { head, NotFound, read, readRange } from "./storage";
 import { geometrySummary } from "./parquet";
 
 /**
- * Previews of the text files an item carries: CSV and JSON. A CSV is read
+ * Previews of the text files an item carries: CSV, JSON and plain text. A
+ * .txt file is read from its head, the same way as a CSV, and shown as it
+ * is; one with NUL bytes in it is a binary file with the wrong name, and
+ * isn't shown at all. A CSV is read
  * from its head, so a large one costs a few hundred kB however big it is;
  * when the whole file fits in that read its rows are counted, otherwise
  * the count is left unknown. A JSON file is read whole, since it can't be
@@ -15,14 +18,34 @@ import { geometrySummary } from "./parquet";
  * as the document itself.
  */
 
-/** How much of a CSV to read, and the biggest JSON to read at all. */
+/** How much of a CSV or a text file to read, and the biggest JSON to read at all. */
 const CSV_HEAD = 512 * 1024;
+const TEXT_HEAD = 256 * 1024;
 const JSON_MAX = 8 * 1024 * 1024;
 
 export class TooBig extends Error {
   constructor(public readonly byteLength: number) {
     super("too big to preview");
   }
+}
+
+/** A file that says it's text but has bytes no text file has. */
+export class NotText extends Error {
+  constructor() {
+    super("not plain text");
+  }
+}
+
+export async function previewText(uri: string): Promise<TextPreview> {
+  const h = await head(uri);
+  if (!h) throw new NotFound(uri);
+  const whole = h.size <= TEXT_HEAD;
+  const bytes = whole ? (await read(uri)).bytes : new Uint8Array(await readRange(uri, 0, TEXT_HEAD));
+  if (bytes.includes(0)) throw new NotText();
+  let text = new TextDecoder("utf-8", { ignoreBOM: false }).decode(bytes);
+  // A cut-off read can end mid-line, or mid-character; show whole lines.
+  if (!whole && text.includes("\n")) text = text.slice(0, text.lastIndexOf("\n") + 1);
+  return { kind: "text", text, truncated: !whole, byteLength: h.size };
 }
 
 export async function previewCsv(uri: string, limit: number): Promise<TablePreview> {

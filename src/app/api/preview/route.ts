@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { isCatalogAsset } from "@/lib/catalog";
-import { fmtBytes, isCsvType, isJsonType, isParquetType } from "@/lib/format";
+import { fmtBytes, isCsvType, isJsonType, isParquetType, isTextType } from "@/lib/format";
 import { previewParquet } from "@/lib/parquet";
-import { previewCsv, previewJson, TooBig } from "@/lib/text-preview";
+import { NotText, previewCsv, previewJson, previewText, TooBig } from "@/lib/text-preview";
 import { awsAvailable, isUnderCwd, NotFound, parseRef } from "@/lib/storage";
 
 /**
  * A look inside an asset, for the preview dialog behind an asset row: the
- * first rows of a parquet or CSV file, or a JSON file as rows where it has
- * them and as a document where it doesn't. Like the asset route, it only
+ * first rows of a parquet or CSV file, a JSON file as rows where it has
+ * them and as a document where it doesn't, or the head of a .txt file. Like the asset route, it only
  * reads hrefs some catalog's assets carry. At most 100 rows: it's a look at
  * the file, not a way to read it.
  */
@@ -25,7 +25,11 @@ export async function GET(request: Request) {
   if (ref.kind === "file" && !isUnderCwd(ref.path)) {
     return NextResponse.json({ error: "Local paths outside the app are not served." }, { status: 403 });
   }
-  const reader = isParquetType(null, href) ? previewParquet : isCsvType(null, href) ? previewCsv : isJsonType(null, href) ? previewJson : null;
+  const reader = isParquetType(null, href) ? previewParquet
+    : isCsvType(null, href) ? previewCsv
+    : isJsonType(null, href) ? previewJson
+    : isTextType(null, href) ? previewText
+    : null;
   if (!reader) return NextResponse.json({ error: "this kind of file has no preview." }, { status: 415 });
   try {
     return NextResponse.json(await reader(href, limit));
@@ -35,6 +39,7 @@ export async function GET(request: Request) {
     if (e instanceof NotFound) return NextResponse.json({ error: "it isn't at that address." }, { status: 404 });
     if (e instanceof TooBig) return NextResponse.json({ error: `at ${fmtBytes(e.byteLength)} it's too big to show here. Download it instead.` }, { status: 413 });
     if (e instanceof SyntaxError) return NextResponse.json({ error: "it isn't valid JSON." }, { status: 422 });
+    if (e instanceof NotText) return NextResponse.json({ error: "it isn't plain text. Download it instead." }, { status: 422 });
     console.error(`preview: couldn't read ${href}`, e);
     return NextResponse.json({ error: "the server log has the details." }, { status: 502 });
   }

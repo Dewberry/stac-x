@@ -239,8 +239,10 @@
   opacity: 1;
   translate: 0 0;
 }
-/* A document reads as a tree, which is narrow; a table is as wide as it can get. */
-.sx-dm[data-kind="json"] {
+/* A document reads as a tree, and text as lines, which are narrow; a table
+   is as wide as it can get. */
+.sx-dm[data-kind="json"],
+.sx-dm[data-kind="text"] {
   width: min(56rem, 100vw - 2rem);
 }
 @starting-style {
@@ -385,7 +387,8 @@
 }
 @media (max-width: 39.99rem) {
   .sx-dm,
-  .sx-dm[data-kind="json"] {
+  .sx-dm[data-kind="json"],
+  .sx-dm[data-kind="text"] {
     width: 100vw;
     height: 100dvh;
     max-height: 100dvh;
@@ -525,6 +528,12 @@ a.sx-json-str {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+}
+/* A .txt file as it is: the JSON text's look, but long lines wrap, since
+   it's usually prose or a log rather than a structure to line up. */
+.sx-plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .sx-json-tkey {
   color: var(--ffx-ink-sec);
