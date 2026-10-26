@@ -27,7 +27,9 @@ export function DataTable({ data, limit }: { data: TablePreview; limit?: number 
     <table className="ffx-table sx-dt">
       <thead>
         <tr>
-          <th className="sx-dt-n" aria-label="Row" />
+          <th className="sx-dt-n">
+            <span className="sr-only">Row</span>
+          </th>
           {cols.map((c) => (
             <th key={c} className={data.kinds[c] === "number" ? "ffx-r" : undefined} title={data.kinds[c]}>
               {humanize(c)}
