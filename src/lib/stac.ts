@@ -146,6 +146,12 @@ export type Collection = {
   docHref: string | null;
   /** The metadata's latest-, predecessor- and successor-version links. */
   versionLinks: StacLink[];
+  /**
+   * Version links that point outside this environment's bucket, hrefs made
+   * absolute. The version lives in another environment; see
+   * versions-elsewhere.ts.
+   */
+  versionsElsewhere: StacLink[];
   /** The versions this collection is one of; see versions.ts. */
   series: Series;
   /** The collection's QC record, from the sidecar. Null until someone saves one. */

@@ -150,19 +150,27 @@ const VERSION_LINK = (l: StacLink) =>
  * file is gone is skipped quietly: an old version missing isn't a broken
  * catalog.
  *
- * Only links into the catalog's own bucket (or, for a local catalog, the
- * local disk) are followed. The generator also writes predecessor links
+ * Only links into the catalog's own bucket (or, for a local catalog, its
+ * own folder) are followed. The generator also writes predecessor links
  * across environments (Development's stream-gages names the copy in the
  * Sandbox bucket as its predecessor), and that copy belongs to the other
- * environment: it's reviewed there, and this app already says where a
- * collection's other copies are.
+ * environment: it's reviewed there. Those links are returned in
+ * `elsewhere`, by the document that carries them, so the pages can offer
+ * the version where it lives (lib/versions-elsewhere.ts).
  */
 export async function collectionsOf(
   catalogUri: string,
-): Promise<{ collections: string[]; parents: Record<string, string>; versions: string[]; missing: { href: string; error: string }[] }> {
+): Promise<{
+  collections: string[];
+  parents: Record<string, string>;
+  versions: string[];
+  elsewhere: Record<string, StacLink[]>;
+  missing: { href: string; error: string }[];
+}> {
   const collections: string[] = [];
   const parents: Record<string, string> = {};
   const versions: string[] = [];
+  const elsewhere: Record<string, StacLink[]> = {};
   const missing: { href: string; error: string }[] = [];
   const seen = new Set<string>();
   const docs = new Map<string, Record<string, unknown>>();
@@ -202,8 +210,9 @@ export async function collectionsOf(
   // Other versions, after every child is known, so a version the folder
   // links itself is a child first. Each round can turn up more (0.3 names
   // 0.2, which names 0.1), so it runs until nothing new is found.
-  const store = isS3(start) ? start.slice(0, start.indexOf("/", "s3://".length) + 1) : null;
-  const inStore = (uri: string) => (store ? uri.startsWith(store) : !isS3(uri));
+  // The catalog's own store: its bucket, or for a local catalog its folder.
+  const store = isS3(start) ? start.slice(0, start.indexOf("/", "s3://".length) + 1) : start.slice(0, start.lastIndexOf("/") + 1);
+  const inStore = (uri: string) => uri.startsWith(store);
   for (let done = 0; done < collections.length; ) {
     const batch = collections.slice(done);
     done = collections.length;
@@ -214,16 +223,13 @@ export async function collectionsOf(
         return links.filter(VERSION_LINK).flatMap((l) => {
           const target = resolveHref(l.href, uri);
           if (inStore(target)) return [walk(target, parents[uri] ?? start, true)];
-          if (!seen.has(target)) {
-            seen.add(target);
-            console.log(`stac-x: ${uri} names ${target} as its ${l.rel}, which is outside this catalog's bucket, so it's left to its own environment`);
-          }
+          (elsewhere[uri] ??= []).push({ ...l, href: target });
           return [];
         });
       }),
     );
   }
-  return { collections, parents, versions, missing };
+  return { collections, parents, versions, elsewhere, missing };
 }
 
 export async function readCollectionJson(uri: string): Promise<JsonStac> {

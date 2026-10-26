@@ -62,7 +62,15 @@ type Cache = {
    * link, that collection's file; and the ones reached only through
    * another version's links (absent on a listing from before those were followed).
    */
-  listing: { at: number; uris: string[]; parents: Record<string, string>; versions?: string[]; errors: string[] } | null;
+  listing: {
+    at: number;
+    uris: string[];
+    parents: Record<string, string>;
+    versions?: string[];
+    /** Version links into other buckets, by the document that carries them. */
+    elsewhere?: Record<string, StacLink[]>;
+    errors: string[];
+  } | null;
   docs: Map<string, { at: number; doc: CollectionDoc }>;
   building: Promise<Catalog> | null;
   /** The last catalog built, served while the next one is checked. Null until the first build and after a write. */
@@ -224,6 +232,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     c.kind = kindOf(c);
     const parent = c.docHref ? listing.parents[c.docHref] : undefined;
     c.parentMissing = !!parent && !loadedHrefs.has(parent);
+    c.versionsElsewhere = (c.docHref && listing.elsewhere?.[c.docHref]) || [];
   }
   try {
     const series = groupVersions(collections);
@@ -253,6 +262,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
   const uris: string[] = [];
   const parents: Record<string, string> = {};
   const versions: string[] = [];
+  const elsewhere: Record<string, StacLink[]> = {};
   const errors: string[] = [];
   for (const entry of configuredSources(env)) {
     try {
@@ -267,6 +277,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
         uris.push(...found.collections);
         versions.push(...found.versions);
         Object.assign(parents, found.parents);
+        Object.assign(elsewhere, found.elsewhere);
         for (const m of found.missing) {
           errors.push(`${m.href}: ${m.error}`);
           console.error(`stac-x: ${uri} links to ${m.href}, which couldn't be read: ${m.error}`);
@@ -277,7 +288,7 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
       console.error(`stac-x: listing ${entry} failed:`, e);
     }
   }
-  cache.listing = { at: now, uris: Array.from(new Set(uris)), parents, versions, errors };
+  cache.listing = { at: now, uris: Array.from(new Set(uris)), parents, versions, elsewhere, errors };
   return cache.listing;
 }
 
@@ -463,6 +474,8 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
       versionLinks: Array.isArray(links)
         ? (links as StacLink[]).filter((l) => l && typeof l.href === "string" && VERSION_RELS.includes(l.rel))
         : [],
+      // Filled in by build(), from the listing.
+      versionsElsewhere: [],
       series: lone(id),
       qc,
       history,
@@ -503,6 +516,7 @@ function derivedCollection(cache: Cache, id: string, stacId: string, items: Cata
     experimental: false,
     docHref: docHrefOf(items),
     versionLinks: [],
+    versionsElsewhere: [],
     series: lone(id),
     qc,
     history,

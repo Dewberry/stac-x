@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCollection } from "@/lib/catalog";
-import { isEnv } from "@/lib/env";
+import { envMeta, isEnv } from "@/lib/env";
 import { attachment, collectionJsonHref, withBase, withEnvHome } from "@/lib/utils";
 import { qcFields, VERSION_SCHEMA } from "@/lib/stac";
 import { versionName } from "@/lib/versions";
+import { versionsElsewhere } from "@/lib/versions-elsewhere";
 
 /** The collection as STAC JSON, with its items' links. */
 export async function GET(req: Request, { params }: { params: Promise<{ env: string; collection: string }> }) {
@@ -34,6 +35,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
           ...(at >= 0 && at < versions.length - 1 ? [link("successor-version", versions[at + 1].id)] : []),
         ]
       : [];
+  // Versions held in another environment, as the source links named them.
+  const away = (await versionsElsewhere(env, c)).map((v) => ({
+    rel: v.rel,
+    href: collectionJsonHref(v.env, v.collection.id),
+    type: "application/json",
+    title: `${versionName(v.label)} (${envMeta(v.env).label})`,
+  }));
 
   return NextResponse.json({
     type: c.type,
@@ -59,6 +67,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
       { rel: "self", href: base, type: "application/json" },
       { rel: "root", href: withBase(withEnvHome(env)), type: "text/html" },
       ...versionLinks,
+      ...away,
       ...c.items.map((i) => ({ rel: "item", href: `${base}/items/${encodeURIComponent(i.id)}`, type: "application/geo+json" })),
     ],
     ...(Object.keys(c.assets).length ? { assets: c.assets } : {}),

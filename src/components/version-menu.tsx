@@ -13,17 +13,22 @@ export type VersionChoice = {
   href: string;
   /** The name shown, e.g. "Version 2" or "Previous version". */
   name: string;
+  /** The version label behind the name, for ordering; null when nothing names one. */
+  label?: string | null;
   /** The id under the name: the collection's, or the item's when that's what differs. */
   id: string;
   latest: boolean;
   deprecated: boolean;
   qc: QcStatus;
+  /** The environment the version lives in, when it isn't this one: "Sandbox". */
+  where?: string;
 };
 
 /**
- * The versions of a collection or an item in this environment, newest first,
- * each with its review state. Picking one opens that version's page. Only
- * shown when there's more than one version to pick from.
+ * The versions of a collection or an item, newest first, each with its
+ * review state. Picking one opens that version's page, in this environment
+ * or, for a version held elsewhere, in the one that has it. Only shown
+ * when there's more than one version to pick from.
  */
 export function VersionMenu({ current, versions, noun = "versions" }: { current: string; versions: VersionChoice[]; noun?: string }) {
   const here = versions.find((v) => v.key === current);
@@ -52,6 +57,7 @@ export function VersionMenu({ current, versions, noun = "versions" }: { current:
                     <span>{v.name}</span>
                     {v.latest && <span className="sx-tag">Latest</span>}
                     {v.deprecated && <span className="sx-tag" data-tone="muted">Deprecated</span>}
+                    {v.where && <span className="sx-tag" data-tone="muted">In {v.where}</span>}
                   </span>
                   <span className="sx-version-sub">
                     <span className="ffx-id">{v.id}</span>

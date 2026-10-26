@@ -144,6 +144,12 @@ function byVersion(a: Input, b: Input) {
   return key(a).localeCompare(key(b), "en", { numeric: true }) || a.id.localeCompare(b.id);
 }
 
+/** Version labels in order: "0.2" before "0.10"; an unlabeled version stays where it was. */
+export function compareLabels(a: string | null, b: string | null): number {
+  if (!a || !b) return 0;
+  return a.replace(/^v/i, "").localeCompare(b.replace(/^v/i, ""), "en", { numeric: true });
+}
+
 /** A link's href against the document it's in: S3, http or a local path. */
 function resolve(href: string, base: string | null): string {
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) || !base) return href;

@@ -11,19 +11,22 @@ import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
 import { CollapsiblePanel, homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
-import { VersionMenu } from "@/components/version-menu";
+import { VersionMenu, type VersionChoice } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { childCollectionsOf, getCatalog, getCollection } from "@/lib/catalog";
 import { collectionAncestors, hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
+import { envMeta } from "@/lib/env";
 import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
+import type { Collection } from "@/lib/stac";
+import { versionsElsewhere } from "@/lib/versions-elsewhere";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { dataFileOf } from "@/lib/data-file";
 import { formatTag } from "@/lib/data-preview";
 import { itemRowsOf } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
 import { assetHref, collectionHref, collectionJsonHref, itemHref, scopeHref } from "@/lib/utils";
-import { versionName } from "@/lib/versions";
+import { compareLabels, versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
 
@@ -106,8 +109,41 @@ export default async function CollectionPage({ params }: Props) {
   ];
 
   const version = c.series.versions.find((v) => v.id === c.id)?.label ?? c.version;
+  // The versions to pick from: this environment's, then any held in
+  // another environment, in version order. A newer one elsewhere is the
+  // latest; otherwise this environment's latest is.
+  const away = await versionsElsewhere(env, c);
+  const fileOf = (x: Collection) => x.series.versions.find((v) => v.id === x.id)?.file ?? null;
   // Versions that share one STAC id are told apart by their files instead.
-  const sameId = c.series.versions.length > 1 && c.series.versions.every((v) => v.stacId === c.stacId);
+  const sameId = away.every((v) => v.collection.stacId === c.stacId) && c.series.versions.every((v) => v.stacId === c.stacId);
+  const choices: VersionChoice[] = [
+    ...c.series.versions.map((v) => ({
+      key: v.id,
+      href: collectionHref(env, v.id),
+      name: versionName(v.label),
+      label: v.label,
+      id: sameId ? v.file ?? v.stacId : v.stacId,
+      latest: v.id === c.series.latest,
+      deprecated: v.deprecated,
+      qc: v.qc,
+    })),
+    ...away.map((v) => ({
+      key: `${v.env}:${v.collection.id}`,
+      href: collectionHref(v.env, v.collection.id),
+      name: versionName(v.label),
+      label: v.label,
+      id: sameId ? fileOf(v.collection) ?? v.collection.stacId : v.collection.stacId,
+      latest: false,
+      deprecated: v.collection.deprecated,
+      qc: v.collection.qc?.qc ?? "pending",
+      where: envMeta(v.env).label,
+    })),
+  ].sort((a, b) => compareLabels(a.label, b.label));
+  const newerAway = away.some((v) => v.rel === "successor-version" || v.rel === "latest-version");
+  if (newerAway) {
+    const top = [...choices].reverse().find((x) => x.where);
+    for (const x of choices) x.latest = x === top;
+  }
   const meta: Entry[] = [
     { key: "id", value: c.stacId, label: "Id" },
     ...(version ? [{ key: "version", value: version, label: "Version" }] : []),
@@ -138,7 +174,7 @@ export default async function CollectionPage({ params }: Props) {
         title={c.title}
         subtitle={
           <>
-            {c.series.versions.length < 2 && c.version && <span>{versionName(c.version)}</span>}
+            {choices.length < 2 && c.version && <span>{versionName(c.version)}</span>}
             <span>
               <span className="ffx-num">{fmtNum(c.itemCount)}</span> {c.itemCount === 1 ? "item" : "items"}
             </span>
@@ -154,22 +190,7 @@ export default async function CollectionPage({ params }: Props) {
             <QcChip status={c.qc?.qc} />
           </>
         }
-        nav={
-          c.series.versions.length > 1 ? (
-            <VersionMenu
-              current={c.id}
-              versions={c.series.versions.map((v) => ({
-                key: v.id,
-                href: collectionHref(env, v.id),
-                name: versionName(v.label),
-                id: sameId ? v.file ?? v.stacId : v.stacId,
-                latest: v.id === c.series.latest,
-                deprecated: v.deprecated,
-                qc: v.qc,
-              }))}
-            />
-          ) : undefined
-        }
+        nav={choices.length > 1 ? <VersionMenu current={c.id} versions={choices} /> : undefined}
         actions={
           <>
             <PreviewButton

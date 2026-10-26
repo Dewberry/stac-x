@@ -10,9 +10,10 @@ import { MetadataPanel, type Entry } from "@/components/meta-table";
 import { breakable } from "@/components/breakable";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
-import { VersionMenu } from "@/components/version-menu";
+import { VersionMenu, type VersionChoice } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { getCatalog, getCollection } from "@/lib/catalog";
+import { envMeta } from "@/lib/env";
 import { LOWER_48 } from "@/lib/map-area";
 import { pageEnv } from "@/lib/page-env";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
@@ -20,7 +21,8 @@ import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { itemVersions, type ItemVersion } from "@/lib/item-versions";
 import { VERSION_RELS } from "@/lib/stac";
 import { collectionHref, itemHref, itemJsonHref } from "@/lib/utils";
-import { versionName } from "@/lib/versions";
+import { compareLabels, versionName } from "@/lib/versions";
+import { versionsElsewhere } from "@/lib/versions-elsewhere";
 
 export const dynamic = "force-dynamic";
 
@@ -53,13 +55,45 @@ export default async function ItemPage({ params }: Props) {
   const { collections } = await getCatalog(env);
   const versions = itemVersions(c, item, collections);
   const key = (v: ItemVersion) => `${v.collection}/${v.item}`;
+  // The same item in a version of the collection held in another environment.
+  const away = (await versionsElsewhere(env, c)).filter((v) => v.collection.items.some((i) => i.id === item.id));
   // What tells a version's collection apart under its name: its STAC id,
   // or its file when every version of this collection shares one id.
-  const sameId = c.series.versions.length > 1 && c.series.versions.every((v) => v.stacId === c.stacId);
+  const sameId =
+    c.series.versions.length + away.length > 1 &&
+    c.series.versions.every((v) => v.stacId === c.stacId) &&
+    away.every((v) => v.collection.stacId === c.stacId);
   const versionId = (id: string) => {
     const v = c.series.versions.find((x) => x.id === id);
     return sameId ? v?.file ?? v?.stacId ?? id : collections.find((x) => x.id === id)?.stacId ?? id;
   };
+  const choices: VersionChoice[] = [
+    ...versions.map((v) => ({
+      key: key(v),
+      href: itemHref(env, v.collection, v.item),
+      name: v.label ? versionName(v.label) : v.rel ? REL_NAME[v.rel] : key(v) === `${c.id}/${item.id}` ? "This version" : versionName(null),
+      label: v.label,
+      id: v.item === item.id ? versionId(v.collection) : v.item,
+      latest: v.latest,
+      deprecated: v.deprecated,
+      qc: v.qc,
+    })),
+    ...away.map((v) => ({
+      key: `${v.env}:${v.collection.id}/${item.id}`,
+      href: itemHref(v.env, v.collection.id, item.id),
+      name: versionName(v.label),
+      label: v.label,
+      id: sameId ? v.collection.series.versions.find((x) => x.id === v.collection.id)?.file ?? v.collection.stacId : v.collection.stacId,
+      latest: false,
+      deprecated: v.collection.deprecated,
+      qc: v.collection.qc?.qc ?? "pending",
+      where: envMeta(v.env).label,
+    })),
+  ].sort((a, b) => compareLabels(a.label ?? null, b.label ?? null));
+  if (away.some((v) => v.rel === "successor-version" || v.rel === "latest-version")) {
+    const top = [...choices].reverse().find((x) => x.where);
+    for (const x of choices) x.latest = x === top;
+  }
 
   const p = item.properties;
   const kind = itemKindLabel(c, item);
@@ -123,23 +157,7 @@ export default async function ItemPage({ params }: Props) {
             )}
           </>
         }
-        nav={
-          versions.length > 1 ? (
-            <VersionMenu
-              current={`${c.id}/${item.id}`}
-              noun="versions of this item"
-              versions={versions.map((v) => ({
-                key: key(v),
-                href: itemHref(env, v.collection, v.item),
-                name: v.label ? versionName(v.label) : v.rel ? REL_NAME[v.rel] : key(v) === `${c.id}/${item.id}` ? "This version" : versionName(null),
-                id: v.item === item.id ? versionId(v.collection) : v.item,
-                latest: v.latest,
-                deprecated: v.deprecated,
-                qc: v.qc,
-              }))}
-            />
-          ) : undefined
-        }
+        nav={choices.length > 1 ? <VersionMenu current={`${c.id}/${item.id}`} noun="versions of this item" versions={choices} /> : undefined}
         actions={
           <>
             <PreviewButton
