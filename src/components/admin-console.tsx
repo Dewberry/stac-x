@@ -188,11 +188,12 @@ export function AdminConsole({
   const ordered = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
   const next = nextEnv(env);
   // What approving does here, said plainly: only some datasets can be sent
-  // on yet (lib/promote.ts), and catalogs never are.
-  const sendable = shown.filter((r) => r.sendable).length;
+  // on yet (lib/promote.ts), and catalogs never are. Over every dataset, not
+  // the tab, so an empty tab doesn't claim they all can be.
+  const sendable = rows.filter((r) => r.sendable).length;
   const approveNote = !next
     ? "Catalogs are never approved on their own."
-    : sendable === shown.length
+    : sendable === rows.length
       ? `Approving a dataset sends it to ${next.label}. Catalogs are never approved on their own.`
       : sendable === 0
         ? `Approving a dataset records the decision here; sending it to ${next.label} along with the catalog path it sits in is coming soon. Catalogs are never approved on their own.`
@@ -305,7 +306,8 @@ export function AdminConsole({
             </label>
             <label className="ffx-field ffx-field-select">
               <span className="ffx-field-label">Sort</span>
-              <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              {/* Named here too: on a phone the label beside it is hidden, and its name with it. */}
+              <select value={sort} aria-label="Sort" onChange={(e) => setSort(e.target.value as Sort)}>
                 {SORTS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
@@ -315,7 +317,7 @@ export function AdminConsole({
             </label>
             <label className="ffx-field ffx-field-select">
               <span className="ffx-field-label">Group by</span>
-              <select value={grouping} onChange={(e) => setGrouping(e.target.value as Grouping)}>
+              <select value={grouping} aria-label="Group by" onChange={(e) => setGrouping(e.target.value as Grouping)}>
                 {GROUPINGS.map((g) => (
                   <option key={g.value} value={g.value}>
                     {g.label}
@@ -551,7 +553,7 @@ function QueueTable({
           <tbody key={g.key}>
             {g.name && (
               <tr className="sx-qgroup">
-                <th scope="colgroup" colSpan={6}>
+                <th scope="rowgroup" colSpan={6}>
                   <span className="sx-qgroup-in">
                     <FolderGlyph />
                     <span className="sx-qgroup-name">{g.name}</span>

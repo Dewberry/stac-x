@@ -16,7 +16,8 @@ import { splitVersion, versionName } from "@/lib/versions";
  * 404. When another version of it is here, offer that too: Development can
  * be a version ahead of Production. The card says where the collection
  * stands in the furthest environment it has reached, so you know whether
- * it's on its way.
+ * it's on its way. A catalog isn't reviewed or sent anywhere, so for one
+ * the card only says where it is.
  */
 export async function NotInEnv({ env, collection }: { env: EnvKey; collection: string }) {
   const elsewhere = await Promise.all(
@@ -31,7 +32,8 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
   const now = await requestTime();
   // The furthest environment it has reached is the one that says how close it is.
   const furthest = [...elsewhere].reverse().find((x) => x.c);
-  const stand = furthest?.c
+  const catalog = furthest?.c?.kind === "catalog";
+  const stand = furthest?.c && !catalog
     ? {
         env: envMeta(furthest.env).label,
         qc: furthest.c.qc?.qc ?? "pending",
@@ -46,7 +48,7 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
       <div className="sx-msg-stage">
         <MessageCard
           mark={missing ? "missing" : "elsewhere"}
-          kicker={missing ? "404" : "Collection"}
+          kicker={missing ? "404" : catalog ? "Catalog" : "Collection"}
           title={missing ? "Collection not found" : `Not in ${here} yet`}
           aside={
             sibling && (
@@ -79,9 +81,11 @@ export async function NotInEnv({ env, collection }: { env: EnvKey; collection: s
             <>
               <p>
                 <code className="ffx-id">{collection}</code> is in {new Intl.ListFormat("en-US").format(found.map((k) => envMeta(k).label))}.{" "}
-                {envMeta(env).onPath
-                  ? `A collection reaches ${here} when it's approved in the environment before it.`
-                  : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`}
+                {catalog
+                  ? `A catalog is in ${here} once a dataset inside it is.`
+                  : envMeta(env).onPath
+                    ? `A collection reaches ${here} when it's approved in the environment before it.`
+                    : `Nothing is promoted into ${here}. It only holds what its own catalog lists.`}
               </p>
               {stand && (
                 <p className="sx-msg-state">

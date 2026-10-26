@@ -31,7 +31,7 @@ export async function saveQcAction(_prev: SaveState, form: FormData): Promise<Sa
     const c = await getCollection(env, collection);
     if (!c) return { ok: false, error: "Collection not found." };
     // A catalog is a folder; there's nothing of its own to decide on.
-    if (c.kind === "catalog") return { ok: false, error: "Catalogs aren't reviewed. Review the datasets inside it." };
+    if (c.kind === "catalog") return { ok: false, error: "A catalog isn't reviewed. Review the datasets inside it." };
     const source = c.sources[0];
     if (!source) return { ok: false, error: "This collection has no source file to save beside." };
     const input = validateEdit({

@@ -170,6 +170,10 @@
   color: var(--ffx-ink-mut);
   white-space: nowrap;
 }
+/* Inside the panel's rounded edge the ring would be cut off; draw it inside. */
+.sx-inside-row:focus-visible {
+  outline-offset: -2px;
+}
 .sx-inside-row:hover .sx-row-title {
   text-decoration: underline;
   text-underline-offset: 3px;

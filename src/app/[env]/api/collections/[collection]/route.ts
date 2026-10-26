@@ -36,7 +36,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
       : [];
 
   return NextResponse.json({
-    type: "Collection",
+    type: c.type,
     stac_version: "1.0.0",
     ...(versioned ? { stac_extensions: [VERSION_SCHEMA] } : {}),
     id: c.id,
@@ -52,7 +52,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
     ...c.extra,
     ...(versioned ? { version: here?.label ?? c.version, deprecated: c.deprecated } : {}),
     ...(c.experimental ? { experimental: true } : {}),
-    ...qcFields(c.qc),
+    // A catalog has no review state; a pending one would say it waits for review.
+    ...(c.kind === "dataset" ? qcFields(c.qc) : {}),
     "stac-x:environment": env,
     "stac-x:sources": c.sources,
     "stac-x:item_count": c.itemCount,

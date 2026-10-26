@@ -246,7 +246,7 @@
   }
 }
 
-/* Below 64rem the columns are one: map, children, items, description, metadata.
+/* Below 64rem the columns are one: map, items, the catalogs inside, description, metadata.
    The columns give up their boxes and the panels take an order. */
 @media (max-width: 63.99rem) {
   .sx-collection-cols {
@@ -258,10 +258,10 @@
   .sx-collection-cols .sx-mapcard {
     order: 1;
   }
-  .sx-collection-cols #child-collections {
+  .sx-collection-cols #items {
     order: 2;
   }
-  .sx-collection-cols #items {
+  .sx-collection-cols #inside {
     order: 3;
   }
   .sx-collection-cols #about {

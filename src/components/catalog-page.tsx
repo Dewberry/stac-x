@@ -18,8 +18,8 @@ import { collectionHref } from "@/lib/utils";
  * then the catalogs inside it with how much each holds. The right column
  * says where it sits and the few facts it has.
  *
- * The panels sit where a collection page has them in STAC Browser:
- * browsing on the left, the rest on the right.
+ * The columns split the way a dataset's page does: what to browse on the
+ * left, the rest on the right.
  */
 
 /** A node directly inside a catalog, or inside a dataset that holds catalogs. */
