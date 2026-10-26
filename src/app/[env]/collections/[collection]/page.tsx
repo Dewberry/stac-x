@@ -38,9 +38,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /**
  * A catalog (a folder, lib/collection-hierarchy.ts) gets its own page,
- * components/catalog-page.tsx. A dataset has the STAC Browser layout: the
- * left column describes it (description, the map, assets, metadata) and
- * the right column is its items. QC is recorded for the
+ * components/catalog-page.tsx. A dataset's page keeps the home console's
+ * shape: the list on the left (its description, folded, then its items and
+ * the rows they came from) and the map on the right, with its assets and
+ * metadata under the map. The panels are STAC Browser's; the columns are
+ * the home page's, so the map stays where it was when a dataset is opened
+ * from there. QC is recorded for the
  * dataset as a whole and reviewed from Admin, so the page only shows its
  * state in the subtitle. Under the items, the catalogs it holds, if any,
  * and the first rows of the file the items came from, for a look at the
@@ -208,7 +211,7 @@ export default async function CollectionPage({ params }: Props) {
       <div className="sx-cols sx-collection-cols">
         <div className="sx-col">
           {(c.description || c.keywords.length > 0 || facts.length > 0) && (
-            <CollapsiblePanel title="Description" id="about">
+            <CollapsiblePanel title="Description" id="about" defaultOpen={false}>
               {c.description && <div className="sx-desc ffx-prose">{c.description}</div>}
               {c.keywords.length > 0 && (
                 <ul className="sx-keywords" aria-label="Keywords">
@@ -224,34 +227,6 @@ export default async function CollectionPage({ params }: Props) {
               )}
             </CollapsiblePanel>
           )}
-          {brokenGeometry && (
-            <p className="sx-callout" role="status">
-              The geometry in this dataset&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
-              The rest of the page shows what the file has.
-            </p>
-          )}
-          <div className="sx-mapcard">
-            <LinkedMap
-              data={geo}
-              bbox={brokenGeometry ? LOWER_48 : c.bbox}
-              label={`Items of ${c.title}`}
-              hint={brokenGeometry ? "Geometry couldn't be read." : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
-              tip={brokenGeometry ? undefined : "Click one for a link to its page."}
-            />
-          </div>
-          {/* Collection assets stay below the map; overview plots show inline. */}
-          {Object.keys(c.assets).length > 0 && (
-            <CollapsiblePanel title="Assets" note={assetNote(c.assets)} id="assets">
-              <Assets assets={c.assets} plotsFirst />
-            </CollapsiblePanel>
-          )}
-          <Panel title="Metadata" id="meta">
-            <div className="pb-2">
-              <MetaTable entries={meta} />
-            </div>
-          </Panel>
-        </div>
-        <div className="sx-col">
           <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
             <ItemsList env={env} collection={c.id} rows={rows} />
           </Panel>
@@ -290,6 +265,34 @@ export default async function CollectionPage({ params }: Props) {
               <DataPanel href={`${collectionJsonHref(env, c.id)}/data`} />
             </Panel>
           )}
+        </div>
+        <div className="sx-col">
+          {brokenGeometry && (
+            <p className="sx-callout" role="status">
+              The geometry in this dataset&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
+              The rest of the page shows what the file has.
+            </p>
+          )}
+          <div className="sx-mapcard">
+            <LinkedMap
+              data={geo}
+              bbox={brokenGeometry ? LOWER_48 : c.bbox}
+              label={`Items of ${c.title}`}
+              hint={brokenGeometry ? "Geometry couldn't be read." : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
+              tip={brokenGeometry ? undefined : "Click one for a link to its page."}
+            />
+          </div>
+          {/* Collection assets stay below the map; overview plots show inline. */}
+          {Object.keys(c.assets).length > 0 && (
+            <CollapsiblePanel title="Assets" note={assetNote(c.assets)} id="assets">
+              <Assets assets={c.assets} plotsFirst />
+            </CollapsiblePanel>
+          )}
+          <Panel title="Metadata" id="meta">
+            <div className="pb-2">
+              <MetaTable entries={meta} />
+            </div>
+          </Panel>
         </div>
       </div>
       </ItemHoverProvider>

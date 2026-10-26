@@ -119,9 +119,10 @@ page shows what's inside it and where it sits, with no map, items or review
 state. Loaded children whose parents couldn't be loaded stay at the top level,
 and rootless cyclic branches stay visible rather than disappearing.
 
-Collection pages follow STAC Browser: the description, map, assets and
-metadata on the left, the items on the right; item pages keep their maps at
-the top left. Description and Assets open to begin with and fold away. On
+Dataset pages keep the home page's shape: the description (folded to start)
+and the items on the left, the map with the assets and metadata on the right.
+Item pages keep their maps at the top left. Assets open to begin with and
+fold away. On
 desktop, the handle on the edge of the map hides the dataset list and brings it
 back. Long item lists scroll in their own box so the rest of the page stays in
 view; item search, sort and paging stay outside the scrolling rows. Phones keep
