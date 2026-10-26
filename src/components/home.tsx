@@ -439,7 +439,9 @@ export function HomeConsole({
   );
 
   const areaHighlight = (current ? pickedInArea : null) ?? (activeHovered ? (bySlug.get(activeHovered)?.inArea ?? false) : false);
-  const areaCovered = current?.drawn === "area" || previewArea?.drawn === "area";
+  // The collection lighting up the whole area, when one is: the preview
+  // draws over the selection, so it's named first.
+  const coveredBy = (previewArea?.drawn === "area" ? previewArea : current?.drawn === "area" ? current : null)?.name ?? null;
   const rows: Rows = current ? (rowsBySlug[current.slug] ?? null) : null;
 
   return (
@@ -454,7 +456,9 @@ export function HomeConsole({
               ? `Loading map preview for ${previewArea.name}.`
               : previewArea.lazy && !footprints[previewArea.slug]?.length
                 ? `Map preview couldn't be loaded for ${previewArea.name}.`
-                : `Previewing ${previewArea.name} on the map.`
+                : previewArea.drawn === "area"
+                  ? `Previewing ${previewArea.name} on the map. It covers all of ${area?.name ?? "the area"}.`
+                  : `Previewing ${previewArea.name} on the map.`
             : ""}
         </p>
         <HomeSplit initial={railShare}>
@@ -468,7 +472,7 @@ export function HomeConsole({
               shown={activeSelected}
               preview={preview}
               areaHighlight={areaHighlight}
-              areaCovered={areaCovered}
+              coveredBy={coveredBy}
               hoverKeys={keys}
               onHoverKeys={setHoverKeys}
               ringIds={ringIds}

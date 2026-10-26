@@ -1055,6 +1055,41 @@ button.sx-map-pill:hover {
 button.sx-map-pill svg {
   flex: none;
 }
+/* Says the lit area is a collection's footprint (components/home-map.tsx).
+   Top left, level with the map controls; it wraps rather than cut off a
+   long name, and stops short of the controls. The key is the lit area in
+   small: the area's fill inside its outline. */
+.sx-map-covered {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(28rem, calc(100% - 76px));
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-small);
+  line-height: 1.3;
+  color: var(--ffx-ink-sec);
+  pointer-events: none;
+}
+.sx-map-covered b {
+  font-weight: 600;
+  color: var(--ffx-ink);
+}
+.sx-map-covered-key {
+  flex: none;
+  width: 14px;
+  height: 11px;
+  border: 1.5px solid var(--ffx-ink);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ffx-trace) 30%, var(--ffx-surface));
+}
 /* One item under the cursor on the home map: its name, its id and dates,
    and what a click does, on a white card. */
 .ffx-map-tip.sx-map-tip {

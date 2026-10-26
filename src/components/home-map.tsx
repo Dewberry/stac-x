@@ -74,7 +74,9 @@ import { MapCard } from "./map-card";
  * it; the map never moves on a click.
  *
  * A collection whose shapes contain the whole area has no footprint of its
- * own: the area lights up instead, since the shape would tint the whole map.
+ * own: the area lights up instead, since the shape would tint the whole map,
+ * and a card in the corner names the collection and says it covers all of
+ * the area, so nobody has to guess what the blue means.
  */
 
 const SRC_ITEMS = "sx-items";
@@ -306,7 +308,7 @@ export function HomeMap({
   shown,
   preview,
   areaHighlight,
-  areaCovered,
+  coveredBy,
   hoverKeys,
   onHoverKeys,
   ringIds,
@@ -328,8 +330,12 @@ export function HomeMap({
   preview: string | null;
   /** The selected or pointed-at collection is in the area, so its outline is heavier. */
   areaHighlight: boolean;
-  /** A drawn collection contains the whole area, so the area is lit up as its footprint. */
-  areaCovered: boolean;
+  /**
+   * The name of the drawn collection that contains the whole area, so the
+   * area is lit up as its footprint and a card on the map says so; null
+   * when none does.
+   */
+  coveredBy: string | null;
   /** The shapes of the shown collection to outline: pointed at here or in the rail. */
   hoverKeys: string[];
   onHoverKeys: (keys: string[]) => void;
@@ -380,6 +386,7 @@ export function HomeMap({
   const fitLabelRef = useRef(fitLabel);
   const controlsRef = useRef<Controls | null>(null);
   const areaHighlightRef = useRef(areaHighlight);
+  const areaCovered = coveredBy !== null;
   const areaCoveredRef = useRef(areaCovered);
   const hoverKeysRef = useRef(hoverKeys);
   const ringIdsRef = useRef(ringIds);
@@ -679,6 +686,16 @@ export function HomeMap({
         </div>
       )}
       {cardHost && card && current && createPortal(<HomeCard area={current} hits={card.hits} />, cardHost)}
+      {/* A lit area on its own reads as the area's usual styling, so the
+          card names what's lighting it. */}
+      {coveredBy && (
+        <div className="sx-map-covered">
+          <i className="sx-map-covered-key" aria-hidden="true" />
+          <span>
+            <b>{coveredBy}</b> covers all of {area?.name ?? "the area"}
+          </span>
+        </div>
+      )}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       <figcaption className="ffx-map-readout">
         <span className="sx-map-pills">
