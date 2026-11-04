@@ -4,7 +4,8 @@
 
 A STAC viewer for reviewing a catalog before it's published.
 
-- Reads static STAC catalogs and stac-geoparquet files, from S3 or local folders.
+- Reads static STAC catalogs and stac-geoparquet files (`.parquet`, `.geoparquet`
+  or `.pq`), from S3 or local folders.
 - Draws every collection on a map.
 - Lets a reviewer mark each collection approved, needs revision or rejected.
 - Approving a collection copies its files into the next environment
@@ -84,14 +85,19 @@ Each value is one or more of these, separated by commas:
   It's followed through its `child` links to its collections, and each
   collection's items come from linked GeoParquet or JSON files.
 - **A single STAC Collection JSON file**, with linked items or metadata only.
-- **An S3 prefix or local folder.** Every parquet file and `catalog.json` in it is read.
-- **A single parquet file**, on S3 or local.
+- **An S3 prefix or local folder.** Every parquet file in it is read, whether
+  it's named `.parquet`, `.geoparquet` or `.pq`, along with `catalog.json` or a
+  versioned `catalog-v1.json`. Other JSON files in the folder are only read
+  when a catalog or collection links to them.
+- **A single parquet file**, on S3 or local, with any of those three extensions.
 
 Collections can link individual JSON Items with `rel="item"`, or JSON
 ItemCollections (GeoJSON FeatureCollections) with `rel="items"`. ItemCollection
 `next` links are followed, repeated files and item ids are read once, and
 relative item links and asset hrefs resolve against the JSON file containing
-them. Linked GeoParquet takes precedence when both formats are available.
+them. A link to a parquet file is recognized by its media type or by a
+`.parquet`, `.geoparquet` or `.pq` extension. Linked GeoParquet takes precedence
+when both formats are available.
 JSON reads and ETag checks run eight files at a time; GeoParquet is still
 recommended for large collections. Changes to linked items or pages are
 picked up at the configured refresh interval, even if the collection is unchanged.
