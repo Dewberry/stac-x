@@ -7,9 +7,9 @@
 # Minor and patch updates arrive together in one pull request a week, so
 # there's one thing to review, not twenty. Packages that have to move
 # together (Next with its lint config, React with its DOM and types) get a
-# pull request of their own, and so does any major version. A release has
-# to be a week old before it's proposed, which keeps out one that gets
-# pulled the day after it ships.
+# pull request of their own, and so does any major version, apart from the
+# three under "ignore" below. A release has to be a week old before it's
+# proposed, which keeps out one that gets pulled the day after it ships.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -20,6 +20,25 @@ updates:
     open-pull-requests-limit: 5
     cooldown:
       default-days: 7
+    ignore:
+      # eslint 10 and typescript 7 can't be installed here yet. The lint
+      # plugins (eslint-plugin-import, -jsx-a11y and -react) still ask for
+      # eslint 9 or older, and typescript-eslint asks for typescript below
+      # 6.1, so npm refuses the update, and Dependabot marks its whole
+      # weekly run as failed. Take each of these off the list once those
+      # packages support the new major.
+      - dependency-name: eslint
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+      # Node's types stay with the oldest Node the README supports (20).
+      # Types for a newer Node would let code use APIs that aren't in the
+      # Node it runs on.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       next:
         patterns:
