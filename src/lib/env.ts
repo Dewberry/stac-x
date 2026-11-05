@@ -64,6 +64,15 @@ export function envMeta(key: EnvKey): Env {
   return ENVS.find((e) => e.key === key)!;
 }
 
+/**
+ * What to call an environment named in a file rather than by this app: its
+ * label when it's one of the four, and otherwise the name as written (a
+ * sidecar edited by hand, or one from a deployment with other environments).
+ */
+export function envLabel(key: string): string {
+  return ENVS.find((e) => e.key === key)?.label ?? (key || "another environment");
+}
+
 /** The environments a collection is promoted through, in order. */
 export const PATH: Env[] = ENVS.filter((e) => e.onPath);
 

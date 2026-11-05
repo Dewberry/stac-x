@@ -1,7 +1,8 @@
 import "server-only";
 
+import { Refused } from "./refused";
 import { isQcStatus, type QcEdit, type QcEvent, type QcStatus } from "./stac";
-import { NotFound, PreconditionFailed, readJson, write } from "./storage";
+import { baseName, NotFound, PreconditionFailed, read, write } from "./storage";
 
 /**
  * Where the edits live.
@@ -34,6 +35,13 @@ import { NotFound, PreconditionFailed, readJson, write } from "./storage";
  *
  * Sidecars written before QC moved to the collection have an `items` map of
  * per-item records. It's left in the file untouched and no longer read.
+ *
+ * A sidecar is a plain file in the bucket, so it can be edited by hand or
+ * cut short by a failed upload. One that isn't JSON, or isn't the shape
+ * this app writes, is read as holding nothing, so its dataset still shows
+ * (as not reviewed) and the rest of its file's collections with it. It's
+ * never written over, though: what's in it may be the only record of a
+ * review, so a save is turned down until someone mends or removes the file.
  */
 
 export type EditsFile = {
@@ -49,17 +57,52 @@ export function editsUri(parquetUri: string): string {
   return parquetUri.replace(/\.(geo)?parquet$|\.pq$|\.json$/i, "") + ".edits.json";
 }
 
-export async function readEdits(parquetUri: string): Promise<{ edits: EditsFile; etag: string | null }> {
+export type ReadEdits = {
+  edits: EditsFile;
+  /** Null when there's no sidecar yet. */
+  etag: string | null;
+  /** Why the sidecar that's there couldn't be used, when it couldn't; `edits` is empty then. */
+  unreadable: string | null;
+};
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+/** A sidecar's contents as the file this app writes, or what's wrong with them. */
+function whyUnreadable(text: string): { value: EditsFile } | { why: string } {
+  let value: unknown;
   try {
-    const { value, etag } = await readJson<EditsFile>(editsUri(parquetUri));
-    if (!value || value.version !== 1) return { edits: empty(), etag };
-    const collections = value.collections && typeof value.collections === "object" ? value.collections : {};
-    const history = value.history && typeof value.history === "object" ? value.history : {};
-    return { edits: { ...value, collections, history }, etag };
+    value = JSON.parse(text);
+  } catch {
+    return { why: "it isn't valid JSON" };
+  }
+  if (!isRecord(value) || value.version !== 1) return { why: "it isn't a version 1 edits file" };
+  for (const key of ["collections", "history"] as const) {
+    if (value[key] !== undefined && !isRecord(value[key])) return { why: `its ${key} aren't keyed by collection id` };
+  }
+  return { value: value as EditsFile };
+}
+
+export async function readEdits(parquetUri: string): Promise<ReadEdits> {
+  const uri = editsUri(parquetUri);
+  let text: string;
+  let etag: string;
+  try {
+    const got = await read(uri);
+    text = new TextDecoder().decode(got.bytes);
+    etag = got.etag;
   } catch (e) {
-    if (e instanceof NotFound) return { edits: empty(), etag: null };
+    if (e instanceof NotFound) return { edits: empty(), etag: null, unreadable: null };
     throw e;
   }
+  const parsed = whyUnreadable(text);
+  if ("why" in parsed) return { edits: empty(), etag, unreadable: parsed.why };
+  const { value } = parsed;
+  return { edits: { ...value, collections: value.collections ?? {}, history: value.history ?? {} }, etag, unreadable: null };
+}
+
+/** What a person is told when a save meets a sidecar that can't be read. */
+export function unreadableMessage(parquetUri: string, why: string): string {
+  return `${baseName(editsUri(parquetUri))}, the review record beside this dataset's file, can't be read (${why}), so nothing was saved over it. Fix or delete that file, then save again.`;
 }
 
 export type EditInput = {
@@ -70,11 +113,11 @@ export type EditInput = {
 
 export function validateEdit(input: unknown): EditInput {
   const o = (input ?? {}) as Record<string, unknown>;
-  if (!isQcStatus(o.qc)) throw new Error("qc must be one of the known statuses");
+  if (!isQcStatus(o.qc)) throw new Refused("qc must be one of the known statuses");
   let date: string | null = null;
   if (o.date_approved !== null && o.date_approved !== undefined && o.date_approved !== "") {
     if (typeof o.date_approved !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(o.date_approved)) {
-      throw new Error("date_approved must be a YYYY-MM-DD date");
+      throw new Refused("date_approved must be a YYYY-MM-DD date");
     }
     date = o.date_approved;
   }
@@ -85,11 +128,13 @@ export function validateEdit(input: unknown): EditInput {
 /**
  * Read-modify-write with a retry on a lost race. Three tries is plenty for a
  * review queue; if it still fails, something other than a colleague is
- * writing that file.
+ * writing that file. A sidecar that can't be read is left as it is and the
+ * save is refused (see the note on that above).
  */
 export async function updateEdits(parquetUri: string, change: (edits: EditsFile) => void): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const { edits, etag } = await readEdits(parquetUri);
+    const { edits, etag, unreadable } = await readEdits(parquetUri);
+    if (unreadable) throw new Refused(unreadableMessage(parquetUri, unreadable));
     change(edits);
     try {
       await write(editsUri(parquetUri), JSON.stringify(edits, null, 2) + "\n", {

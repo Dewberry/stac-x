@@ -1,5 +1,4 @@
 import type { NodeKind } from "./collection-hierarchy";
-import type { EnvKey } from "./env";
 import type { Geometry } from "geojson";
 
 /**
@@ -84,11 +83,44 @@ export type QcEdit = {
  * One line of a collection's history in an environment: a QC save, the
  * collection leaving for the next environment, or arriving from the one
  * before. Oldest first in the sidecar.
+ *
+ * `at` is empty when the file's entry had no date, and `to` and `from` are
+ * the environment's key as the file has it: one of this app's (EnvKey in
+ * env.ts) when the app wrote it, anything at all in a file edited by hand.
+ * See tidyHistory, and envLabel for showing one.
  */
 export type QcEvent =
   | { kind: "qc"; at: string; qc: QcStatus; date_approved: string | null; note?: string | null }
-  | { kind: "promoted"; at: string; to: EnvKey; files: string[] }
-  | { kind: "received"; at: string; from: EnvKey; files: string[] };
+  | { kind: "promoted"; at: string; to: string; files: string[] }
+  | { kind: "received"; at: string; from: string; files: string[] };
+
+/**
+ * A collection's history as a sidecar has it, made safe to sort and show.
+ *
+ * The sidecar is a file in the bucket that anyone with access can edit, so
+ * an entry can turn up without its date, or naming an environment this app
+ * doesn't have, or not as an entry at all. Sorting by a missing date threw,
+ * and that took the collection off every page. Here an entry of one of the
+ * three kinds is kept, since it's still part of the record: a missing date
+ * becomes an empty one, which sorts last and shows as "date unknown", and
+ * an environment is kept as written. Anything else is dropped.
+ */
+export function tidyHistory(raw: unknown): QcEvent[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry: unknown): QcEvent[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const e = entry as Record<string, unknown>;
+    const at = typeof e.at === "string" ? e.at : "";
+    const text = (v: unknown) => (typeof v === "string" ? v : "");
+    const files = Array.isArray(e.files) ? e.files.filter((f): f is string => typeof f === "string") : [];
+    if (e.kind === "qc") {
+      return [{ kind: "qc", at, qc: qcMeta(e.qc).value, date_approved: text(e.date_approved) || null, note: text(e.note) || null }];
+    }
+    if (e.kind === "promoted") return [{ kind: "promoted", at, to: text(e.to), files }];
+    if (e.kind === "received") return [{ kind: "received", at, from: text(e.from), files }];
+    return [];
+  });
+}
 
 export const QC_STATUSES = [
   { value: "pending", label: "Not reviewed", tone: "idle" },
@@ -185,8 +217,14 @@ export type Collection = {
   series: Series;
   /** The collection's QC record, from the sidecar. Null until someone saves one. */
   qc: QcEdit | null;
-  /** What happened to the collection in this environment, newest first. */
+  /** What happened to the collection in this environment, newest first; entries with no date last. */
   history: QcEvent[];
+  /**
+   * Why the review record beside the collection's file can't be read, when
+   * it can't (lib/edits.ts). The collection shows as not reviewed, and a
+   * decision on it is turned down until the file is mended.
+   */
+  qcUnreadable: string | null;
   /**
    * How many items' geometry couldn't be read. Any at all means the file's
    * geometry can't be trusted, so the pages draw none of it and say so.

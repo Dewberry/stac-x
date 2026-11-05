@@ -2,12 +2,12 @@ import "server-only";
 
 import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
-import { readEdits } from "./edits";
+import { editsUri, readEdits } from "./edits";
 import { kindOf } from "./collection-hierarchy";
 import { collectionName } from "./format";
 import { NotStac, ParquetUnreadable, readItems } from "./parquet";
 import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
-import { tidyAsset, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
+import { tidyAsset, tidyHistory, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsAvailable, baseName, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
@@ -47,6 +47,8 @@ type SourceState = {
   /** QC records and history from the sidecar, by collection id. */
   qc: Record<string, QcEdit>;
   history: Record<string, QcEvent[]>;
+  /** Why the sidecar couldn't be read, when it's there and couldn't; qc and history are empty then. */
+  editsError?: string | null;
   checkedAt: number;
   error: string | null;
   /** A parquet file under a listed prefix that turned out not to be stac-geoparquet, left out of the catalog. */
@@ -428,9 +430,14 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
       }
       state.etag = h.etag;
     }
-    const { edits, etag } = sidecar;
+    const { edits, etag, unreadable } = sidecar;
+    // Said when the sidecar is first seen this way, not on every refresh.
+    if (unreadable && (etag !== state.editsEtag || !state.editsError)) {
+      console.error(`stac-x: ${editsUri(uri)} can't be read (${unreadable}), so its collections show as not reviewed and QC saves beside it are refused until it's fixed or deleted`);
+    }
     state.qc = edits.collections;
     state.history = edits.history;
+    state.editsError = unreadable;
     state.editsEtag = etag;
     state.error = null;
   } catch (e) {
@@ -458,7 +465,7 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
   if (!doc) return derivedCollection(cache, id, stacId, items, sources);
   const bbox = unionBbox(items);
   const temporal = temporalExtent(items);
-  const { qc, history, geometryErrors } = recordsOf(cache, stacId, items, sources);
+  const { qc, history, qcUnreadable, geometryErrors } = recordsOf(cache, stacId, items, sources);
   {
     const ext = doc.extent as { spatial?: { bbox?: number[][] }; temporal?: { interval?: (string | null)[][] } } | undefined;
     // The generator gives a collection with no data yet a stand-in extent
@@ -514,6 +521,7 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
       series: lone(id),
       qc,
       history,
+      qcUnreadable,
       geometryErrors,
       itemsError: sources.map((uri) => cache.sources.get(uri)?.itemsError).find((e) => !!e) ?? null,
       items,
@@ -523,7 +531,7 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
 
 /** A collection described from its items alone, when there's no document or the document can't be used. */
 function derivedCollection(cache: Cache, id: string, stacId: string, items: CatalogItem[], sources: string[]): Collection {
-  const { qc, history, geometryErrors } = recordsOf(cache, stacId, items, sources);
+  const { qc, history, qcUnreadable, geometryErrors } = recordsOf(cache, stacId, items, sources);
   return {
     id,
     stacId,
@@ -556,6 +564,7 @@ function derivedCollection(cache: Cache, id: string, stacId: string, items: Cata
     series: lone(id),
     qc,
     history,
+    qcUnreadable,
     geometryErrors,
     itemsError: null,
     items,
@@ -586,17 +595,24 @@ function docHrefOf(items: CatalogItem[]): string | null {
   return typeof l?.href === "string" ? l.href : null;
 }
 
-/** QC and history from the collection's sources, including documents without items. */
+/**
+ * QC and history from the collection's sources, including documents without
+ * items. The history is tidied first (tidyHistory in stac.ts): it comes
+ * from a file people can edit, and one entry without a date used to throw
+ * in the sort and take the collection off every page.
+ */
 function recordsOf(cache: Cache, id: string, items: CatalogItem[], sources: string[]) {
   const qc = qcFor(cache, id, sources);
   const history = sources
-    .flatMap((uri) => cache.sources.get(uri)?.history[id] ?? [])
+    .flatMap((uri) => tidyHistory(cache.sources.get(uri)?.history[id]))
     .sort((a, b) => b.at.localeCompare(a.at));
+  // Saves go beside the first source, so that's the sidecar that has to be readable.
+  const qcUnreadable = cache.sources.get(sources[0])?.editsError ?? null;
   const geometryErrors = items.filter((i) => i.geometryError).length;
   if (geometryErrors) {
     console.error(`stac-x: ${id}: ${geometryErrors} of ${items.length} items have geometry that couldn't be read (${items.find((i) => i.geometryError)!.geometryError}), so none of it is drawn`);
   }
-  return { sources, qc, history, geometryErrors };
+  return { sources, qc, history, qcUnreadable, geometryErrors };
 }
 
 /** A placeholder until build() groups the versions. */
@@ -609,7 +625,8 @@ function qcFor(cache: Cache, id: string, sources: string[]): QcEdit | null {
   let best: QcEdit | null = null;
   for (const uri of sources) {
     const r = cache.sources.get(uri)?.qc[id];
-    if (r && (!best || r.updated_at > best.updated_at)) best = r;
+    // A record that isn't an object (a sidecar edited by hand) is no record.
+    if (r && typeof r === "object" && (!best || r.updated_at > best.updated_at)) best = r;
   }
   return best;
 }

@@ -2,19 +2,22 @@ import "server-only";
 
 import { getCatalog, invalidate } from "./catalog";
 import { landingFolder } from "./config";
-import { logEvent, updateEdits } from "./edits";
+import { editsUri, logEvent, readEdits, updateEdits } from "./edits";
 import { envMeta, nextEnv, type EnvKey } from "./env";
+import { Refused } from "./refused";
 import type { Collection } from "./stac";
-import { baseName, isJsonSource, parseRef, read, write } from "./storage";
+import { baseName, copy, isJsonSource, parseRef } from "./storage";
 
 /**
  * Move a collection forward one environment.
  *
  * Promotion copies the collection's parquet files byte for byte into the next
  * environment's landing folder, so what arrives is exactly what was approved,
- * never a regenerated copy. A file that already sits there under the same
- * name is replaced, which is how a fix made in Development reaches a
- * collection that was sent back from Test.
+ * never a regenerated copy. The storage does the copying (S3 from one key
+ * to another, the disk from one file to another), so a large file never
+ * passes through this server's memory. A file that already sits there under
+ * the same name is replaced, which is how a fix made in Development reaches
+ * a collection that was sent back from Test.
  *
  * The copy in the next environment starts unreviewed: its QC record is
  * cleared, because an approval there was for the version it replaces. Both
@@ -23,7 +26,10 @@ import { baseName, isJsonSource, parseRef, read, write } from "./storage";
  * A parquet file that also holds items of another collection is refused,
  * since copying it would promote that collection too. So is one whose name
  * is taken in the next environment by another collection, usually another
- * version of this one.
+ * version of this one, and one whose sidecar in the next environment can't
+ * be read, since the move couldn't be logged there. All of that is checked
+ * before the first byte is copied, and what's refused is said in words
+ * meant for the reviewer (Refused).
  */
 /**
  * Whether approving can copy this collection on. One read through a STAC
@@ -37,10 +43,10 @@ export function canPromote(c: Pick<Collection, "sources">): boolean {
 
 export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
   const to = nextEnv(env);
-  if (!to) throw new Error(`Nothing is promoted out of ${envMeta(env).label}.`);
-  if (c.sources.length === 0) throw new Error("This collection has no source file to promote.");
+  if (!to) throw new Refused(`Nothing is promoted out of ${envMeta(env).label}.`);
+  if (c.sources.length === 0) throw new Refused("This collection has no source file to promote.");
   if (!canPromote(c)) {
-    throw new Error("This collection comes from a STAC catalog, which can't be sent to the next environment yet.");
+    throw new Refused("This collection comes from a STAC catalog, which can't be sent to the next environment yet.");
   }
 
   const catalog = await getCatalog(env);
@@ -49,7 +55,7 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
     const total = source?.itemCount ?? 0;
     const mine = c.items.filter((i) => i.source === uri).length;
     if (mine !== total || source?.collections.some((id) => id !== c.id)) {
-      throw new Error(`${baseName(uri)} also holds other collections, so it can't be promoted on its own.`);
+      throw new Refused(`${baseName(uri)} also holds other collections, so it can't be promoted on its own.`);
     }
   }
 
@@ -62,8 +68,16 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
     const target = there.sources.find((s) => parseRef(s.uri).uri === landing);
     const other = target?.collections.find((id) => id !== c.id);
     if (other) {
-      throw new Error(
+      throw new Refused(
         `${baseName(uri)} in ${to.label} already holds ${other}. Give this version's file its own name before sending it on.`,
+      );
+    }
+    // The copy's sidecar is written to below. If it can't be, the file
+    // shouldn't be copied either.
+    const { unreadable } = await readEdits(landing);
+    if (unreadable) {
+      throw new Refused(
+        `${baseName(editsUri(landing))} in ${to.label}, the review record beside this file's copy there, can't be read (${unreadable}), so nothing was copied. Fix or delete that file first.`,
       );
     }
   }
@@ -72,8 +86,7 @@ export async function promote(env: EnvKey, c: Collection): Promise<EnvKey> {
   const copied: string[] = [];
   for (const uri of c.sources) {
     const target = `${folder}${baseName(uri)}`;
-    const { bytes } = await read(uri);
-    await write(target, bytes, { contentType: "application/vnd.apache.parquet" });
+    await copy(uri, target, { contentType: "application/vnd.apache.parquet" });
     copied.push(target);
   }
 
