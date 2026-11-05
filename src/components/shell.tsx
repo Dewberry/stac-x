@@ -31,13 +31,29 @@ const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
  * The site the app is deployed under, linked at the left of the bar so
  * there's a way back to it. STAC_PORTAL_URL and STAC_PORTAL_NAME; unset,
  * the bar has the wordmark alone.
+ *
+ * This runs when the module loads, for every page, so it can't throw. The
+ * name used to come from `new URL(...)`, which does throw on a value with
+ * no scheme, and "portal.example.com" in the environment took every page
+ * down. A bare host like that is taken as https, since as written a
+ * browser would read it as a path under the current page. A path on this
+ * host ("/") is linked as it is. With no name set the link is called by
+ * its host, or by the value itself when there's no host to read.
  */
-const portal = process.env.STAC_PORTAL_URL?.trim()
-  ? {
-      url: process.env.STAC_PORTAL_URL.trim(),
-      name: process.env.STAC_PORTAL_NAME?.trim() || new URL(process.env.STAC_PORTAL_URL.trim()).host,
-    }
-  : null;
+function portalFrom(rawUrl: string | undefined, rawName: string | undefined): { url: string; name: string } | null {
+  const value = rawUrl?.trim();
+  if (!value) return null;
+  const url = value.startsWith("/") || /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
+  let host = "";
+  try {
+    host = new URL(url).host;
+  } catch {
+    // A path, or something that isn't a URL at all: named by the value.
+  }
+  return { url, name: rawName?.trim() || host || value };
+}
+
+const portal = portalFrom(process.env.STAC_PORTAL_URL, process.env.STAC_PORTAL_NAME);
 
 export function SiteHeader({ session }: { session: Session | null }) {
   return (

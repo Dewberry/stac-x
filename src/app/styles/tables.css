@@ -585,6 +585,13 @@ a.sx-json-str {
 .sx-dm-scroll .sx-loading {
   padding: 3.5rem 1rem;
 }
+/* A whole page while it loads (components/page-loading.tsx): one card,
+   tall enough that the footer doesn't jump up under the header. */
+.sx-page-loading {
+  display: grid;
+  place-items: center;
+  min-height: min(24rem, 50dvh);
+}
 
 /* A panel head with a note and a button side by side. */
 .sx-panel-acts {

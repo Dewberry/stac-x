@@ -16,7 +16,7 @@ import { VersionNotice } from "@/components/version-notice";
 import { getCatalog, getCollection } from "@/lib/catalog";
 import { envMeta } from "@/lib/env";
 import { LOWER_48 } from "@/lib/map-area";
-import { pageEnv } from "@/lib/page-env";
+import { pageEnv, pageParam } from "@/lib/page-env";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
 import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { itemVersions, type ItemVersion } from "@/lib/item-versions";
@@ -31,9 +31,10 @@ type Props = { params: Promise<{ env: string; collection: string; item: string }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const env = await pageEnv(params);
+  // Already decoded here, unlike in the page below; see pageParam.
   const { collection, item } = await params;
-  const c = await getCollection(env, decodeURIComponent(collection));
-  const i = c?.items.find((x) => x.id === decodeURIComponent(item));
+  const c = await getCollection(env, collection);
+  const i = c?.items.find((x) => x.id === item);
   const label = i ? itemLabel(i.properties) : null;
   return { title: i ? (label ? `${tidyCaps(label)} (${i.id})` : i.id) : "Item" };
 }
@@ -47,9 +48,9 @@ const SPATIAL = new Set(["geometry", "geometry_type", "bbox"]);
 export default async function ItemPage({ params }: Props) {
   const env = await pageEnv(params);
   const { collection: rawC, item: rawI } = await params;
-  const c = await getCollection(env, decodeURIComponent(rawC));
-  if (!c) return <NotInEnv env={env} collection={decodeURIComponent(rawC)} />;
-  const id = decodeURIComponent(rawI);
+  const c = await getCollection(env, pageParam(rawC));
+  if (!c) return <NotInEnv env={env} collection={pageParam(rawC)} />;
+  const id = pageParam(rawI);
   const item = c.items.find((x) => x.id === id);
   if (!item) notFound();
   const version = c.series.versions.length > 1 ? c.series.versions.find((v) => v.id === c.id)?.label ?? null : null;

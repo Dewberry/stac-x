@@ -5,7 +5,7 @@ import { Breadcrumbs, homeCrumb } from "@/components/shell";
 import { getCatalog } from "@/lib/catalog";
 import { envMeta, withEnv } from "@/lib/env";
 import { fmtNum } from "@/lib/format";
-import { pageEnv } from "@/lib/page-env";
+import { pageEnv, pageParam } from "@/lib/page-env";
 
 export const metadata: Metadata = { title: "Coming soon" };
 
@@ -21,8 +21,8 @@ export default async function AdminComingSoon({ params }: Props) {
   const env = await pageEnv(params);
   const { rest } = await params;
   const admin = withEnv(env, "/admin");
-  const asked = `/admin/${rest.map(decodeURIComponent).join("/")}`;
-  const name = humanize(decodeURIComponent(rest[0] ?? ""));
+  const asked = `/admin/${rest.map(pageParam).join("/")}`;
+  const name = humanize(pageParam(rest[0] ?? ""));
 
   const { collections } = await getCatalog(env);
   // The queue's own count: datasets only, since catalogs aren't reviewed.

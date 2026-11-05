@@ -23,8 +23,12 @@ export function DataPanel({ href, limit = 5 }: { href: string; limit?: number })
     const ac = new AbortController();
     fetch(`${href}?limit=${limit}`, { signal: ac.signal })
       .then(async (res) => {
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? res.statusText);
+        // A failure isn't always JSON (a gateway's error page, a 500 with
+        // no body), and parsing that first hid the real reason behind a
+        // parse error. The status decides; the body only adds the reason.
+        const body: unknown = await res.json().catch(() => null);
+        if (!res.ok) throw new Error((body as { error?: string } | null)?.error ?? (res.statusText || `the server answered ${res.status}.`));
+        if (!body) throw new Error("the answer wasn't valid JSON.");
         setState({ status: "done", data: body as Data });
       })
       .catch((e: Error) => {

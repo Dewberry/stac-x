@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { getCollection } from "@/lib/catalog";
 import { envMeta, isEnv } from "@/lib/env";
+import { jsonRoute } from "@/lib/json-route";
 import { attachment, collectionJsonHref, withBase, withEnvHome } from "@/lib/utils";
 import { qcFields, VERSION_SCHEMA } from "@/lib/stac";
 import { versionName } from "@/lib/versions";
 import { versionsElsewhere } from "@/lib/versions-elsewhere";
 
-/** The collection as STAC JSON, with its items' links. */
-export async function GET(req: Request, { params }: { params: Promise<{ env: string; collection: string }> }) {
+/**
+ * The collection as STAC JSON, with its items' links.
+ *
+ * Next hands a route handler its params already decoded, so the id is used
+ * as it comes. Decoding it again threw on any id with a literal "%" in it.
+ */
+export const GET = jsonRoute("collection", async (req: Request, { params }: { params: Promise<{ env: string; collection: string }> }) => {
   const { env, collection } = await params;
   if (!isEnv(env)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const c = await getCollection(env, decodeURIComponent(collection));
+  const c = await getCollection(env, collection);
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const base = collectionJsonHref(env, c.id);
   // ?download=1 saves the file instead of showing it in the tab.
@@ -72,4 +78,4 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
     ],
     ...(Object.keys(c.assets).length ? { assets: c.assets } : {}),
   }, { headers });
-}
+});

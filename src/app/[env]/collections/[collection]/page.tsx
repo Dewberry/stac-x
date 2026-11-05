@@ -17,15 +17,16 @@ import { childCollectionsOf, getCatalog, getCollection } from "@/lib/catalog";
 import { collectionAncestors, hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
 import { envMeta } from "@/lib/env";
 import { LOWER_48 } from "@/lib/map-area";
-import { pageEnv } from "@/lib/page-env";
+import { pageEnv, pageParam } from "@/lib/page-env";
 import type { Collection } from "@/lib/stac";
 import { versionsElsewhere } from "@/lib/versions-elsewhere";
 import { fmtNum, fmtRange } from "@/lib/format";
 import { dataFileOf } from "@/lib/data-file";
 import { formatTag } from "@/lib/data-preview";
-import { itemRowsOf } from "@/lib/item-rows";
+import { fitsInline, itemFeaturesOf } from "@/lib/item-features";
+import { listItemRows } from "@/lib/item-rows";
 import { baseName } from "@/lib/storage";
-import { assetHref, collectionHref, collectionJsonHref, itemHref, scopeHref } from "@/lib/utils";
+import { assetHref, collectionHref, collectionJsonHref, scopeHref } from "@/lib/utils";
 import { compareLabels, versionName } from "@/lib/versions";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +35,9 @@ type Props = { params: Promise<{ env: string; collection: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const env = await pageEnv(params);
+  // Already decoded here, unlike in the page below; see pageParam.
   const { collection } = await params;
-  const c = await getCollection(env, decodeURIComponent(collection));
+  const c = await getCollection(env, collection);
   return { title: c ? c.title : "Collection" };
 }
 
@@ -58,7 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
   const { collection: raw } = await params;
-  const id = decodeURIComponent(raw);
+  const id = pageParam(raw);
   const catalog = await getCatalog(env);
   const c = catalog.collections.find((collection) => collection.id === id);
   if (!c) return <NotInEnv env={env} collection={id} />;
@@ -74,31 +76,20 @@ export default async function CollectionPage({ params }: Props) {
     return <CatalogLayout env={env} c={c} ancestors={ancestors} inside={inside} datasetsBelow={tree.datasetsBelow(c.series.id)} />;
   }
 
-  const rows = itemRowsOf(c);
-  const rowOf = new Map(rows.map((r) => [r.id, r]));
+  // Listed even when the items' geometry can't be sorted into shapes.
+  const { rows, shapesFailed } = listItemRows(c);
   // The file the items live in, for the Data panel.
   const source = dataFileOf(c);
 
-  // Geometry the reader couldn't make sense of means none of the file's
-  // geometry can be trusted: the map shows the country, empty, and says why.
-  const brokenGeometry = c.geometryErrors > 0;
-  const geo: FeatureCollection = {
-    type: "FeatureCollection",
-    features: (brokenGeometry ? [] : c.items)
-      .filter((i) => i.geometry)
-      .map((i) => ({
-        type: "Feature",
-        id: i.id,
-        properties: {
-          id: i.id,
-          href: itemHref(env, c.id, i.id),
-          label: rowOf.get(i.id)?.label,
-          tag: rowOf.get(i.id)?.kind ?? undefined,
-          tint: rowOf.get(i.id)?.tint,
-        },
-        geometry: i.geometry!,
-      })),
-  };
+  // Geometry the reader couldn't make sense of, or that can't be sorted
+  // into shapes, means none of the file's geometry can be trusted: the map
+  // shows the country, empty, and says why.
+  const brokenGeometry = c.geometryErrors > 0 || shapesFailed;
+  // Every item as its own feature. Up to the home page's budget they go
+  // with the page; past it the map fetches them (lib/item-features.ts).
+  const features = brokenGeometry ? [] : itemFeaturesOf(env, c, rows);
+  const inline = fitsInline(features);
+  const geo: FeatureCollection = { type: "FeatureCollection", features: inline ? features : [] };
 
   // License and temporal extent sit under the description, as in STAC Browser.
   const facts: Entry[] = [
@@ -314,12 +305,13 @@ export default async function CollectionPage({ params }: Props) {
           <div className="sx-mapcard">
             <LinkedMap
               data={geo}
+              src={inline ? undefined : `${collectionJsonHref(env, c.id)}/footprint?items=1`}
               bbox={brokenGeometry ? LOWER_48 : c.bbox}
               label={`Items of ${c.title}`}
               hint={
                 c.itemsError ? "Items couldn't be read."
                 : brokenGeometry ? "Geometry couldn't be read."
-                : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`
+                : `${fmtNum(features.length)} ${features.length === 1 ? "item" : "items"}`
               }
               tip={brokenGeometry ? undefined : "Click one for a link to its page."}
             />

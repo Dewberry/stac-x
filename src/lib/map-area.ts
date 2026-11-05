@@ -58,10 +58,21 @@ function load(): MapArea | null {
   };
 }
 
+/**
+ * A loop, not Math.min(...xs): spreading passes every point as an argument,
+ * and an area file of a few hundred thousand vertices (a basin boundary at
+ * survey detail) is more arguments than a call can take. That threw a
+ * RangeError out of mapArea() on every page that asks for the area.
+ */
 function bboxOf(pts: Position[]): Bbox {
-  const xs = pts.map((p) => p[0]);
-  const ys = pts.map((p) => p[1]);
-  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  let [w, s, e, n] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of pts) {
+    if (x < w) w = x;
+    if (x > e) e = x;
+    if (y < s) s = y;
+    if (y > n) n = y;
+  }
+  return [w, s, e, n];
 }
 
 /** The lower 48, for a map with no area and nothing in the catalog to frame, or nothing it can trust. */
