@@ -232,6 +232,9 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   const tipRef = useRef(tip);
   const [credits, setCredits] = useState<Credit[]>([]);
   const [basemapDown, setBasemapDown] = useState(false);
+  // Set when the map couldn't be built at all (no WebGL, the library didn't
+  // load), and thrown below so MapBoundary shows in the map's place.
+  const [failed, setFailed] = useState<unknown>(null);
   // What to light up: everything under the cursor, everything in the card,
   // and the one pointed at in the list. As a string so the effect below can
   // watch it.
@@ -345,6 +348,8 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
         }
         basemap();
       });
+    }).catch((e: unknown) => {
+      if (!disposed) setFailed(e ?? new Error("The map couldn't be built"));
     });
 
     return () => {
@@ -413,6 +418,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   const showTip =
     hover && !(pin && hover.hits.length === pin.hits.length && hover.hits.every((h, i) => h.id === pin.hits[i].id));
 
+  if (failed) throw failed;
   return (
     <figure ref={frameRef} className="ffx-map" aria-label={label}>
       <div ref={canvasRef} className="ffx-map-canvas" />

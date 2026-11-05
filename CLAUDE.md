@@ -25,6 +25,13 @@ need to know is here.
 - Fonts: Bricolage Grotesque (headings), Instrument Sans (body), DM Mono (ids).
 - Writing style for comments, docs and UI copy: plain, contractions, US
   spelling, no em dashes.
+- Parquet is never decoded in the server's own process. `lib/parquet.ts`
+  starts `lib/parquet-worker.mjs` as a child process for each file, with a
+  cap on its memory and time, because a file's cost can't be told from its
+  size and running out of memory can't be caught. A file that goes over
+  ends the child, and its dataset shows the reason (`itemsError`). The
+  worker is plain JavaScript that Node runs unbundled; `next.config.ts`
+  ships it, and the Dockerfile checks it loads.
 - Every page shows only real collections from the catalog. The app is shown
   to clients, so don't add mock or placeholder data anywhere, including the
   Admin queue and its activity.

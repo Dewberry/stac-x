@@ -147,7 +147,8 @@ export default async function CollectionPage({ params }: Props) {
   const meta: Entry[] = [
     { key: "id", value: c.stacId, label: "Id" },
     ...(version ? [{ key: "version", value: version, label: "Version" }] : []),
-    { key: "items", value: c.itemCount, label: "Items" },
+    // An items file that couldn't be read has an unknown number of items, not none.
+    ...(c.itemsError ? [] : [{ key: "items", value: c.itemCount, label: "Items" }]),
     ...(inside.length > 0 ? [{ key: "inside", value: inside.length, label: insideTitle(inside) }] : []),
     {
       key: "bbox",
@@ -175,9 +176,13 @@ export default async function CollectionPage({ params }: Props) {
         subtitle={
           <>
             {choices.length < 2 && c.version && <span>{versionName(c.version)}</span>}
-            <span>
-              <span className="ffx-num">{fmtNum(c.itemCount)}</span> {c.itemCount === 1 ? "item" : "items"}
-            </span>
+            {c.itemsError ? (
+              <span>Items couldn&apos;t be read</span>
+            ) : (
+              <span>
+                <span className="ffx-num">{fmtNum(c.itemCount)}</span> {c.itemCount === 1 ? "item" : "items"}
+              </span>
+            )}
             {inside.length > 0 && (
               <span>
                 <span className="ffx-num">{fmtNum(inside.length)}</span> {insideTitle(inside).toLowerCase()}
@@ -250,9 +255,19 @@ export default async function CollectionPage({ params }: Props) {
               )}
             </CollapsiblePanel>
           )}
-          <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
-            <ItemsList env={env} collection={c.id} rows={rows} />
-          </Panel>
+          {c.itemsError ? (
+            // The collection read fine and its items file didn't. Said in
+            // place of the list, so an empty list isn't taken for no items.
+            <Panel title="Items" id="items">
+              <p className="sx-callout" role="status">
+                This dataset&apos;s items couldn&apos;t be read, so none are listed or drawn. {c.itemsError}
+              </p>
+            </Panel>
+          ) : (
+            <Panel title="Items" note={`${fmtNum(c.itemCount)}`} id="items">
+              <ItemsList env={env} collection={c.id} rows={rows} />
+            </Panel>
+          )}
           {/* A dataset that also holds catalogs (Project Scoping's ten): they go along with it. */}
           {inside.length > 0 && (
             <Panel title={insideTitle(inside)} note={fmtNum(inside.length)} id="inside">
@@ -301,7 +316,11 @@ export default async function CollectionPage({ params }: Props) {
               data={geo}
               bbox={brokenGeometry ? LOWER_48 : c.bbox}
               label={`Items of ${c.title}`}
-              hint={brokenGeometry ? "Geometry couldn't be read." : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`}
+              hint={
+                c.itemsError ? "Items couldn't be read."
+                : brokenGeometry ? "Geometry couldn't be read."
+                : `${fmtNum(geo.features.length)} ${geo.features.length === 1 ? "item" : "items"}`
+              }
               tip={brokenGeometry ? undefined : "Click one for a link to its page."}
             />
           </div>

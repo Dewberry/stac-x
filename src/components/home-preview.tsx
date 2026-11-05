@@ -57,6 +57,7 @@ export function AreaSub({ area, open, path }: { area: HomeArea; open?: boolean; 
     );
   if (area.years) parts.push(<span className="ffx-num">{area.years}</span>);
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
+  if (area.itemsError) parts.push("Items couldn't be read");
   if (area.geometryError) parts.push("Geometry couldn't be read");
   if (area.parentMissing) parts.push("Its folder couldn't be read");
   if (area.emptyInside)
@@ -91,6 +92,7 @@ function SheetSub({ area }: { area: HomeArea }) {
       </span>,
     );
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
+  if (area.itemsError) parts.push("Items couldn't be read");
   if (area.geometryError) parts.push("Geometry couldn't be read");
   if (dates) parts.push(<span className="ffx-num">{dates}</span>);
   return (
@@ -264,6 +266,7 @@ function Items({
   activeIds?: ReadonlySet<string>;
   fill?: boolean;
 }) {
+  if (area.itemsError) return <p className="sx-pv-cover">Its items couldn&apos;t be read. Open the dataset to see why.</p>;
   if (rows === null)
     return (
       <ul className="sx-loading-rows sx-loading-items" aria-label="Loading the items">
@@ -446,13 +449,15 @@ export function HomePreview({
             {area.name}
           </h2>
           <SheetSub area={area} />
-          <div className="sx-pv-figs">
-            <b className="ffx-num">{count.n}</b>
-            <span>
-              <UnitGlyph unit={area.unit} />
-              {count.noun}
-            </span>
-          </div>
+          {!area.itemsError && (
+            <div className="sx-pv-figs">
+              <b className="ffx-num">{count.n}</b>
+              <span>
+                <UnitGlyph unit={area.unit} />
+                {count.noun}
+              </span>
+            </div>
+          )}
         </div>
         <button type="button" className="sx-preview-x" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">

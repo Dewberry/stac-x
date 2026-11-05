@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { MessageCard, MessageRow } from "./message-card";
 import { QcMark } from "./qc-mark";
-import { getCatalog, getCollection } from "@/lib/catalog";
+import { getCatalog, getCatalogElsewhere } from "@/lib/catalog";
 import { ENVS, envMeta, type EnvKey } from "@/lib/env";
 import { fmtAge } from "@/lib/format";
 import { qcMeta } from "@/lib/stac";
@@ -21,7 +21,10 @@ import { splitVersion, versionName } from "@/lib/versions";
  */
 export async function NotInEnv({ env, collection }: { env: EnvKey; collection: string }) {
   const elsewhere = await Promise.all(
-    ENVS.filter((e) => e.key !== env).map(async (e) => ({ env: e.key, c: await getCollection(e.key, collection) })),
+    ENVS.filter((e) => e.key !== env).map(async (e) => ({
+      env: e.key,
+      c: (await getCatalogElsewhere(e.key)).collections.find((x) => x.id === collection) ?? null,
+    })),
   );
   const found = elsewhere.filter((x) => x.c).map((x) => x.env);
   const seriesId = elsewhere.find((x) => x.c)?.c?.series.id ?? splitVersion(collection)?.base ?? collection;

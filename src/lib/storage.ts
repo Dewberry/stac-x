@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import {
   GetObjectCommand,
@@ -92,9 +92,18 @@ export function baseName(uri: string): string {
   return uri.replace(/\/+$/, "").split("/").pop() ?? uri;
 }
 
+/**
+ * The SDK waits forever by default. A request that never connects, or a
+ * read that stalls partway, would hold up the catalog build it's part of,
+ * and every page waiting on that build. Five seconds to connect and a
+ * minute of silence are both well past anything S3 does when it's working;
+ * a large download that keeps arriving isn't cut off.
+ */
 let client: S3Client | null = null;
 function s3() {
-  if (!client) client = new S3Client({ region: awsRegion });
+  if (!client) {
+    client = new S3Client({ region: awsRegion, requestHandler: { connectionTimeout: 5_000, socketTimeout: 60_000 } });
+  }
   return client;
 }
 
@@ -191,8 +200,9 @@ export async function readJson<T = unknown>(uri: string): Promise<{ value: T; et
   return { value: JSON.parse(new TextDecoder().decode(bytes)) as T, etag };
 }
 
-/** A byte range, for reading the head of a parquet file without the rest. */
+/** A byte range, for reading part of a parquet file without the rest. */
 export async function readRange(uri: string, start: number, end: number): Promise<ArrayBuffer> {
+  assertReadable(uri);
   const ref = parseRef(uri);
   if (ref.kind === "s3") {
     const res = await s3().send(
@@ -201,8 +211,16 @@ export async function readRange(uri: string, start: number, end: number): Promis
     const b = await res.Body!.transformToByteArray();
     return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
   }
-  const handle = await readFile(/*turbopackIgnore: true*/ ref.path);
-  return handle.buffer.slice(handle.byteOffset + start, handle.byteOffset + end) as ArrayBuffer;
+  // Only the range is read: a preview asks for several, and reading the
+  // whole file for each would hold it in memory several times over.
+  const file = await open(/*turbopackIgnore: true*/ ref.path, "r");
+  try {
+    const out = Buffer.alloc(Math.max(0, end - start));
+    const { bytesRead } = await file.read(out, 0, out.byteLength, start);
+    return out.buffer.slice(out.byteOffset, out.byteOffset + bytesRead) as ArrayBuffer;
+  } finally {
+    await file.close();
+  }
 }
 
 /* ------------------------------------------------------------------ write */

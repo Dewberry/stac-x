@@ -6,6 +6,7 @@ import { assetNote, Assets } from "@/components/assets";
 import { CopyButton } from "@/components/copy-button";
 import { PreviewButton } from "@/components/data-modal";
 import { DataMap } from "@/components/map";
+import { MapBoundary } from "@/components/map-boundary";
 import { MetadataPanel, type Entry } from "@/components/meta-table";
 import { breakable } from "@/components/breakable";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
@@ -211,13 +212,15 @@ export default async function ItemPage({ params }: Props) {
             </p>
           )}
           <div className="sx-mapcard">
-            <DataMap
-              data={geo}
-              bbox={brokenGeometry ? LOWER_48 : item.bbox}
-              selected={item.id}
-              label={`Location of ${title}`}
-              hint={brokenGeometry ? "Geometry couldn't be read." : item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
-            />
+            <MapBoundary label={`Location of ${title}`}>
+              <DataMap
+                data={geo}
+                bbox={brokenGeometry ? LOWER_48 : item.bbox}
+                selected={item.id}
+                label={`Location of ${title}`}
+                hint={brokenGeometry ? "Geometry couldn't be read." : item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
+              />
+            </MapBoundary>
           </div>
           <Panel title="Assets" note={assetNote(item.assets)} id="assets">
             <Assets assets={item.assets} />

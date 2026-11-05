@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { DataMap, type MapProps } from "./map";
+import { MapBoundary } from "./map-boundary";
 
 /**
  * One shared "item pointed at" for a page whose map and list show the same
@@ -30,5 +31,9 @@ export function useItemHover(): ItemHover {
 /** The page map, joined to the list's hover. */
 export function LinkedMap(props: Omit<MapProps, "hovered" | "onHover">) {
   const { hovered, setHovered } = useItemHover();
-  return <DataMap {...props} hovered={hovered} onHover={setHovered} />;
+  return (
+    <MapBoundary label={props.label}>
+      <DataMap {...props} hovered={hovered} onHover={setHovered} />
+    </MapBoundary>
+  );
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { homeCrumb, PageHead } from "@/components/shell";
-import { getCatalog } from "@/lib/catalog";
+import { getCatalog, getCatalogElsewhere } from "@/lib/catalog";
 import { hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
 import { ENVS, PATH, nextEnv } from "@/lib/env";
 import { pageEnv } from "@/lib/page-env";
@@ -38,7 +38,10 @@ export default async function AdminPage({ params, searchParams }: Props) {
   const env = await pageEnv(params);
   const sp = await searchParams;
   const now = await requestTime();
-  const catalogs = await Promise.all(ENVS.map(async (e) => ({ env: e.key, catalog: await getCatalog(e.key) })));
+  // The other environments only feed the stepper; one that can't be built is left out of it.
+  const catalogs = await Promise.all(
+    ENVS.map(async (e) => ({ env: e.key, catalog: await (e.key === env ? getCatalog(e.key) : getCatalogElsewhere(e.key)) })),
+  );
   const here = catalogs.find((c) => c.env === env)!.catalog;
   // Each collection's state and decision date in every environment, for the stepper.
   const statusIn = new Map(

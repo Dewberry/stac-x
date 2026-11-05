@@ -293,3 +293,27 @@
     height: clamp(18rem, 38vh, 26rem);
   }
 }
+
+/* In place of a map that couldn't be drawn (components/map-boundary.tsx):
+   the frame's size, a line saying so, and a way to try again. */
+.sx-map-down {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.625rem;
+  min-height: 16rem;
+  padding: var(--ffx-panel-pad);
+  background: var(--ffx-surface-inset);
+  color: var(--ffx-ink-sec);
+  font-size: var(--ffx-t-small);
+  text-align: center;
+}
+.sx-map-down p {
+  margin: 0;
+}
+/* On the home page the map fills its side of the console. */
+.sx-map-down[data-fill] {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}

@@ -11,6 +11,7 @@ import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
 import { hierarchyOf, searchCollections, type NodeKind } from "@/lib/collection-hierarchy";
 import { itemHref } from "@/lib/utils";
 import { HomePreview } from "./home-preview";
+import { MapBoundary } from "./map-boundary";
 import { HomeRail, type CatalogHit, type Group } from "./home-rail";
 import { HomeSplit } from "./home-split";
 import { ItemHoverContext } from "./item-hover";
@@ -96,6 +97,8 @@ export type HomeArea = {
   unit: ItemUnit;
   /** The file's geometry couldn't be read, so nothing of it is drawn and the row says so. */
   geometryError?: boolean;
+  /** Its items file couldn't be read, so it has none to list or draw, and the row says so. */
+  itemsError?: boolean;
   /** Its parent document didn't load, so it's at the top of the list for now, and the row says so. */
   parentMissing?: boolean;
   /** The footprint was too heavy to send with the page; it's fetched from the footprint route when picked. */
@@ -465,6 +468,7 @@ export function HomeConsole({
         </p>
         <HomeSplit initial={railShare}>
           <div className="sx-console-map">
+            <MapBoundary label={area ? `Datasets in ${area.name}` : "Datasets on the map"} fill>
             <HomeMap
               areas={mapAreas}
               items={mapItems}
@@ -481,6 +485,7 @@ export function HomeConsole({
               onHoverItem={setHoveredItem}
               onOpenItem={openItem}
             />
+            </MapBoundary>
           </div>
           {current && (
             <HomePreview

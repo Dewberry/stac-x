@@ -14,6 +14,20 @@ const nextConfig: NextConfig = {
   // `next build` also writes .next/standalone, a self-contained server with
   // only the node_modules it needs. The Dockerfile copies that in.
   output: "standalone",
+  // Parquet files are decoded by a child process (src/lib/parquet.ts). Node
+  // runs that process's file as it is, so the file and the packages it
+  // imports have to be in the standalone build as files, where the tracer
+  // doesn't look for them on its own. The Dockerfile loads the file once
+  // to check they all made it.
+  outputFileTracingIncludes: {
+    "/*": [
+      "src/lib/parquet-worker.mjs",
+      "node_modules/hyparquet/**/*",
+      "node_modules/hyparquet-compressors/**/*",
+      "node_modules/fzstd/**/*",
+      "node_modules/hysnappy/**/*",
+    ],
+  },
   ...(basePath ? { basePath } : {}),
   poweredByHeader: false,
   // No framing, so the QC form can't be clickjacked, and no MIME sniffing.

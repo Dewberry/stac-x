@@ -1,5 +1,6 @@
 import "server-only";
 
+import { totalmem } from "node:os";
 import type { EnvKey } from "./env";
 
 /**
@@ -61,6 +62,34 @@ export const catalogDescription =
 
 /** How long a parsed file is trusted before its ETag is checked again. */
 export const refreshMs = Number(process.env.STAC_REFRESH_SECONDS || 30) * 1000;
+
+function positive(name: string, fallback: number): number {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+/** A quarter of the server's memory (the container's limit, where it has one), between 256 MB and 2 GB. */
+function memoryShare(): number {
+  const limit = process.constrainedMemory?.() ?? 0;
+  const total = limit > 0 && limit < totalmem() ? limit : totalmem();
+  return Math.max(256, Math.min(2048, Math.floor(total / 4 / 1024 / 1024)));
+}
+
+/**
+ * What reading one parquet file may cost, so a file that goes wrong costs
+ * its own dataset and not the server (see decode in parquet.ts).
+ *
+ * memoryMb is the heap the process decoding a file gets. Two files are
+ * decoded at a time, which is why the default is a quarter of the server's
+ * memory each. maxFileMb is the largest items file that's read at all:
+ * every row of an items file ends up in the catalog's memory, so one past
+ * this is turned away by its size. timeoutMs is how long a decode may run.
+ */
+export const parquetLimits = {
+  memoryMb: Math.floor(positive("STAC_PARQUET_MEMORY_MB", memoryShare())),
+  maxFileMb: positive("STAC_PARQUET_MAX_MB", 512),
+  timeoutMs: positive("STAC_PARQUET_TIMEOUT_SECONDS", 120) * 1000,
+};
 
 export const awsRegion = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "us-east-1";
 
