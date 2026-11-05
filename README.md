@@ -63,6 +63,14 @@ Two things to know:
 | `npm run typecheck` | TypeScript check |
 | `npm run a11y` | Accessibility check (WCAG 2.2 AA) against the running dev server: axe on each kind of page in light and dark, plus the layout at 320px wide. Run `npx playwright install chromium` once first |
 
+Every pull request is linted and typechecked by
+`.github/workflows/checks.yml`, beside the Docker build. In a fresh
+checkout, `npm run typecheck` needs the types Next generates: run
+`npx next typegen` first, or `npm run dev` or a build, which write them too.
+
+Dependabot opens a pull request each Monday with that week's dependency
+updates (`.github/dependabot.yml`).
+
 ## Configuration
 
 Settings live in `.env`. `.env.example` explains every variable, including

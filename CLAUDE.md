@@ -64,6 +64,10 @@ npm run typecheck
 npm run lint
 ```
 
+CI runs both on every pull request (`.github/workflows/checks.yml`). In a
+fresh checkout or worktree, typecheck fails on `LayoutProps` until Next's
+types exist; `npx next typegen` writes them, as does the dev server.
+
 For anything a person sees, look at it in the running app. The dev server
 is usually already up on port 3000 with real catalog data; check with
 `lsof -i :3000` before starting another. Then run the accessibility check
