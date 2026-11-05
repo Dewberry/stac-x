@@ -1,0 +1,51 @@
+# Lints and typechecks every pull request, and every push to main.
+#
+# The Docker build (docker.yml) already typechecks, because `next build`
+# does, but it takes a few minutes and says so near the bottom of a long
+# log. This says it in about a minute. Lint runs nowhere else: Next doesn't
+# lint during a build, and the accessibility rules (jsx-a11y) are lint
+# rules, so without this a change that breaks one could merge unnoticed.
+#
+# The job is named so it can be made a required check on main, beside the
+# two Docker builds.
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch supersedes the older run, so cancel it.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-typecheck:
+    name: lint and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The same major version the Docker image runs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # next-env.d.ts and the route types aren't committed; this writes them.
+      - name: Generate Next's types
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npm run typecheck

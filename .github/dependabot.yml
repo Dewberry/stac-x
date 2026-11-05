@@ -1,0 +1,49 @@
+# Weekly pull requests for dependency updates.
+#
+# The parquet reader's fix for the file that took the app down on
+# November 4 had been published 17 days earlier. Nobody was looking, so
+# nothing brought it in. This does the looking.
+#
+# Minor and patch updates arrive together in one pull request a week, so
+# there's one thing to review, not twenty. Packages that have to move
+# together (Next with its lint config, React with its DOM and types) get a
+# pull request of their own, and so does any major version. A release has
+# to be a week old before it's proposed, which keeps out one that gets
+# pulled the day after it ships.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    groups:
+      next:
+        patterns:
+          - next
+          - eslint-config-next
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
