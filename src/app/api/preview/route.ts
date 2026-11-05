@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isCatalogAsset } from "@/lib/catalog";
 import { fmtBytes, isCsvType, isJsonType, isParquetType, isTextType } from "@/lib/format";
-import { previewParquet } from "@/lib/parquet";
+import { ParquetUnreadable, previewParquet } from "@/lib/parquet";
 import { NotText, previewCsv, previewJson, previewText, TooBig } from "@/lib/text-preview";
 import { awsAvailable, isUnderCwd, NotFound, parseRef } from "@/lib/storage";
 
@@ -40,6 +40,10 @@ export async function GET(request: Request) {
     if (e instanceof TooBig) return NextResponse.json({ error: `at ${fmtBytes(e.byteLength)} it's too big to show here. Download it instead.` }, { status: 413 });
     if (e instanceof SyntaxError) return NextResponse.json({ error: "it isn't valid JSON." }, { status: 422 });
     if (e instanceof NotText) return NextResponse.json({ error: "it isn't plain text. Download it instead." }, { status: 422 });
+    // Why a parquet file can't be read is in this app's own words, so it's said.
+    if (e instanceof ParquetUnreadable) {
+      return NextResponse.json({ error: e.message.charAt(0).toLowerCase() + e.message.slice(1) }, { status: 422 });
+    }
     console.error(`preview: couldn't read ${href}`, e);
     return NextResponse.json({ error: "the server log has the details." }, { status: 502 });
   }

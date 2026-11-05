@@ -1,12 +1,15 @@
 import "server-only";
 
-import { parquetMetadataAsync, parquetReadObjects, parquetSchema, toJson } from "hyparquet";
-import type { AsyncBuffer, FileMetaData, SchemaTree } from "hyparquet";
+import { fork } from "node:child_process";
+import { join } from "node:path";
+import { parquetSchema, toJson } from "hyparquet";
+import type { FileMetaData, SchemaElement, SchemaTree } from "hyparquet";
 import { wkbToGeojson } from "hyparquet/src/wkb.js";
-import { compressors } from "hyparquet-compressors";
 import type { Geometry } from "geojson";
+import { parquetLimits } from "./config";
 import type { ColumnKind, TablePreview } from "./data-preview";
-import type { StacAsset, StacItem, StacLink } from "./stac";
+import { fmtBytes, fmtNum } from "./format";
+import { tidyAsset, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { head, NotFound, read, readRange } from "./storage";
 
 /**
@@ -25,6 +28,10 @@ import { head, NotFound, read, readRange } from "./storage";
  * properties, and bare WKB is decoded here. A geometry that still isn't
  * GeoJSON after that is dropped (the item keeps its bbox) rather than handed
  * to the map, where it would take the page down.
+ *
+ * The decoding itself happens in another process (decode, below), because
+ * what a file costs to decode can't be told from its size, and running out
+ * of memory isn't an error a server can catch.
  */
 
 const TOP_LEVEL = new Set([
@@ -58,26 +65,222 @@ export class NotStac extends Error {
   }
 }
 
+/**
+ * A parquet file that's there but can't be read: too big to load, more
+ * than a decode is allowed to cost, or not valid parquet. The message is
+ * in this app's own words (or the parquet reader's), so unlike an S3
+ * error it's safe to show on a page.
+ */
+export class ParquetUnreadable extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ParquetUnreadable";
+  }
+}
+
+/* ------------------------------------------------------- decoding */
+
+/** What the worker says about a file before it decodes any rows. */
+type Shape = { rows: number; columns: number; widest: { name: string; fields: number; columns: number } | null };
+
+type Decoded = {
+  schema: SchemaElement[];
+  keyValue: { geo?: string; "stac-geoparquet"?: string };
+  totalRows: number;
+  rows: Record<string, unknown>[];
+  /** The file lacks the column that was required, so no rows were read. */
+  missing: boolean;
+};
+
+type FromWorker =
+  | { type: "range"; id: number; start: number; end: number }
+  | ({ type: "shape" } & Shape)
+  | ({ type: "done" } & Decoded)
+  | { type: "error"; message: string };
+
+type DecodeJob = {
+  uri: string;
+  byteLength: number;
+  /** The whole file, when it's already in hand; otherwise it's read by byte range as the worker asks. */
+  bytes?: Uint8Array;
+  /** Stop after this many rows. Zero reads the schema alone. */
+  rowEnd?: number;
+  requireColumn?: string;
+};
+
+// Run as a file, not bundled; next.config.ts copies it into the standalone build.
+const WORKER = join(/*turbopackIgnore: true*/ process.cwd(), "src", "lib", "parquet-worker.mjs");
+
+/** Two decodes at a time; the rest wait their turn (see parquetLimits). */
+const CONCURRENT = 2;
+let running = 0;
+const waiting: (() => void)[] = [];
+
+async function inTurn<T>(work: () => Promise<T>): Promise<T> {
+  if (running < CONCURRENT) running++;
+  else await new Promise<void>((resolve) => waiting.push(resolve));
+  try {
+    return await work();
+  } finally {
+    // A waiting decode takes this one's place; the count only drops when nothing is waiting.
+    const next = waiting.shift();
+    if (next) next();
+    else running--;
+  }
+}
+
+/**
+ * Decode a parquet file in a process of its own, with a cap on its memory
+ * and its time.
+ *
+ * What a parquet file costs to decode can't be told from its size. One
+ * 2.7 MB items file, whose 898 items each named their one asset
+ * differently, had 6,549 columns and took more than a gigabyte to decode.
+ * Decoded in the server's own process, a file like that runs it out of
+ * memory, and that isn't an error that can be caught: the server dies, and
+ * since the catalog is read at boot it dies again on every restart. In a
+ * process of its own the same file ends that process, the dataset says
+ * why, and every other page carries on.
+ *
+ * A worker thread with a memory limit looks like the lighter way to do
+ * this and isn't one: past its limit Node usually ends the thread, but
+ * some allocations end the whole process instead (this same file did, at
+ * a 512 MB limit). A process is the boundary the operating system keeps.
+ */
+function decode(job: DecodeJob): Promise<Decoded> {
+  const { memoryMb, timeoutMs } = parquetLimits;
+  return inTurn(
+    () =>
+      new Promise<Decoded>((resolve, reject) => {
+        let shape: Shape | null = null;
+        // A byte range that couldn't be read (S3 said no, the file went
+        // away) is what the caller should hear about, as the error it was.
+        let rangeError: unknown = null;
+        let stderr = "";
+        let settled = false;
+        // The worker needs nothing from the environment, and mustn't pick
+        // up Node options meant for the server (a debugger port, a heap size).
+        const env = { ...process.env };
+        delete env.NODE_OPTIONS;
+        const worker = fork(
+          /*turbopackIgnore: true*/ WORKER,
+          [JSON.stringify({ byteLength: job.byteLength, rowEnd: job.rowEnd, requireColumn: job.requireColumn })],
+          // "advanced" carries bytes, dates and big integers across as what they are.
+          { execArgv: [`--max-old-space-size=${memoryMb}`], serialization: "advanced", stdio: ["ignore", "ignore", "pipe", "ipc"], env },
+        );
+        const settle = (done: () => void) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          done();
+        };
+        const timer = setTimeout(() => {
+          settle(() => reject(new ParquetUnreadable(`Reading it took longer than the ${fmtNum(timeoutMs / 1000)} seconds a file is allowed (STAC_PARQUET_TIMEOUT_SECONDS).`)));
+          worker.kill("SIGKILL");
+        }, timeoutMs);
+        worker.stderr?.on("data", (chunk: Buffer) => {
+          if (stderr.length < 65536) stderr += chunk.toString();
+        });
+        worker.on("message", (m: FromWorker) => {
+          if (m.type === "range") {
+            const sent = job.bytes
+              ? Promise.resolve(job.bytes.subarray(m.start, m.end))
+              : readRange(job.uri, m.start, m.end).then((buffer) => new Uint8Array(buffer));
+            sent.then(
+              (bytes) => worker.connected && worker.send({ id: m.id, bytes }),
+              (e) => {
+                rangeError = e;
+                if (worker.connected) worker.send({ id: m.id, error: "a byte range couldn't be read" });
+              },
+            );
+          } else if (m.type === "shape") {
+            shape = { rows: m.rows, columns: m.columns, widest: m.widest };
+          } else if (m.type === "done") {
+            settle(() => resolve(m));
+          } else {
+            settle(() => reject(rangeError ?? new ParquetUnreadable(`It isn't parquet this app can read: ${m.message}.`)));
+          }
+        });
+        worker.on("error", (e) => {
+          settle(() => reject(new ParquetUnreadable(`The parquet reader couldn't be started: ${e.message}.`)));
+        });
+        worker.on("exit", (code, signal) => {
+          settle(() => {
+            // Out of memory, by its own account or the kernel's (which just kills it).
+            if (/out of memory|heap limit|allocation failed/i.test(stderr) || signal === "SIGKILL") {
+              reject(new ParquetUnreadable(outOfMemory(shape, memoryMb)));
+              return;
+            }
+            // Anything else is this app's fault, not the file's: the log gets what the worker said.
+            console.error(`stac-x: the parquet reader stopped on ${job.uri} (${signal ?? `exit code ${code}`}):\n${stderr.trim()}`);
+            reject(new ParquetUnreadable(`The parquet reader stopped before it finished (${signal ?? `exit code ${code}`}). The server log has the details.`));
+          });
+        });
+      }),
+  );
+}
+
+/** Why a file ran out of memory, with what it looked like if the worker got far enough to say. */
+function outOfMemory(shape: Shape | null, memoryMb: number): string {
+  const limit = `Reading it needed more than the ${fmtNum(memoryMb)} MB a file is allowed (STAC_PARQUET_MEMORY_MB).`;
+  if (!shape) return limit;
+  const size = `It has ${fmtNum(shape.rows)} ${shape.rows === 1 ? "row" : "rows"} and ${fmtNum(shape.columns)} columns`;
+  const wide = shape.widest;
+  if (!wide || wide.fields <= 100) return `${limit} ${size}.`;
+  const under = `${size}, ${fmtNum(wide.columns)} of them under "${wide.name}", which has ${fmtNum(wide.fields)} fields.`;
+  // The usual way to a file this wide, and the way out of it.
+  const why =
+    wide.name === "assets"
+      ? " A file gets this wide when each item names its assets differently; using the same asset key on every item keeps it small."
+      : "";
+  return `${limit} ${under}${why}`;
+}
+
+/** The top-level columns, from the schema the worker sent back. */
+function columnsOf(schema: SchemaElement[]): SchemaTree[] {
+  return parquetSchema({ schema } as FileMetaData).children;
+}
+
+/* ------------------------------------------------------- items */
+
+/** An items file up to this size is fetched in one request; past it, by byte range. */
+const HELD_WHOLE = 16 * 1024 * 1024;
+
 export async function readItems(uri: string): Promise<ParquetStac> {
-  const { bytes, etag } = await read(uri);
-  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-  const file: AsyncBuffer = { byteLength: ab.byteLength, slice: (a, b) => ab.slice(a, b) };
-  const metadata = await parquetMetadataAsync(file);
-  const schema = parquetSchema(metadata);
-  if (!schema.children.some((c) => c.element.name === "id")) throw new NotStac(uri);
-  // Byte columns with no type are left as bytes, so a geometry column the
+  const h = await head(uri);
+  if (!h) throw new NotFound(uri);
+  const { maxFileMb } = parquetLimits;
+  if (h.size > maxFileMb * 1024 * 1024) {
+    // Too big to hold. Its schema is still read, by byte range, to tell a
+    // data table sitting among the sources (skipped, as ever) from an
+    // items file that's too big to load (an error on its dataset).
+    const peek = await decode({ uri, byteLength: h.size, rowEnd: 0, requireColumn: "id" });
+    if (peek.missing) throw new NotStac(uri);
+    throw new ParquetUnreadable(`At ${fmtBytes(h.size)} it's over the ${fmtNum(maxFileMb)} MB an items file may be (STAC_PARQUET_MAX_MB).`);
+  }
+  // A file of ordinary size is fetched once and handed over from memory;
+  // a big one is read by byte range, so it's never held here whole.
+  const whole = h.size <= HELD_WHOLE ? await read(uri) : null;
+  const decoded = await decode({
+    uri,
+    byteLength: whole ? whole.bytes.byteLength : h.size,
+    bytes: whole?.bytes,
+    requireColumn: "id",
+  });
+  const etag = whole?.etag ?? h.etag;
+  if (decoded.missing) throw new NotStac(uri);
+  // Byte columns with no type came back as bytes, so a geometry column the
   // "geo" metadata doesn't mark can be decoded instead of read as text.
   // Any other such column is text, as hyparquet would have read it.
-  const rows = await parquetReadObjects({ file, metadata, compressors, rowFormat: "object", utf8: false });
   const bytesAsText = new Set(
-    schema.children
+    columnsOf(decoded.schema)
       .filter((c) => c.element.type === "BYTE_ARRAY" && !c.element.logical_type && !c.element.converted_type && c.element.name !== "geometry")
       .map((c) => c.element.name),
   );
   const fallbackCollection = uri.split("/").pop()?.replace(/\.(geo)?parquet$|\.pq$/i, "") ?? "items";
   return {
-    items: rows.map((row) => rowToItem(row as Record<string, unknown>, fallbackCollection, bytesAsText)),
-    collections: embeddedCollections(metadata),
+    items: decoded.rows.map((row) => rowToItem(row, fallbackCollection, bytesAsText)),
+    collections: embeddedCollections(decoded.keyValue["stac-geoparquet"]),
     etag,
   };
 }
@@ -87,8 +290,7 @@ export async function readItems(uri: string): Promise<ParquetStac> {
  * metadata, under "stac-geoparquet": a map of id to Collection, or a single
  * "collection" in files written before 1.1. Most files don't have either.
  */
-function embeddedCollections(metadata: FileMetaData): ParquetStac["collections"] {
-  const raw = metadata.key_value_metadata?.find((kv) => kv.key === "stac-geoparquet")?.value;
+function embeddedCollections(raw: string | undefined): ParquetStac["collections"] {
   if (!raw) return {};
   let meta: unknown;
   try {
@@ -222,7 +424,7 @@ function toAssets(v: unknown): Record<string, StacAsset> {
     if (!a || typeof a !== "object") continue;
     const asset = a as Record<string, unknown>;
     if (typeof asset.href !== "string" || !asset.href) continue;
-    out[name] = dropNulls(plain(asset) as Record<string, unknown>) as StacAsset;
+    out[name] = tidyAsset(dropNulls(plain(asset) as Record<string, unknown>) as StacAsset);
   }
   return out;
 }
@@ -257,35 +459,21 @@ function dropNulls<T extends Record<string, unknown>>(o: T): T {
 export async function previewParquet(uri: string, limit = 50): Promise<TablePreview> {
   const h = await head(uri);
   if (!h) throw new NotFound(uri);
-  const file: AsyncBuffer = {
-    byteLength: h.size,
-    slice: (start, end) => readRange(uri, start, end ?? h.size),
-  };
-  const metadata: FileMetaData = await parquetMetadataAsync(file);
-  const schema = parquetSchema(metadata);
-  const columns = schema.children.map((c) => c.element.name);
+  const decoded = await decode({ uri, byteLength: h.size, rowEnd: limit });
+  const top = columnsOf(decoded.schema);
+  const columns = top.map((c) => c.element.name);
   // The geometry columns: the ones the "geo" metadata names, the ones typed
   // as geometry, and a bare "geometry" column whatever it holds.
-  const geo = geometryColumns(metadata);
-  for (const c of schema.children) {
+  const geo = geometryColumns(decoded.keyValue.geo);
+  for (const c of top) {
     const lt = c.element.logical_type?.type;
     if (lt === "GEOMETRY" || lt === "GEOGRAPHY" || c.element.name === "geometry") geo.add(c.element.name);
   }
-  const kinds = Object.fromEntries(schema.children.map((c) => [c.element.name, geo.has(c.element.name) ? "geometry" : kindOf(c)]));
-  const totalRows = Number(metadata.num_rows);
-  // Bytes stay bytes (as readItems reads them), so an unlabeled WKB column
-  // can be named for what it is rather than shown as garbled text.
-  const rows = await parquetReadObjects({
-    file,
-    metadata,
-    compressors,
-    rowFormat: "object",
-    rowStart: 0,
-    rowEnd: Math.min(limit, totalRows),
-    utf8: false,
-  });
+  const kinds = Object.fromEntries(top.map((c) => [c.element.name, geo.has(c.element.name) ? "geometry" : kindOf(c)]));
+  // Bytes came back as bytes (as readItems reads them), so an unlabeled WKB
+  // column can be named for what it is rather than shown as garbled text.
   const bytesAsText = new Set(
-    schema.children
+    top
       .filter((c) => c.element.type === "BYTE_ARRAY" && !c.element.logical_type && !c.element.converted_type && !geo.has(c.element.name))
       .map((c) => c.element.name),
   );
@@ -293,13 +481,13 @@ export async function previewParquet(uri: string, limit = 50): Promise<TablePrev
     kind: "table",
     columns,
     kinds,
-    rows: rows.map((r) => {
-      const row = { ...(r as Record<string, unknown>) };
+    rows: decoded.rows.map((r) => {
+      const row = { ...r };
       for (const k of bytesAsText) if (row[k] instanceof Uint8Array) row[k] = text(row[k] as Uint8Array);
       for (const k of geo) row[k] = geometrySummary(row[k]);
       return toJson(plain(row)) as Record<string, unknown>;
     }),
-    totalRows,
+    totalRows: decoded.totalRows,
     byteLength: h.size,
   };
 }
@@ -321,8 +509,7 @@ export function geometrySummary(v: unknown): string | null {
 }
 
 /** The columns the GeoParquet "geo" metadata names as geometry. */
-function geometryColumns(metadata: FileMetaData): Set<string> {
-  const raw = metadata.key_value_metadata?.find((kv) => kv.key === "geo")?.value;
+function geometryColumns(raw: string | undefined): Set<string> {
   if (!raw) return new Set();
   try {
     const geo = JSON.parse(raw) as { columns?: Record<string, unknown> };

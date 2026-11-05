@@ -362,6 +362,9 @@ export function HomeMap({
   const fitSlug = current && !current.drawn && preview ? preview : shown;
   const dense = areas.find((a) => drawn.includes(a.slug) && a.drawn === "density") ?? null;
   const [basemapDown, setBasemapDown] = useState(false);
+  // Set when the map couldn't be built at all (no WebGL, the library didn't
+  // load), and thrown below so MapBoundary shows in the map's place.
+  const [failed, setFailed] = useState<unknown>(null);
   // The members under the cursor, named beside it. Kept with the slug they
   // belong to, so a new selection drops a stale one.
   const [tipState, setTip] = useState<{ slug: string; x: number; y: number; flip: boolean; rows: Hit[] } | null>(null);
@@ -542,6 +545,8 @@ export function HomeMap({
         for (const id of [SRC_MASK, SRC_ITEMS, SRC_AREA, SRC_TERRAIN]) if (m.getSource(id)) m.removeSource(id);
         basemap();
       });
+    }).catch((e: unknown) => {
+      if (!disposed) setFailed(e ?? new Error("The map couldn't be built"));
     });
 
     return () => {
@@ -662,6 +667,7 @@ export function HomeMap({
     m.setPaintProperty(L.areaLine, "line-width", areaLineWidth(areaHighlight));
   }, [areaHighlight]);
 
+  if (failed) throw failed;
   return (
     <figure ref={frameRef} className="ffx-map sx-home-map" aria-label={area ? `Datasets in ${area.name}` : "Datasets on the map"}>
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />

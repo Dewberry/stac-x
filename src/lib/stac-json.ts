@@ -1,8 +1,8 @@
 import "server-only";
 
-import { readItems, toGeometry } from "./parquet";
-import type { StacAsset, StacItem, StacLink } from "./stac";
-import { head, isS3, NotFound, parseRef, readJson } from "./storage";
+import { NotStac, ParquetUnreadable, readItems, toGeometry, type ParquetStac } from "./parquet";
+import { tidyAsset, type StacAsset, type StacItem, type StacLink } from "./stac";
+import { baseName, head, isS3, NotFound, parseRef, readJson } from "./storage";
 
 /**
  * A static STAC catalog in, STAC items out.
@@ -35,6 +35,12 @@ export type JsonStac = {
   /** The parquet file and its ETag, or null for JSON items or metadata only. */
   parquet: { uri: string; etag: string } | null;
   dependencies: { uri: string; etag: string }[];
+  /**
+   * Why the linked parquet file gave no items, when the collection itself
+   * read fine. The collection is still there, with this in place of its
+   * items, rather than gone from the catalog.
+   */
+  itemsError?: string;
 };
 
 /** Keep a large static catalog from opening thousands of S3 requests at once. */
@@ -67,7 +73,7 @@ function jsonItem(value: unknown, base: string, collection: string, collectionUr
   for (const [key, value] of Object.entries(doc.assets ?? {})) {
     const asset = value as StacAsset | null;
     if (!asset || typeof asset.href !== "string") throw new Error(`${base}: asset ${key} has no href`);
-    assets[key] = { ...asset, href: resolveHref(asset.href, base) };
+    assets[key] = tidyAsset({ ...asset, href: resolveHref(asset.href, base) });
   }
   const geometry = toGeometry(doc.geometry);
   const box = doc.bbox;
@@ -255,7 +261,25 @@ export async function readCollectionJson(uri: string): Promise<JsonStac> {
   // to this file, which is also what the version grouping keys on; the rest
   // of its links are left as written.
   const href = resolveHref(parquet.href, uri);
-  const read = await readItems(href);
+  let read: ParquetStac;
+  try {
+    read = await readItems(href);
+  } catch (e) {
+    // The file is the trouble, not the read: it's missing, it isn't items,
+    // or it can't be decoded. That won't change until the file does, so
+    // it's kept with the file's ETag and said on the dataset's own page.
+    // Anything else (S3 refused, the network dropped) is the read's
+    // trouble, and is left to fail the source and be tried again.
+    const itemsError =
+      e instanceof ParquetUnreadable ? e.message
+      : e instanceof NotStac ? `${baseName(href)} has no id column, so it isn't stac-geoparquet.`
+      : e instanceof NotFound ? `${baseName(href)}, the file it links to for them, isn't there.`
+      : null;
+    if (itemsError === null) throw e;
+    console.error(`stac-x: ${uri}: the items in ${href} couldn't be read. ${itemsError}`);
+    const etag = e instanceof NotFound ? "" : (await head(href))?.etag ?? "";
+    return { items: [], collections: { [id]: doc }, parquet: { uri: href, etag }, dependencies: [], itemsError };
+  }
   const own: StacLink = { rel: "collection", href: uri, type: "application/json" };
   return {
     items: read.items.map((item) => ({

@@ -43,6 +43,35 @@ export type StacItem = {
   assets: Record<string, StacAsset>;
 };
 
+/**
+ * An asset with the fields the pages lean on in the shape they expect:
+ * roles as a list of strings, and type, title and description as strings.
+ * Files get these wrong ("roles": "data" is a common one), and a page that
+ * calls a list method on that string goes down for the sake of one asset.
+ * A lone role is taken as a list of one; anything else that's the wrong
+ * shape is dropped. Everything else on the asset is left as it is.
+ */
+export function tidyAsset<T extends StacAsset>(asset: T): T {
+  const out: StacAsset = { ...asset };
+  if (Array.isArray(out.roles)) out.roles = out.roles.filter((r): r is string => typeof r === "string");
+  else if (typeof out.roles === "string" && out.roles) out.roles = [out.roles];
+  else delete out.roles;
+  for (const key of ["type", "title", "description"] as const) {
+    if (typeof out[key] !== "string") delete out[key];
+  }
+  return out as T;
+}
+
+/** The providers a collection names, keeping the ones that have a name and making roles a list of strings. */
+export function tidyProviders(raw: unknown): Provider[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((p: unknown) => {
+    if (!p || typeof p !== "object" || typeof (p as Provider).name !== "string") return [];
+    const { roles, ...rest } = p as Provider;
+    return [{ ...rest, ...(Array.isArray(roles) ? { roles: roles.filter((r): r is string => typeof r === "string") } : {}) }];
+  });
+}
+
 /** A collection's QC record: the editable fields, plus when it was saved. */
 export type QcEdit = {
   qc: QcStatus;
@@ -163,6 +192,12 @@ export type Collection = {
    * geometry can't be trusted, so the pages draw none of it and say so.
    */
   geometryErrors: number;
+  /**
+   * Why the dataset's items file couldn't be read, when it couldn't: the
+   * collection is shown without items, and its pages say this instead.
+   * Null when the items read fine or there were none to read.
+   */
+  itemsError: string | null;
   items: CatalogItem[];
 };
 

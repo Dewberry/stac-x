@@ -211,6 +211,14 @@ The app reads stac-geoparquet and static STAC JSON items.
   loaded, and the server log says why.
 - A parquet file with no `id` column (a data table an asset points at, say)
   is left out of the catalog rather than shown as a collection.
+- Give the same kind of asset the same key on every item (`geojson`, not
+  `co00002-630_geojson` on one item and `co00003-505_geojson` on the next).
+  Parquet has one schema for the whole file, so every asset key becomes its
+  own set of columns on every row, and a file of a few megabytes can take
+  gigabytes to read. STAC JSON items don't have this problem.
+- A collection whose parquet file can't be read (it's missing, it has no
+  `id` column, or it needs more memory or time than a file is allowed)
+  still shows as a dataset, with the reason where its items would be.
 - A file written from a pandas frame of items, with bbox, links, assets and
   properties as JSON text and the geometry as WKB bytes with no `geo`
   metadata, is read too. A geometry that still isn't valid is dropped from
@@ -250,6 +258,14 @@ second for a hundred thousand items. Memory grows with the item count and
 how many properties each item carries, so a project with hundreds of
 thousands of items should size the server for it and watch its first load.
 Nothing larger has been tried.
+
+Each parquet file is decoded by a process of its own, two at a time, with
+a limit on its memory and its time. What a file costs to decode can't be
+told from its size, and a server that runs out of memory can't recover, so
+a file that needs more than its limit ends that process instead: its
+dataset says why, and the rest of the app carries on. The limits are
+`STAC_PARQUET_MEMORY_MB`, `STAC_PARQUET_MAX_MB` and
+`STAC_PARQUET_TIMEOUT_SECONDS` (see `.env.example`).
 
 ## Docker
 
@@ -295,6 +311,11 @@ docker build --build-arg NEXT_PUBLIC_BASE_PATH=/stac -t stac-x .
 
 docker run --rm -p 3000:3000 --env-file .env -v "$PWD/data:/app/data" stac-x
 ```
+
+Wherever it runs for real, give it a restart policy (`--restart
+unless-stopped`) and a memory limit. `/api/health` under the base path
+(`/stac/api/health` in the published image) answers 200 whenever the server
+is up, without reading the catalog; the image's own health check uses it.
 
 The container reads the same variables as `.env.example`. A few things about
 its files:

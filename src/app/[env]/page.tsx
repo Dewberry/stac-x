@@ -180,6 +180,7 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
       emptyInside: 0,
       unit: broken ? "items" : unitOf(c),
       geometryError: broken || undefined,
+      itemsError: !!c.itemsError || undefined,
       parentMissing: c.parentMissing || undefined,
       lazy: lazy.has(c.id) || undefined,
       coverage: coverageOf(bbox),

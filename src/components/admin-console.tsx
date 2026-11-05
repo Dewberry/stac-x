@@ -234,9 +234,16 @@ export function AdminConsole({
     form.set("qc", decision);
     form.set("date_approved", date ?? "");
     form.set("note", note);
-    const res = await saveQcAction({ ok: null }, form);
-    if (res.ok === true) return { ok: true, promotedTo: res.promotedTo };
-    return { ok: false, error: res.ok === false ? res.error : "Nothing was saved." };
+    try {
+      const res = await saveQcAction({ ok: null }, form);
+      if (res.ok === true) return { ok: true, promotedTo: res.promotedTo };
+      return { ok: false, error: res.ok === false ? res.error : "Nothing was saved." };
+    } catch {
+      // The action never throws; this is the call itself failing (the
+      // network dropped, the server was restarting). Left to throw, it
+      // would replace the whole queue with the error page and lose the note.
+      return { ok: false, error: "Couldn't reach the server, so this may not have been saved. Try again." };
+    }
   }
 
   const selectedShown = shown.filter((r) => selected.has(r.id));

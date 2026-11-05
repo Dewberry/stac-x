@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCollection } from "@/lib/catalog";
 import { isEnv } from "@/lib/env";
 import { dataFileOf } from "@/lib/data-file";
-import { previewParquet } from "@/lib/parquet";
+import { ParquetUnreadable, previewParquet } from "@/lib/parquet";
 import { baseName } from "@/lib/storage";
 
 /**
@@ -23,8 +23,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ env: str
     const preview = await previewParquet(source, limit);
     return NextResponse.json({ ...preview, source: baseName(source) });
   } catch (e) {
-    // The panel puts "Couldn't read the file:" in front of this. S3's own
-    // text stays in the log, since an access error names the account and role.
+    // The panel puts "Couldn't read the file:" in front of this. Why a
+    // parquet file can't be read is in this app's own words, so it's said.
+    // S3's own text stays in the log, since an access error names the
+    // account and role.
+    if (e instanceof ParquetUnreadable) {
+      return NextResponse.json({ error: e.message.charAt(0).toLowerCase() + e.message.slice(1) }, { status: 422 });
+    }
     console.error(`data: couldn't read ${source}`, e);
     return NextResponse.json({ error: "the server log has the details." }, { status: 502 });
   }

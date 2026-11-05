@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getCatalog } from "./catalog";
+import { getCatalogElsewhere } from "./catalog";
 import { sources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import type { Collection } from "./stac";
@@ -32,7 +32,7 @@ export async function versionsElsewhere(env: EnvKey, c: Collection): Promise<Ver
   for (const link of c.versionsElsewhere) {
     const other = envOfBucket(link.href, env);
     if (!other) continue;
-    const { collections } = await getCatalog(other);
+    const { collections } = await getCatalogElsewhere(other);
     const found = collections.find((x) => x.docHref === link.href);
     if (!found || out.some((v) => v.env === other && v.collection.id === found.id)) continue;
     out.push({

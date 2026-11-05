@@ -716,13 +716,16 @@ function AreaRow({
             </svg>
             {previewing && <span className="sr-only">Previewing on the map</span>}
           </span>
-          <span className="sx-row-count">
-            <b className="sx-row-fig ffx-num">{count.n}</b>
-            <span className="sx-row-unit">
-              <UnitGlyph unit={area.unit} />
-              {count.noun}
+          {/* No count for items that couldn't be read: the line under the name says so, and "0" would say there are none. */}
+          {!area.itemsError && (
+            <span className="sx-row-count">
+              <b className="sx-row-fig ffx-num">{count.n}</b>
+              <span className="sx-row-unit">
+                <UnitGlyph unit={area.unit} />
+                {count.noun}
+              </span>
             </span>
-          </span>
+          )}
         </span>
       </button>
       {open && <OpenRow env={env} area={area} trail={trail} childCollections={childCollections} preview={preview} onHover={onHover} rows={rows} activeIds={activeIds} />}

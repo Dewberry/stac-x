@@ -5,9 +5,9 @@ import { ENVS, type EnvKey } from "./env";
 import { readEdits } from "./edits";
 import { kindOf } from "./collection-hierarchy";
 import { collectionName } from "./format";
-import { NotStac, readItems } from "./parquet";
+import { NotStac, ParquetUnreadable, readItems } from "./parquet";
 import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
-import { VERSION_RELS, type CatalogItem, type Collection, type Provider, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
+import { tidyAsset, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsAvailable, baseName, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
@@ -51,6 +51,12 @@ type SourceState = {
   error: string | null;
   /** A parquet file under a listed prefix that turned out not to be stac-geoparquet, left out of the catalog. */
   skipped?: boolean;
+  /**
+   * Why the source's parquet gave no items, when the file itself is the
+   * trouble (see ParquetUnreadable). Kept with the ETag, so the file is
+   * read again only when it changes, not on every refresh.
+   */
+  itemsError?: string | null;
 };
 
 type CollectionDoc = Record<string, unknown> | null;
@@ -115,6 +121,21 @@ export async function getCatalog(env: EnvKey): Promise<Catalog> {
   return cache.last;
 }
 
+/**
+ * Another environment's catalog, for a page that's about this one: where a
+ * dataset stands elsewhere, a version held there, whether an href is an
+ * asset anywhere. If that environment can't be built, the page goes on
+ * without it rather than failing with it.
+ */
+export async function getCatalogElsewhere(env: EnvKey): Promise<Catalog> {
+  try {
+    return await getCatalog(env);
+  } catch (e) {
+    console.error(`stac-x: the ${env} catalog couldn't be built, so it's left out of this page:`, e);
+    return { collections: [], sources: [], errors: [message(e)], refreshedAt: new Date().toISOString() };
+  }
+}
+
 export async function getCollection(env: EnvKey, id: string): Promise<Collection | null> {
   const c = await getCatalog(env);
   return c.collections.find((x) => x.id === id) ?? null;
@@ -133,7 +154,7 @@ export async function getItem(env: EnvKey, collection: string, id: string): Prom
 export async function isCatalogAsset(href: string): Promise<boolean> {
   const has = (assets: Record<string, StacAsset>) => Object.values(assets).some((a) => a.href === href);
   for (const e of ENVS) {
-    const { collections } = await getCatalog(e.key);
+    const { collections } = await getCatalogElsewhere(e.key);
     if (collections.some((c) => has(c.assets) || c.items.some((i) => has(i.assets)))) return true;
   }
   return false;
@@ -196,6 +217,10 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
       collectionSources.set(id, sources);
     }
     if (s.error) errors.push(`${uri}: ${s.error}`);
+    // A collection.json whose items couldn't be read still has a page to
+    // say so on. A bare parquet file has nothing but its rows, so it's
+    // missing, and the catalog's errors are where that's said.
+    if (s.itemsError && !ids.size) errors.push(`${uri}: ${s.itemsError}`);
     for (const item of s.items) {
       const id = nodeOf(item.collection);
       const list = byCollection.get(id) ?? [];
@@ -374,6 +399,7 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
         state.embedded = read.collections;
         state.parquet = read.parquet?.uri ?? null;
         state.dependencies = read.dependencies;
+        state.itemsError = read.itemsError ?? null;
         state.etag = `${h.etag}|${read.parquet?.etag ?? ""}`;
       }
     } else if (h.etag !== state.etag || !state.embedded) {
@@ -382,14 +408,23 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
         state.items = read.items;
         state.embedded = read.collections;
         state.skipped = false;
+        state.itemsError = null;
       } catch (e) {
-        if (!(e instanceof NotStac)) throw e;
-        // A data table beside the items, not an error. Its ETag is kept so
-        // it's read again only when it changes.
-        console.log(`stac-x: ${e.message}, so it's left out`);
+        if (e instanceof NotStac) {
+          // A data table beside the items, not an error. Its ETag is kept so
+          // it's read again only when it changes.
+          console.log(`stac-x: ${e.message}, so it's left out`);
+          state.skipped = true;
+          state.itemsError = null;
+        } else if (e instanceof ParquetUnreadable) {
+          // The file is the trouble, and will be until it changes, so its
+          // ETag is kept too. Its rows aren't served stale in the meantime.
+          console.error(`stac-x: ${uri} couldn't be read. ${e.message}`);
+          state.skipped = false;
+          state.itemsError = e.message;
+        } else throw e;
         state.items = [];
         state.embedded = {};
-        state.skipped = true;
       }
       state.etag = h.etag;
     }
@@ -449,7 +484,7 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
       description: typeof description === "string" ? description : null,
       license: typeof license === "string" ? license : null,
       keywords: Array.isArray(keywords) ? keywords.filter((k): k is string => typeof k === "string") : [],
-      providers: Array.isArray(providers) ? (providers as Provider[]) : [],
+      providers: tidyProviders(providers),
       bbox: docBbox && docBbox.length >= 4 ? [docBbox[0], docBbox[1], docBbox[2], docBbox[3]] : bbox,
       temporal: docInterval ? [docInterval[0] ?? null, docInterval[1] ?? null] : temporal,
       itemCount: items.length,
@@ -480,6 +515,7 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
       qc,
       history,
       geometryErrors,
+      itemsError: sources.map((uri) => cache.sources.get(uri)?.itemsError).find((e) => !!e) ?? null,
       items,
     };
   }
@@ -521,6 +557,7 @@ function derivedCollection(cache: Cache, id: string, stacId: string, items: Cata
     qc,
     history,
     geometryErrors,
+    itemsError: null,
     items,
   };
 }
@@ -583,7 +620,7 @@ function docAssets(raw: unknown, base: string | null): Record<string, StacAsset>
   return Object.fromEntries(
     Object.entries(raw as Record<string, StacAsset>)
       .filter(([, a]) => a && typeof a.href === "string")
-      .map(([k, a]) => [k, { ...a, href: base ? resolveHref(a.href, base) : a.href }]),
+      .map(([k, a]) => [k, tidyAsset({ ...a, href: base ? resolveHref(a.href, base) : a.href })]),
   );
 }
 
