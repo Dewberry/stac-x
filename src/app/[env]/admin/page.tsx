@@ -75,13 +75,17 @@ export default async function AdminPage({ params, searchParams }: Props) {
     files: c.sources.map(baseName),
     sendable: canPromote(c),
     qc: c.qc,
-    since: c.history[0]?.at ?? c.qc?.updated_at ?? null,
+    // A history entry whose date was lost from the file has an empty one.
+    since: c.history[0]?.at || c.qc?.updated_at || null,
     stages: PATH.map((e) => {
       const s = statusIn.get(e.key)?.get(c.id);
       return { env: e.key, qc: s?.qc ?? null, at: s?.at ?? null };
     }),
     history: c.history,
   }));
+
+  // Datasets whose review record is there but can't be read (lib/edits.ts).
+  const unreadable = here.collections.filter((c) => c.kind === "dataset" && c.qcUnreadable);
 
   const next = nextEnv(env);
   return (
@@ -102,6 +106,14 @@ export default async function AdminPage({ params, searchParams }: Props) {
         <p className="sx-callout" role="status">
           Some source files couldn&apos;t be read, so datasets may be missing from this list. The details are in the
           server log.
+        </p>
+      )}
+      {unreadable.length > 0 && (
+        <p className="sx-callout" role="status">
+          The review record for {unreadable.map((c) => c.title).join(", ")} can&apos;t be read, so{" "}
+          {unreadable.length === 1 ? "it shows" : "they show"} as not reviewed here. A decision can&apos;t be saved
+          for {unreadable.length === 1 ? "it" : "them"} until the edits file beside the dataset is fixed or deleted.
+          The server log names the file.
         </p>
       )}
       <AdminConsole

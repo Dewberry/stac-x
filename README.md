@@ -248,7 +248,10 @@ The server's credentials need:
   folder, where promoted collections land.
 
 QC saves are conditional writes (`If-Match` and `If-None-Match` on
-PutObject), so an S3-compatible store has to support those.
+PutObject), so an S3-compatible store has to support those. Promotion from
+one S3 location to another is a CopyObject, so the file never passes through
+the server; it needs nothing beyond the read on the source and the write on
+the landing folder listed above.
 
 ### Put it behind your own sign-in
 

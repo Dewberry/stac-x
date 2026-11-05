@@ -366,7 +366,7 @@ function OneReview({
         {lastNote && lastNote.kind === "qc" && (
           <figure className="sx-lastnote">
             <figcaption>
-              Last note, with <b>{qcMeta(lastNote.qc).label}</b>, {fmtAgo(lastNote.at, now)}
+              Last note, with <b>{qcMeta(lastNote.qc).label}</b>, {fmtAgo(lastNote.at, now) || "date unknown"}
             </figcaption>
             <blockquote>{lastNote.note}</blockquote>
           </figure>

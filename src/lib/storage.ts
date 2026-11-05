@@ -1,9 +1,10 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { mkdir, open, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import {
+  CopyObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
@@ -259,6 +260,72 @@ export async function write(
   await writeFile(/*turbopackIgnore: true*/ ref.path, body);
   const after = await head(uri);
   return { etag: after?.etag ?? "" };
+}
+
+/* ------------------------------------------------------------------ copy */
+
+/**
+ * Copy one object onto another, replacing what's there, without holding it
+ * in memory. Between two S3 objects S3 does the copy itself, so the bytes
+ * never come through this server; between two local files the disk does.
+ * Promotion uses it: reading a file whole to write it back cost the server
+ * the file's size in memory for every file it sent on.
+ *
+ * The local copy lands under a temporary name and is renamed into place, so
+ * a copy that stops halfway never leaves half a parquet file where the
+ * catalog would read it. (S3 only shows a copy once it's complete.)
+ *
+ * One S3 copy request tops out at 5 GB. That's about ten times the largest
+ * items file the catalog reads by default (STAC_PARQUET_MAX_MB), so a
+ * bigger one fails here with S3's own error rather than being split into
+ * parts.
+ *
+ * With S3 on one side and a local folder on the other, which only happens
+ * on a developer's machine, the file is read and written as before.
+ */
+export async function copy(from: string, to: string, opts: { contentType?: string } = {}): Promise<void> {
+  assertReadable(from);
+  const src = parseRef(from);
+  const dst = parseRef(to);
+  if (src.kind === "s3" && dst.kind === "s3") {
+    try {
+      await s3().send(
+        new CopyObjectCommand({
+          Bucket: dst.bucket,
+          Key: dst.key,
+          // The source goes in a header, so it's URL-encoded, slashes kept.
+          CopySource: `${src.bucket}/${src.key.split("/").map(encodeURIComponent).join("/")}`,
+          // The copy gets this content type and no other metadata, the same
+          // as when the bytes were uploaded afresh.
+          ...(opts.contentType ? { ContentType: opts.contentType, MetadataDirective: "REPLACE" as const } : {}),
+          // No tags either. Left to its default S3 copies the source's
+          // tags, which takes tagging permissions the server was never
+          // asked to have.
+          TaggingDirective: "REPLACE",
+        }),
+      );
+    } catch (e) {
+      if (isMissing(e)) throw new NotFound(from);
+      throw e;
+    }
+    return;
+  }
+  if (src.kind === "file" && dst.kind === "file") {
+    if (src.path === dst.path) return;
+    await mkdir(/*turbopackIgnore: true*/ dirname(dst.path), { recursive: true });
+    const partial = `${dst.path}.${process.pid}.partial`;
+    try {
+      await copyFile(/*turbopackIgnore: true*/ src.path, partial);
+      await rename(/*turbopackIgnore: true*/ partial, dst.path);
+    } catch (e) {
+      await rm(/*turbopackIgnore: true*/ partial, { force: true });
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") throw new NotFound(from);
+      throw e;
+    }
+    return;
+  }
+  const { bytes } = await read(from);
+  await write(to, bytes, opts);
 }
 
 /* ------------------------------------------------------------------ links */

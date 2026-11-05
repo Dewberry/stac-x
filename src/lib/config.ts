@@ -2,6 +2,7 @@ import "server-only";
 
 import { totalmem } from "node:os";
 import type { EnvKey } from "./env";
+import { Refused } from "./refused";
 
 /**
  * Runtime configuration, all from the environment.
@@ -44,9 +45,9 @@ export function sources(env: EnvKey): string[] {
 /** Where a collection promoted into this environment is copied to. */
 export function landingFolder(env: EnvKey): string {
   const first = sources(env)[0];
-  if (!first) throw new Error(`${SOURCE_VARS[env]} isn't set, so there's no folder to receive promoted collections`);
+  if (!first) throw new Refused(`${SOURCE_VARS[env]} isn't set, so there's no folder to receive promoted collections.`);
   if (/\.(geo)?parquet$|\.pq$/i.test(first)) {
-    throw new Error(`${SOURCE_VARS[env]} must start with a folder or prefix to receive promoted collections, not a single file`);
+    throw new Refused(`${SOURCE_VARS[env]} must start with a folder or prefix to receive promoted collections, not a single file.`);
   }
   if (/(^|\/)catalog[^/]*\.json$/i.test(first)) return first.slice(0, first.lastIndexOf("/") + 1) || "./";
   return first.endsWith("/") ? first : `${first}/`;
