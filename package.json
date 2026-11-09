@@ -13,9 +13,9 @@
     "a11y": "node scripts/a11y.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1159.0",
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@aws-sdk/credential-provider-node": "^3.972.88",
-    "@aws-sdk/s3-request-presigner": "^3.1159.0",
+    "@aws-sdk/s3-request-presigner": "^3.1161.0",
     "@radix-ui/react-dropdown-menu": "^2.2.1",
     "clsx": "^2.1.1",
     "hyparquet": "^1.32.0",
