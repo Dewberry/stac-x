@@ -8,6 +8,7 @@ import { PreviewButton } from "@/components/data-modal";
 import { DataMap } from "@/components/map";
 import { MapBoundary } from "@/components/map-boundary";
 import { MetadataPanel, type Entry } from "@/components/meta-table";
+import { ResourceLinks } from "@/components/resource-links";
 import { breakable } from "@/components/breakable";
 import { homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
@@ -20,7 +21,7 @@ import { pageEnv, pageParam } from "@/lib/page-env";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
 import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { itemVersions, type ItemVersion } from "@/lib/item-versions";
-import { VERSION_RELS } from "@/lib/stac";
+import { resourceLinks, VERSION_RELS } from "@/lib/stac";
 import { collectionHref, itemHref, itemJsonHref } from "@/lib/utils";
 import { compareLabels, versionName } from "@/lib/versions";
 import { versionsElsewhere } from "@/lib/versions-elsewhere";
@@ -134,7 +135,7 @@ export default async function ItemPage({ params }: Props) {
   // Version links open from the version picker, so they're listed with the
   // other STAC links rather than as resources.
   const isStructural = (rel: string) => ["self", "parent", "root", "collection", ...VERSION_RELS].includes(rel);
-  const links = item.links.filter((l) => !isStructural(l.rel));
+  const links = resourceLinks(item.links);
   const structural = item.links.filter((l) => isStructural(l.rel));
 
   return (
@@ -227,17 +228,8 @@ export default async function ItemPage({ params }: Props) {
             <Assets assets={item.assets} />
           </Panel>
           {links.length > 0 && (
-            <Panel title="Additional resources" id="links">
-              <ul className="divide-y divide-grid pb-1">
-                {links.map((l, i) => (
-                  <li key={`${l.rel}-${i}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-[var(--ffx-panel-pad)] py-2">
-                    <a href={l.href} className="ffx-link" target="_blank" rel="noreferrer">
-                      {l.title || l.href}
-                    </a>
-                    <span className="sx-tag">{l.rel}</span>
-                  </li>
-                ))}
-              </ul>
+            <Panel title="Additional resources" note={String(links.length)} id="links">
+              <ResourceLinks links={links} />
             </Panel>
           )}
         </div>

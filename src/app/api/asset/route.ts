@@ -1,16 +1,17 @@
 import { open, type FileHandle } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
-import { isCatalogAsset } from "@/lib/catalog";
+import { isCatalogDownload } from "@/lib/catalog";
 import { jsonRoute } from "@/lib/json-route";
 import { awsAvailable, isUnderCwd, parseRef, presign } from "@/lib/storage";
 
 /**
  * Turns an asset href into something a browser can open. An s3:// href
  * becomes a redirect to a presigned GET, good for an hour; a local file is
- * served directly. Only hrefs some catalog's assets carry are served: the
- * presign uses the server's credentials, so anything else would hand out
- * whatever those credentials can read.
+ * served directly. Only hrefs some catalog's assets carry are served, and
+ * those of the links its pages list as additional resources: the presign
+ * uses the server's credentials, so anything else would hand out whatever
+ * those credentials can read.
  *
  * A local file is streamed from the disk, never read whole: an asset can be
  * a terrain model of several gigabytes, which would be held in the server's
@@ -21,7 +22,7 @@ import { awsAvailable, isUnderCwd, parseRef, presign } from "@/lib/storage";
 export const GET = jsonRoute("asset", async (request: Request) => {
   const href = new URL(request.url).searchParams.get("href");
   if (!href) return NextResponse.json({ error: "href is required" }, { status: 400 });
-  if (!(await isCatalogAsset(href))) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!(await isCatalogDownload(href))) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const ref = parseRef(href);
   if (ref.kind === "s3") {

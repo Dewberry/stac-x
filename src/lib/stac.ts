@@ -207,6 +207,8 @@ export type Collection = {
   docHref: string | null;
   /** The metadata's latest-, predecessor- and successor-version links. */
   versionLinks: StacLink[];
+  /** The metadata's other links (a source spreadsheet, a report), hrefs resolved; see resourceLinks. */
+  resourceLinks: StacLink[];
   /**
    * Version links that point outside this environment's bucket, hrefs made
    * absolute. The version lives in another environment; see
@@ -259,6 +261,28 @@ export type Series = {
 };
 
 export const VERSION_RELS = ["latest-version", "predecessor-version", "successor-version", "version-history"];
+/**
+ * Rels that say where a document sits in the catalog. The app walks these
+ * itself and builds its own for the JSON it serves, so they aren't shown as
+ * links to follow.
+ */
+const TREE_RELS = ["self", "root", "parent", "child", "item", "items", "collection"];
+
+/**
+ * The links of a collection or item that point at something to read: what
+ * it was derived from, a report, a license. Everything but the tree and
+ * version links, and anything with no href. The pages list these under
+ * "Additional resources", and the asset route will open them.
+ */
+export function resourceLinks(links: unknown): StacLink[] {
+  if (!Array.isArray(links)) return [];
+  return (links as (StacLink | null)[]).filter(
+    (l): l is StacLink =>
+      !!l && typeof l.href === "string" && !!l.href && typeof l.rel === "string" &&
+      !TREE_RELS.includes(l.rel) && !VERSION_RELS.includes(l.rel),
+  );
+}
+
 export const VERSION_SCHEMA = "https://stac-extensions.github.io/version/v1.2.0/schema.json";
 
 /** The item as STAC JSON for the wire and the JSON view. */
