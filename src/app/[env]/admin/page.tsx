@@ -7,6 +7,7 @@ import { hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
 import { ENVS, PATH, nextEnv } from "@/lib/env";
 import { pageEnv } from "@/lib/page-env";
 import { canPromote } from "@/lib/promote";
+import { getSession } from "@/lib/session";
 import type { Collection } from "@/lib/stac";
 import { baseName } from "@/lib/storage";
 import { collectionHref } from "@/lib/utils";
@@ -31,11 +32,24 @@ type Props = {
  * QC form, so approving still sends the collection on, and Production still
  * needs a note.
  *
- * Anyone who can reach the app can use this page, the same as the QC form.
- * When there's an identity provider, this is the page to gate by role first.
+ * It needs the reviewer role (STAC_REVIEWER_ROLE, lib/session.ts), the same
+ * as saving QC. Someone signed in without it is told so instead of being
+ * shown a queue they can't act on.
  */
 export default async function AdminPage({ params, searchParams }: Props) {
   const env = await pageEnv(params);
+  const session = await getSession();
+  if (session && !session.reviewer) {
+    return (
+      <div className="sx-page">
+        <PageHead crumbs={[homeCrumb(env), { label: "Admin" }]} title="Admin" />
+        <p className="sx-callout">
+          Your account can browse the catalog but can&apos;t review it. Ask an FFRD Cloud admin for the reviewer role,
+          then sign out and back in.
+        </p>
+      </div>
+    );
+  }
   const sp = await searchParams;
   const now = await requestTime();
   // The other environments only feed the stepper; one that can't be built is left out of it.

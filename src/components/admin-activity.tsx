@@ -32,6 +32,11 @@ export function AdminActivity({ rows, now, bare = false }: { rows: ActivityRow[]
             {ev.kind === "qc" && (
               <span>
                 Set to <b>{qcMeta(ev.qc).label}</b>
+                {ev.by && (
+                  <>
+                    {" "}by <span className="ffx-id">{ev.by}</span>
+                  </>
+                )}
               </span>
             )}
             {ev.kind === "promoted" && (
