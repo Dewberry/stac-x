@@ -39,9 +39,11 @@ import {
  * calibration collection stacks two models on one basin, so the tooltip names
  * everything under the cursor and the card lists the whole stack. On an item
  * page the only feature is the page's own, so a click there opens nothing.
- * Points are river blue, the color for
- * data in this app; lines and polygons are drawn in ink, with an extent box
- * dashed so it never reads as data.
+ * Points and lines are river blue, the color for
+ * data in this app; polygon outlines are drawn in ink, with an extent box
+ * dashed so it never reads as data. Lines are thin and a little see-through
+ * while zoomed out: a basin's stream network is thousands of them, and at
+ * the width an outline gets they ran together into one dark shape.
  *
  * MapLibre because the program's collections will run to tens of thousands of
  * points, which rules out a DOM marker each, and because a GeoJSON source
@@ -89,12 +91,13 @@ const L = {
   extentLine: "sx-extent-line",
   fill: "sx-fill",
   line: "sx-line",
+  lineData: "sx-line-data",
   hiFill: "sx-hi-fill",
   hiLine: "sx-hi-line",
   points: "sx-points",
   selected: "sx-selected",
 };
-const INTERACTIVE = [L.points, L.line, L.fill, L.extentFill];
+const INTERACTIVE = [L.points, L.lineData, L.line, L.fill, L.extentFill];
 const FIT = { padding: 36, maxZoom: 12, duration: 0 };
 /** How far around the cursor, in pixels, counts as pointing at a feature. */
 const HIT = 4;
@@ -182,9 +185,21 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (s
     paint: { "fill-color": tintColor(p), "fill-opacity": tintOpacity(0.18) },
   });
   map.addLayer({
-    id: L.line, type: "line", source: SRC, filter: ["all", notExtent, ["any", poly, line]],
+    id: L.line, type: "line", source: SRC, filter: ["all", notExtent, poly],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": p.inkSec, "line-width": ["interpolate", ["linear"], ["zoom"], 6, 1, 14, 2.5] },
+  });
+  // Line data (streams, connectors) on its own: hairlines while zoomed out
+  // so a dense network reads as a network, and slightly see-through so
+  // where lines crowd together shows darker.
+  map.addLayer({
+    id: L.lineData, type: "line", source: SRC, filter: ["all", notExtent, line],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": p.trace,
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.4, 9, 0.8, 14, 1.75],
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 12, 0.9],
+    },
   });
   // The hovered and pinned shapes, drawn again on top so their outline isn't
   // lost under the neighbors they overlap.
