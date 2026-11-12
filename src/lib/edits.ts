@@ -153,12 +153,12 @@ export function logEvent(edits: EditsFile, collection: string, event: QcEvent) {
   (edits.history[collection] ??= []).push(event);
 }
 
-/** Save a collection's QC record and log it. */
-export async function saveEdit(parquetUri: string, collection: string, input: EditInput): Promise<QcEdit> {
-  const edit: QcEdit = { ...input, updated_at: new Date().toISOString() };
+/** Save a collection's QC record and log it, with who saved it (lib/session.ts). */
+export async function saveEdit(parquetUri: string, collection: string, input: EditInput, by: string): Promise<QcEdit> {
+  const edit: QcEdit = { ...input, by, updated_at: new Date().toISOString() };
   await updateEdits(parquetUri, (edits) => {
     edits.collections[collection] = edit;
-    logEvent(edits, collection, { kind: "qc", at: edit.updated_at, ...input });
+    logEvent(edits, collection, { kind: "qc", at: edit.updated_at, ...input, by });
   });
   return edit;
 }
