@@ -6,6 +6,7 @@ import { saveEdit, validateEdit } from "@/lib/edits";
 import { isEnv, nextEnv, type EnvKey } from "@/lib/env";
 import { canPromote, promote } from "@/lib/promote";
 import { Refused } from "@/lib/refused";
+import { getSession } from "@/lib/session";
 import type { QcEdit } from "@/lib/stac";
 import { PreconditionFailed } from "@/lib/storage";
 
@@ -20,10 +21,10 @@ export type SaveState =
  * Approving into Production needs a note, which becomes the record of why it
  * went live.
  *
- * There is no identity provider yet, so anyone who can reach the app can
- * write; put the app behind the deployment's auth (an ALB with OIDC, or a VPN)
- * until a real one is wired in. The records carry no author for the same
- * reason.
+ * It needs a session with the reviewer role (lib/session.ts), checked here
+ * as well as in proxy.ts, and the record carries who saved it. With sign-in
+ * off, that's the stand-in role and anyone who can reach the app can write,
+ * so such a deployment belongs behind other auth (an ALB with OIDC, or a VPN).
  *
  * What went wrong is only said when the app worded it (see whyNot). S3's
  * own errors stay in the server log, as they do in the API routes.
@@ -32,6 +33,9 @@ export async function saveQcAction(_prev: SaveState, form: FormData): Promise<Sa
   const env = form.get("env");
   const collection = String(form.get("collection") ?? "");
   try {
+    const session = await getSession();
+    if (!session) return { ok: false, error: "Your sign-in has ended. Reload the page to sign in again." };
+    if (!session.reviewer) return { ok: false, error: "Your account can't save reviews. Ask an FFRD Cloud admin for the reviewer role." };
     if (!isEnv(env)) return { ok: false, error: "Unknown environment." };
     const c = await getCollection(env, collection);
     if (!c) return { ok: false, error: "Collection not found." };
@@ -50,7 +54,7 @@ export async function saveQcAction(_prev: SaveState, form: FormData): Promise<Sa
     }
     // The sidecar is keyed by the id the file's own metadata gives the
     // collection, which an older version shares with the current one.
-    const edit = await saveEdit(source, c.stacId, input);
+    const edit = await saveEdit(source, c.stacId, input, session.account);
     invalidate(env, source);
     let promotedTo: EnvKey | null = null;
     // A collection that can't be copied on yet keeps its approval and stays

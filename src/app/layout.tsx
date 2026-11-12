@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { EnvBand, SiteFooter, SiteHeader } from "@/components/shell";
 import { ThemeScript } from "@/components/theme";
 import { appDescription, catalogTitle } from "@/lib/config";
-import { SESSION } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { fontVars } from "./fonts";
 import "./globals.css";
 
@@ -28,7 +28,8 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSession();
   return (
     <html
       lang="en"
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col">
-        <SiteHeader session={SESSION} />
+        <SiteHeader session={session} />
         <EnvBand />
         <main id="main" tabIndex={-1} className="ffx-shell flex-1">
           {children}

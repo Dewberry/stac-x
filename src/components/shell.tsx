@@ -7,6 +7,7 @@ import { MoreMenu } from "./more-menu";
 export { EnvBand } from "./env-switcher";
 import { ThemeMenuItems } from "./theme";
 import { withEnv, type EnvKey } from "@/lib/env";
+import { withBase } from "@/lib/utils";
 import type { Session } from "@/lib/session";
 export { Icon, ICONS } from "./icons";
 
@@ -24,7 +25,7 @@ export { Icon, ICONS } from "./icons";
 /** What the home page is called wherever it's linked: the trail and the account menu. */
 const HOME_LABEL = "All datasets";
 
-/** Pages reached from the account menu rather than the bar. */
+/** Pages reached from the account menu rather than the bar. Admin is left out for someone without the reviewer role. */
 const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
 
 /**
@@ -84,8 +85,8 @@ export function SiteHeader({ session }: { session: Session | null }) {
             session={session}
             home="/"
             homeLabel={HOME_LABEL}
-            signOut="/signin"
-            links={ACCOUNT_LINKS}
+            signOut={session?.federated ? { post: withBase("/api/auth/federated-logout") } : { href: "/signin" }}
+            links={session?.reviewer === false ? [] : ACCOUNT_LINKS}
             menuItems={<ThemeMenuItems />}
           />
         </div>
