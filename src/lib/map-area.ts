@@ -194,22 +194,29 @@ export function areaCovered(area: MapArea, polys: Position[][][]): boolean {
   if (!polys.length) return false;
   const pts = samplesOf(area);
   if (!pts.length) return false;
-  // Each polygon's box first: a few hundred model boundaries scattered over
-  // the basin can't cover it, and ray casting every sample against every
-  // ring of every one took seconds per page.
+  // Each polygon's box first, so a sample is only ray cast against the few
+  // polygons whose box holds it: ray casting every sample against every
+  // ring of a few hundred model boundaries took seconds per page. And stop
+  // as soon as more than 2% of the samples have missed, so a footprint that
+  // plainly doesn't cover the area costs little.
+  //
+  // This used to give up first unless the boxes reached all four edges of
+  // the area's own box. That was stricter than the 98% rule: a footprint
+  // trimmed to the basin (a stream network, model units that stop short of
+  // a thin tip) ends a little inside the outline's box on some side, so it
+  // drew as a dashed box while still covering 99 to 100% of the area.
   const boxes = polys.map((rings) => bboxOf(rings[0]));
-  const [aw, as, ae, an] = area.bbox;
-  if (Math.min(...boxes.map((b) => b[0])) > aw || Math.min(...boxes.map((b) => b[1])) > as) return false;
-  if (Math.max(...boxes.map((b) => b[2])) < ae || Math.max(...boxes.map((b) => b[3])) < an) return false;
-  let hits = 0;
+  const allowed = Math.floor(pts.length * 0.02);
+  let misses = 0;
   for (const [x, y] of pts) {
     const near = polys.filter((_, i) => {
       const [w, s, e, n] = boxes[i];
       return x >= w && x <= e && y >= s && y <= n;
     });
-    if (near.length && inPolys(near, x, y)) hits++;
+    if (near.length && inPolys(near, x, y)) continue;
+    if (++misses > allowed) return false;
   }
-  return hits / pts.length >= 0.98;
+  return true;
 }
 
 export type AreaOutline = { d: string; viewBox: string };
