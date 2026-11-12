@@ -10,7 +10,7 @@ import type {
   Map as MapLibreMap,
   Popup,
 } from "maplibre-gl";
-import type { FeatureCollection } from "geojson";
+import type { FeatureCollection, Position } from "geojson";
 import { MapCard } from "./map-card";
 import {
   applyBasemap,
@@ -86,6 +86,8 @@ export type MapFeatureProps = {
 };
 
 const SRC = "sx-data";
+/** The stretch of line under the cursor, drawn over the data while hovering. */
+const SRC_HOVER = "sx-hover";
 const L = {
   extentFill: "sx-extent-fill",
   extentLine: "sx-extent-line",
@@ -94,6 +96,8 @@ const L = {
   lineData: "sx-line-data",
   hiFill: "sx-hi-fill",
   hiLine: "sx-hi-line",
+  hiLineData: "sx-hi-line-data",
+  hoverLine: "sx-hover-line",
   points: "sx-points",
   selected: "sx-selected",
 };
@@ -101,6 +105,12 @@ const INTERACTIVE = [L.points, L.lineData, L.line, L.fill, L.extentFill];
 const FIT = { padding: 36, maxZoom: 12, duration: 0 };
 /** How far around the cursor, in pixels, counts as pointing at a feature. */
 const HIT = 4;
+/**
+ * How long, in milliseconds, the cursor can be on nothing before the hover
+ * lets go. Thin lines leave gaps of a pixel or two between them, and
+ * letting go at once made the highlight strobe as the cursor crossed them.
+ */
+const LET_GO_MS = 150;
 /** The most names the tooltip lists before "and N more". */
 const TIP_ROWS = 6;
 
@@ -154,6 +164,44 @@ function selectedFilter(ids: (string | null | undefined)[]): ExpressionSpecifica
 }
 
 /** Every feature within a few pixels of the point, once each, top first. */
+/**
+ * The lines within a few pixels of the point, each part of a MultiLineString
+ * on its own. A line item can be a whole basin's streams, so lighting up
+ * the item would light up the basin; the reach under the cursor is what
+ * someone pointing at the map means.
+ */
+function linesNear(m: MapLibreMap, at: { x: number; y: number }): Position[][] {
+  const out: Position[][] = [];
+  const box: [[number, number], [number, number]] = [[at.x - HIT, at.y - HIT], [at.x + HIT, at.y + HIT]];
+  for (const f of m.queryRenderedFeatures(box, { layers: [L.lineData] })) {
+    const g = f.geometry;
+    const parts = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
+    for (const part of parts) {
+      let prev: { x: number; y: number } | null = null;
+      for (const c of part) {
+        const q = m.project(c as [number, number]);
+        if (prev && distToSegment(at, prev, q) <= HIT) {
+          out.push(part);
+          break;
+        }
+        prev = q;
+      }
+    }
+  }
+  return out;
+}
+
+function distToSegment(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = dx * dx + dy * dy;
+  const t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function hoverData(parts: Position[][]): FeatureCollection {
+  return { type: "FeatureCollection", features: parts.length ? [{ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: parts } }] : [] };
+}
+
 function hitsAt(m: MapLibreMap, at: { x: number; y: number }): MapFeatureProps[] {
   const layers = INTERACTIVE.filter((l) => m.getLayer(l));
   const seen = new Set<string>();
@@ -168,7 +216,14 @@ function hitsAt(m: MapLibreMap, at: { x: number; y: number }): MapFeatureProps[]
   return hits;
 }
 
-function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (string | null | undefined)[], selected: string | null) {
+function addLayers(
+  map: MapLibreMap,
+  p: Palette,
+  data: FeatureCollection,
+  hi: (string | null | undefined)[],
+  lineHi: (string | null | undefined)[],
+  selected: string | null,
+) {
   map.addSource(SRC, { type: "geojson", data, promoteId: "id" });
 
   map.addLayer({
@@ -208,9 +263,31 @@ function addLayers(map: MapLibreMap, p: Palette, data: FeatureCollection, hi: (s
     paint: { "fill-color": tintColor(p), "fill-opacity": 0.3 },
   });
   map.addLayer({
-    id: L.hiLine, type: "line", source: SRC, filter: ["all", notExtent, ["any", poly, line], idsIn(hi)],
+    id: L.hiLine, type: "line", source: SRC, filter: ["all", notExtent, poly, idsIn(hi)],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: { "line-color": p.ink, "line-width": 2 },
+  });
+  // A line item pointed at in the list or clicked deepens a step, at its
+  // own width, rather than going to 2px ink: one item can be a whole stream
+  // network, and redrawing all of it that heavy turned the basin black.
+  // Hovering the map doesn't use this; it lights the reach under the cursor.
+  map.addLayer({
+    id: L.hiLineData, type: "line", source: SRC, filter: ["all", notExtent, line, idsIn(lineHi)],
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": p.traceDeep,
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.4, 9, 0.8, 14, 1.75],
+      "line-opacity": 0.5,
+    },
+  });
+  map.addSource(SRC_HOVER, { type: "geojson", data: hoverData([]) });
+  map.addLayer({
+    id: L.hoverLine, type: "line", source: SRC_HOVER,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": p.traceDeep,
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 9, 2.5, 14, 3.5],
+    },
   });
   map.addLayer({
     id: L.points, type: "circle", source: SRC, filter: ["all", notExtent, point],
@@ -254,18 +331,26 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   // and the one pointed at in the list. As a string so the effect below can
   // watch it.
   const hiKey = JSON.stringify([...(hover?.hits.map((h) => h.id) ?? []), ...(pin?.hits.map((h) => h.id) ?? []), hovered]);
+  // Line items light up whole only from the card and the list. Under the
+  // cursor it's the reach being pointed at (linesNear), not the item, and
+  // the list echoes the map's hover back as `hovered`, so that's left out
+  // while it's the same item.
+  const fromList = hovered && !hover?.hits.some((h) => h.id === hovered) ? hovered : null;
+  const lineHiKey = JSON.stringify([...(pin?.hits.map((h) => h.id) ?? []), fromList]);
   // Latest props, readable from the one-time map setup below without
   // rebuilding the map. Written in an effect, never during render.
   const dataRef = useRef(data);
   const bboxRef = useRef(bbox);
   const selectedRef = useRef(selected);
   const hiRef = useRef<(string | null | undefined)[]>([]);
+  const lineHiRef = useRef<(string | null | undefined)[]>([]);
   const onHoverRef = useRef(onHover);
   useEffect(() => {
     dataRef.current = data;
     bboxRef.current = bbox;
     selectedRef.current = selected;
     hiRef.current = JSON.parse(hiKey);
+    lineHiRef.current = JSON.parse(lineHiKey);
     onHoverRef.current = onHover;
     tipRef.current = tipped ? undefined : tip;
   });
@@ -321,7 +406,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
         if (m.getSource(SRC)) return;
         const p = palette(frame);
         dressBasemap(m, p);
-        addLayers(m, p, dataRef.current, hiRef.current, selectedRef.current);
+        addLayers(m, p, dataRef.current, hiRef.current, lineHiRef.current, selectedRef.current);
         setCredits(creditsOf(m));
       };
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
@@ -333,24 +418,43 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
       });
       m.on("sourcedata", () => setCredits(creditsOf(m)));
 
+      // Hover goes by what's within HIT pixels of the cursor, not by the
+      // layers' own enter and leave events, which only see the one pixel
+      // under it: on a hairline stream that's a miss most of the time. And
+      // it lets go a moment after the cursor lands on nothing (LET_GO_MS),
+      // so crossing the gap between two lines doesn't drop it.
       const canvas = m.getCanvas();
-      for (const layer of INTERACTIVE) {
-        m.on("mouseleave", layer, () => {
-          canvas.style.cursor = "";
-          setHover(null);
-          onHoverRef.current?.(null);
-          if (tipRef.current) setTipped(true);
-        });
-        m.on("mousemove", layer, (e) => {
-          const hits = hitsAt(m, e.point);
-          // Pointer only where a click opens a card.
-          canvas.style.cursor = hits.some((h) => h.href) ? "pointer" : "";
-          // The tooltip sits to the right of the cursor unless that would run it off the map.
-          const flip = e.point.x > canvas.clientWidth - 300;
-          setHover(hits.length ? { hits, x: e.point.x, y: e.point.y, flip } : null);
-          onHoverRef.current?.(hits[0]?.id ?? null);
-        });
-      }
+      let hovering = false;
+      let letGo: ReturnType<typeof setTimeout> | undefined;
+      const showLines = (parts: Position[][]) => (m.getSource(SRC_HOVER) as GeoJSONSource | undefined)?.setData(hoverData(parts));
+      const release = () => {
+        clearTimeout(letGo);
+        if (!hovering || disposed) return;
+        hovering = false;
+        showLines([]);
+        canvas.style.cursor = "";
+        setHover(null);
+        onHoverRef.current?.(null);
+        if (tipRef.current) setTipped(true);
+      };
+      m.on("mousemove", (e) => {
+        const hits = hitsAt(m, e.point);
+        if (!hits.length) {
+          if (hovering && letGo === undefined) letGo = setTimeout(() => { letGo = undefined; release(); }, LET_GO_MS);
+          return;
+        }
+        clearTimeout(letGo);
+        letGo = undefined;
+        hovering = true;
+        showLines(linesNear(m, e.point));
+        // Pointer only where a click opens a card.
+        canvas.style.cursor = hits.some((h) => h.href) ? "pointer" : "";
+        // The tooltip sits to the right of the cursor unless that would run it off the map.
+        const flip = e.point.x > canvas.clientWidth - 300;
+        setHover({ hits, x: e.point.x, y: e.point.y, flip });
+        onHoverRef.current?.(hits[0].id);
+      });
+      m.on("mouseout", release);
       m.on("click", (e) => {
         const hits = hitsAt(m, e.point).filter((h): h is Pin["hits"][number] => !!h.href);
         setPin(hits.length ? { hits, at: e.lngLat.toArray() as [number, number] } : null);
@@ -360,6 +464,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
         if (m.getSource(SRC)) {
           for (const id of Object.values(L)) if (m.getLayer(id)) m.removeLayer(id);
           m.removeSource(SRC);
+          if (m.getSource(SRC_HOVER)) m.removeSource(SRC_HOVER);
         }
         basemap();
       });
@@ -396,9 +501,10 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
     if (!m?.getLayer(L.hiLine)) return;
     const hi = JSON.parse(hiKey) as (string | null)[];
     m.setFilter(L.hiFill, ["all", notExtent, poly, idsIn(hi)]);
-    m.setFilter(L.hiLine, ["all", notExtent, ["any", poly, line], idsIn(hi)]);
+    m.setFilter(L.hiLine, ["all", notExtent, poly, idsIn(hi)]);
+    m.setFilter(L.hiLineData, ["all", notExtent, line, idsIn(JSON.parse(lineHiKey) as (string | null)[])]);
     m.setFilter(L.selected, selectedFilter([selected, ...hi]));
-  }, [selected, hiKey]);
+  }, [selected, hiKey, lineHiKey]);
 
   useEffect(() => {
     const m = mapRef.current;
