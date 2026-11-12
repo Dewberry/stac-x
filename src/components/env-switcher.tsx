@@ -41,7 +41,7 @@ export function HeaderControls({
   /** The signed-in home, without an environment prefix: "/" or "/study-areas". */
   home: string;
   homeLabel: string;
-  signOut: string;
+  signOut: SignOut;
   /** Pages for the account menu, without an environment prefix: [{ href: "/admin", label: "Admin" }]. */
   links?: MenuLink[];
   /** App-specific account menu items, above Sign out: Radix DropdownMenu parts. */
@@ -103,11 +103,27 @@ export function EnvBand() {
 }
 
 type MenuLink = { href: string; label: string };
+
+/**
+ * Where Sign out goes: a page to open, or a route to POST to. Keycloak's
+ * federated logout is POST only, so another site can't sign someone out
+ * with a link.
+ */
+export type SignOut = { href: string } | { post: string };
+
+/** A form POST, as one full page load: the route redirects on to Keycloak, which the router can't follow. */
+function postTo(action: string) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  document.body.appendChild(form);
+  form.submit();
+}
 type Account = {
   session: Session;
   home: string;
   homeLabel: string;
-  signOut: string;
+  signOut: SignOut;
   links: MenuLink[];
   menuItems?: ReactNode;
 };
@@ -221,11 +237,17 @@ function AccountItems({ session, home, homeLabel, signOut, links, menuItems }: A
           <DropdownMenu.Separator className="my-1 h-px bg-rule" />
         </>
       )}
-      <DropdownMenu.Item asChild>
-        <Link href={signOut} className="ffx-menu-item">
+      {"post" in signOut ? (
+        <DropdownMenu.Item className="ffx-menu-item" onSelect={() => postTo(signOut.post)}>
           Sign out
-        </Link>
-      </DropdownMenu.Item>
+        </DropdownMenu.Item>
+      ) : (
+        <DropdownMenu.Item asChild>
+          <Link href={signOut.href} className="ffx-menu-item">
+            Sign out
+          </Link>
+        </DropdownMenu.Item>
+      )}
     </>
   );
 }

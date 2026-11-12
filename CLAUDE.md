@@ -51,6 +51,12 @@ before the code.
   `lib/stac-json.ts` and `lib/parquet.ts` through `lib/storage.ts` (S3 or
   local disk). Writing: `app/actions.ts` saves QC through `lib/edits.ts` and
   promotes through `lib/promote.ts`.
+- Sign-in: `src/auth.ts` (Auth.js with Keycloak's FFRD realm) is on only
+  when `KEYCLOAK_ISSUER` is set. `src/proxy.ts` is the gate, and
+  `lib/session.ts` is what pages and the QC action ask. Off, the app runs
+  open with a stand-in account. Under a base path, Auth.js's middleware
+  wrapper hands on a request whose `nextUrl` has lost `/stac`, so the proxy
+  routes from the request Next passed in. `docs/keycloak.md` has the client.
 - CSS: `src/app/globals.css` only imports `src/app/styles/*.css`, and lists
   what each file holds. Import order is cascade order, so a new file goes
   where it belongs in that list, not at the end by default.

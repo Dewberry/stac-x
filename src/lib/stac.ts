@@ -76,6 +76,8 @@ export type QcEdit = {
   qc: QcStatus;
   date_approved: string | null;
   note?: string | null;
+  /** Who saved it: the Keycloak username, or the stand-in role with sign-in off. Absent on records from before sign-in. */
+  by?: string | null;
   updated_at: string;
 };
 
@@ -90,7 +92,7 @@ export type QcEdit = {
  * See tidyHistory, and envLabel for showing one.
  */
 export type QcEvent =
-  | { kind: "qc"; at: string; qc: QcStatus; date_approved: string | null; note?: string | null }
+  | { kind: "qc"; at: string; qc: QcStatus; date_approved: string | null; note?: string | null; by?: string | null }
   | { kind: "promoted"; at: string; to: string; files: string[] }
   | { kind: "received"; at: string; from: string; files: string[] };
 
@@ -114,7 +116,9 @@ export function tidyHistory(raw: unknown): QcEvent[] {
     const text = (v: unknown) => (typeof v === "string" ? v : "");
     const files = Array.isArray(e.files) ? e.files.filter((f): f is string => typeof f === "string") : [];
     if (e.kind === "qc") {
-      return [{ kind: "qc", at, qc: qcMeta(e.qc).value, date_approved: text(e.date_approved) || null, note: text(e.note) || null }];
+      return [
+        { kind: "qc", at, qc: qcMeta(e.qc).value, date_approved: text(e.date_approved) || null, note: text(e.note) || null, by: text(e.by) || null },
+      ];
     }
     if (e.kind === "promoted") return [{ kind: "promoted", at, to: text(e.to), files }];
     if (e.kind === "received") return [{ kind: "received", at, from: text(e.from), files }];

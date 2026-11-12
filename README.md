@@ -50,8 +50,9 @@ Two things to know:
 - Reading from S3 needs AWS credentials with access to the bucket. Without
   them the pages still load, but empty, with a note that collections couldn't
   be loaded.
-- There's no identity provider yet. The sign-in page opens Development
-  whatever you type, and the account shown is a fixed role.
+- Sign-in is off until `KEYCLOAK_ISSUER` is set. Off, every page is open,
+  the sign-in page opens Development whatever you type, and the account
+  shown is a fixed role. [Sign-in](#sign-in) says how to turn it on.
 
 ## Commands
 
@@ -253,13 +254,20 @@ one S3 location to another is a CopyObject, so the file never passes through
 the server; it needs nothing beyond the read on the source and the write on
 the landing folder listed above.
 
-### Put it behind your own sign-in
+### Sign-in
 
-There's no identity provider yet, so anyone who can reach the app can
-approve a collection, and approving copies files into Test or Production
-with the server's credentials. Serve it behind the deployment's own auth
-(an ALB with OIDC, a VPN, an authenticating proxy) until sign-in is built.
-QC records don't name who made them, for the same reason.
+The app signs people in with Keycloak (OpenID Connect, through Auth.js).
+Set `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`,
+`AUTH_SECRET` and `AUTH_URL` (see `.env.example`), and every page and API
+route needs a session. Each QC save records the username of whoever made
+it. `STAC_REVIEWER_ROLE` limits Admin and QC saves to people with that role;
+everyone else who can sign in can still browse. The Keycloak client's
+settings are in [docs/keycloak.md](docs/keycloak.md).
+
+With sign-in off, anyone who can reach the app can approve a collection,
+and approving copies files into Test or Production with the server's
+credentials. Don't deploy it that way without other auth in front (an ALB
+with OIDC, a VPN, an authenticating proxy).
 
 ### Size
 
