@@ -7,7 +7,7 @@ import { kindOf } from "./collection-hierarchy";
 import { collectionName, isParquetType } from "./format";
 import { NotStac, ParquetUnreadable, readItems } from "./parquet";
 import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
-import { resourceLinks, tidyAsset, tidyHistory, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
+import { isStored, resourceLinks, tidyAsset, tidyHistory, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsAvailable, baseName, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
@@ -166,10 +166,14 @@ export async function isCatalogAsset(href: string): Promise<boolean> {
  * The same for the asset route alone: an asset's href, or the href of a
  * link the pages list under "Additional resources" (a source spreadsheet
  * on S3 that a browser can't open by its s3:// address). Not the tree
- * links, so the route never hands out the catalog's own JSON.
+ * links, so the route never hands out the catalog's own JSON, and only a
+ * link with a whole s3:// or file:// address: a bare relative path (an
+ * item row in a parquet file keeps its links as written) would be read
+ * against the server's own folder.
  */
 export async function isCatalogDownload(href: string): Promise<boolean> {
   if (await isCatalogAsset(href)) return true;
+  if (!isStored(href)) return false;
   const has = (links: StacLink[]) => links.some((l) => l.href === href);
   for (const e of ENVS) {
     const { collections } = await getCatalogElsewhere(e.key);

@@ -283,6 +283,11 @@ export function resourceLinks(links: unknown): StacLink[] {
   );
 }
 
+/** An address the asset route can sign or serve: a whole s3:// or file:// one. */
+export function isStored(href: string): boolean {
+  return /^(s3|file):\/\//i.test(href);
+}
+
 export const VERSION_SCHEMA = "https://stac-extensions.github.io/version/v1.2.0/schema.json";
 
 /** The item as STAC JSON for the wire and the JSON view. */
