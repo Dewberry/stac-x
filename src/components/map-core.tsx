@@ -65,6 +65,8 @@ export function palette(host: HTMLElement) {
     trace: c("--ffx-trace-strong"),
     traceSoft: c("--ffx-trace"),
     traceDeep: c("--ffx-trace-deep"),
+    lineRoad: c("--ffx-line-road"),
+    lineLevee: c("--ffx-line-levee"),
     planned: c("--ffx-planned"),
     mapLand: c("--ffx-map-land"),
     mapSurround: c("--ffx-map-surround"),
@@ -86,6 +88,15 @@ export type Palette = ReturnType<typeof palette>;
 export function tintColor(p: Palette): ExpressionSpecification {
   return ["match", ["get", "tint"], 1, p.traceSoft, 2, p.trace, 3, p.traceDeep, p.trace];
 }
+/**
+ * A line's color by its type (lib/line-types.ts, the feature's `line`):
+ * roads in ink, levees in red, and `plain` for a stream or a line that
+ * doesn't say.
+ */
+export function lineColor(p: Palette, plain: string): ExpressionSpecification {
+  return ["match", ["get", "line"], "road", p.lineRoad, "levee", p.lineLevee, plain];
+}
+
 /** The fill's opacity by its tint, the pale blue stronger so it shows on the white basin; `plain` for a shape with none. */
 export function tintOpacity(plain: number): ExpressionSpecification {
   return ["match", ["get", "tint"], 1, 0.45, 2, 0.22, 3, 0.2, plain];

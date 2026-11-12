@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Feature, Geometry, Position } from "geojson";
+import { lineTypeOf, type LineType } from "./line-types";
 import type { StacItem } from "./stac";
 
 /**
@@ -104,18 +105,20 @@ export function polygonsOf(items: StacItem[]): Position[][][] {
  * seen first. Rounded, so a polygon repeated by every event of one model is
  * one polygon.
  */
-function shapes(items: Pick<StacItem, "id" | "geometry">[]) {
+function shapes(items: (Pick<StacItem, "id" | "geometry"> & Partial<Pick<StacItem, "properties">>)[]) {
   const points: { at: Position; id: string }[] = [];
   const polygons = new Map<string, { rings: Position[][]; ids: string[] }>();
-  const lines = new Map<string, Position[]>();
+  const lines = new Map<string, { line: Position[]; type: LineType | undefined }>();
 
-  for (const { id, geometry: g } of items) {
+  for (const { id, geometry: g, properties } of items) {
     if (!g) continue;
+    const type = lineTypeOf(properties);
     for (const part of parts(g)) {
       if (part.type === "Point") points.push({ at: round(part.coordinates), id });
       else if (part.type === "LineString") {
         const line = clean(part.coordinates);
-        lines.set(JSON.stringify(line), line);
+        // Keyed with its type, so a road and a levee on the same path are both kept.
+        lines.set(`${type ?? ""}|${JSON.stringify(line)}`, { line, type });
       } else {
         const rings = part.coordinates.map(clean).filter((r) => r.length >= 4);
         if (!rings.length) continue;
@@ -158,7 +161,7 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
     const polys = Array.from(polygons.values(), (p) => p.rings);
     const vertices =
       polys.reduce((n, rings) => n + rings.reduce((m, r) => m + r.length, 0), 0) +
-      Array.from(lines.values()).reduce((n, l) => n + l.length, 0);
+      Array.from(lines.values()).reduce((n, l) => n + l.line.length, 0);
     if (polys.length > DENSITY_MIN && !lines.size && !points.length) {
       const d = density(polys);
       if (d) {
@@ -187,7 +190,18 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
         features.push(tag("fill", { type: "MultiPolygon", coordinates: polys }));
       }
       if (polys.length) features.push(tag("line", { type: "MultiLineString", coordinates: outline(polys) }));
-      if (lines.size) features.push(tag("line", { type: "MultiLineString", coordinates: Array.from(lines.values()) }));
+      // Line items, one feature for each type they say they are (lib/line-types.ts), so each draws in its color.
+      const byType = new Map<LineType | undefined, Position[][]>();
+      for (const { line, type } of lines.values()) {
+        const had = byType.get(type);
+        if (had) had.push(line);
+        else byType.set(type, [line]);
+      }
+      for (const [type, coordinates] of byType) {
+        const f = tag("line", { type: "MultiLineString", coordinates });
+        if (type) f.properties!.line = type;
+        features.push(f);
+      }
       // A collection with both shapes (gages beside a model, say) keeps its dots.
       if (points.length) features.push(...dots());
       return members ? { shape: "areas", features, members } : { shape: "areas", features };

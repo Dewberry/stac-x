@@ -224,6 +224,12 @@ The app reads stac-geoparquet and static STAC JSON items.
   Parquet has one schema for the whole file, so every asset key becomes its
   own set of columns on every row, and a file of a few megabytes can take
   gigabytes to read. STAC JSON items don't have this problem.
+- A line item can say what kind of line it is with the `stac-x:line`
+  property, and the maps draw it in that kind's color: `stream` (river blue),
+  `road` (black) or `levee` (red). A line item without the property, or with
+  a value that isn't one of those three, is drawn as a stream. It's set on
+  each item, not on the collection, so one collection can hold more than one
+  kind. In a parquet file it's a column of that name.
 - A collection whose parquet file can't be read (it's missing, it has no
   `id` column, or it needs more memory or time than a file is allowed)
   still shows as a dataset, with the reason where its items would be.

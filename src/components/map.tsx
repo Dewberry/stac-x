@@ -11,6 +11,7 @@ import type {
   Popup,
 } from "maplibre-gl";
 import type { FeatureCollection, Position } from "geojson";
+import type { LineType } from "@/lib/line-types";
 import { MapCard } from "./map-card";
 import {
   applyBasemap,
@@ -18,6 +19,7 @@ import {
   Controls,
   creditsOf,
   dressBasemap,
+  lineColor,
   MapCredits,
   palette,
   tintColor,
@@ -40,7 +42,8 @@ import {
  * everything under the cursor and the card lists the whole stack. On an item
  * page the only feature is the page's own, so a click there opens nothing.
  * Points and lines are river blue, the color for
- * data in this app; polygon outlines are drawn in ink, with an extent box
+ * data in this app, except a line item that says it's a road (ink) or a
+ * levee (red; lib/line-types.ts); polygon outlines are drawn in ink, with an extent box
  * dashed so it never reads as data. Lines are thin and a little see-through
  * while zoomed out: a basin's stream network is thousands of them, and at
  * the width an outline gets they ran together into one dark shape.
@@ -81,6 +84,8 @@ export type MapFeatureProps = {
   tag?: string;
   /** Which of the three blues to draw it in, when the collection has few enough shapes to color. */
   tint?: 1 | 2 | 3;
+  /** What kind of line it is, for its color (lib/line-types.ts); none is a stream. */
+  line?: LineType;
   /** "extent" draws a dashed box instead of a filled shape. */
   kind?: "extent" | "feature";
 };
@@ -145,6 +150,14 @@ function boundsOf(data: FeatureCollection, bbox?: MapProps["bbox"]): LngLatBound
 const poly: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "MultiPolygon"]];
 const line: ExpressionSpecification = ["any", ["==", ["geometry-type"], "LineString"], ["==", ["geometry-type"], "MultiLineString"]];
 const point: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Point"], ["==", ["geometry-type"], "MultiPoint"]];
+/** A value for a levee, another for every other line. */
+function byLine(levee: number, other: number): ExpressionSpecification {
+  return ["match", ["get", "line"], "levee", levee, other];
+}
+/** A value for a line that says what it is (a road, a levee), another for a stream. */
+function typed(named: number, stream: number): ExpressionSpecification {
+  return ["match", ["get", "line"], ["road", "levee"], named, stream];
+}
 const isExtent: ExpressionSpecification = ["==", ["get", "kind"], "extent"];
 const notExtent: ExpressionSpecification = ["!=", ["get", "kind"], "extent"];
 
@@ -170,8 +183,8 @@ function selectedFilter(ids: (string | null | undefined)[]): ExpressionSpecifica
  * the item would light up the basin; the reach under the cursor is what
  * someone pointing at the map means.
  */
-function linesNear(m: MapLibreMap, at: { x: number; y: number }): Position[][] {
-  const out: Position[][] = [];
+function linesNear(m: MapLibreMap, at: { x: number; y: number }): NearLine[] {
+  const out: NearLine[] = [];
   const box: [[number, number], [number, number]] = [[at.x - HIT, at.y - HIT], [at.x + HIT, at.y + HIT]];
   for (const f of m.queryRenderedFeatures(box, { layers: [L.lineData] })) {
     const g = f.geometry;
@@ -181,7 +194,7 @@ function linesNear(m: MapLibreMap, at: { x: number; y: number }): Position[][] {
       for (const c of part) {
         const q = m.project(c as [number, number]);
         if (prev && distToSegment(at, prev, q) <= HIT) {
-          out.push(part);
+          out.push({ part, line: (f.properties as MapFeatureProps).line });
           break;
         }
         prev = q;
@@ -198,8 +211,14 @@ function distToSegment(p: { x: number; y: number }, a: { x: number; y: number },
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
-function hoverData(parts: Position[][]): FeatureCollection {
-  return { type: "FeatureCollection", features: parts.length ? [{ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: parts } }] : [] };
+/** A reach under the cursor and the type of the item it's from. */
+type NearLine = { part: Position[]; line?: LineType };
+
+function hoverData(near: NearLine[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: near.map(({ part, line }) => ({ type: "Feature", properties: line ? { line } : {}, geometry: { type: "LineString", coordinates: part } })),
+  };
 }
 
 function hitsAt(m: MapLibreMap, at: { x: number; y: number }): MapFeatureProps[] {
@@ -251,8 +270,9 @@ function addLayers(
     id: L.lineData, type: "line", source: SRC, filter: ["all", notExtent, line],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": p.trace,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.4, 9, 0.8, 14, 1.75],
+      "line-color": lineColor(p, p.trace),
+      // A levee is one line, not a network, so it's drawn heavier to be found.
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, byLine(1.25, 0.4), 9, byLine(1.75, 0.8), 14, byLine(2.5, 1.75)],
       "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 12, 0.9],
     },
   });
@@ -275,9 +295,11 @@ function addLayers(
     id: L.hiLineData, type: "line", source: SRC, filter: ["all", notExtent, line, idsIn(lineHi)],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": p.traceDeep,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.4, 9, 0.8, 14, 1.75],
-      "line-opacity": 0.5,
+      // Roads and levees keep their color and thicken, since a deeper blue
+      // over ink or red wouldn't read as theirs.
+      "line-color": lineColor(p, p.traceDeep),
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, typed(2, 0.4), 9, typed(2.5, 0.8), 14, typed(3.5, 1.75)],
+      "line-opacity": typed(1, 0.5),
     },
   });
   map.addSource(SRC_HOVER, { type: "geojson", data: hoverData([]) });
@@ -285,7 +307,7 @@ function addLayers(
     id: L.hoverLine, type: "line", source: SRC_HOVER,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": p.traceDeep,
+      "line-color": lineColor(p, p.traceDeep),
       "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 9, 2.5, 14, 3.5],
     },
   });
@@ -426,7 +448,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
       const canvas = m.getCanvas();
       let hovering = false;
       let letGo: ReturnType<typeof setTimeout> | undefined;
-      const showLines = (parts: Position[][]) => (m.getSource(SRC_HOVER) as GeoJSONSource | undefined)?.setData(hoverData(parts));
+      const showLines = (parts: NearLine[]) => (m.getSource(SRC_HOVER) as GeoJSONSource | undefined)?.setData(hoverData(parts));
       const release = () => {
         clearTimeout(letGo);
         if (!hovering || disposed) return;

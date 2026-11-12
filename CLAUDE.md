@@ -18,7 +18,9 @@ need to know is here.
   there, since the rail already showed it.
 - The look is the "Atlas" direction: map-first, white cards on a pale
   canvas, river blue for data and links, green/amber/red only for QC state
-  (approved, needs revision, rejected). Tokens live in
+  (approved, needs revision, rejected). The one exception is on the maps:
+  a line item that says it's a road draws in ink and a levee in red
+  (`src/lib/line-types.ts`). Tokens live in
   `src/app/styles/tokens.css` under `--ffx-` names (the names are shared
   with ffrd-x, the values are not). Components use the semantic utilities
   (`bg-surface`, `text-ink-mut`) and the `ffx-`/`sx-` classes, never raw hex.

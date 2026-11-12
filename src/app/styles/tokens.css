@@ -132,6 +132,11 @@
   --ffx-trace-strong: var(--ffx-river);
   --ffx-trace-median: var(--ffx-river-deep);
   --ffx-trace-deep: #1b3b7a;
+  /* Line items that say what they are (lib/line-types.ts). A line with no
+     type is a stream, in the blues above. Levees are the one use of red
+     outside review state: it's what a levee is on every flood map. */
+  --ffx-line-road: var(--ffx-ink);
+  --ffx-line-levee: var(--ffx-bad);
   /* The ring of the not-reviewed mark on the landing page. */
   --ffx-qc-none: var(--ffx-n-800);
 
