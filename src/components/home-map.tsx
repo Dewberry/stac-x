@@ -15,6 +15,7 @@ import {
   LAYER_RELIEF,
   palette,
   SRC_TERRAIN,
+  lineColor,
   tintColor,
   tintOpacity,
   watchTheme,
@@ -188,7 +189,7 @@ function addLayers(
   map.addLayer({
     id: L.itemLine, type: "line", source: SRC_ITEMS, filter: footprintFilter("line", drawn),
     layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": p.trace, "line-width": 1.75, "line-opacity": 0.9 },
+    paint: { "line-color": lineColor(p, p.trace), "line-width": 1.75, "line-opacity": 0.9 },
   });
   // The shapes pointed at, outlined in ink over their neighbors.
   map.addLayer({
