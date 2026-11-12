@@ -270,10 +270,13 @@
   .sx-collection-cols #assets {
     order: 5;
   }
-  .sx-collection-cols #meta {
+  .sx-collection-cols #links {
     order: 6;
   }
-  .sx-collection-cols #data {
+  .sx-collection-cols #meta {
     order: 7;
+  }
+  .sx-collection-cols #data {
+    order: 8;
   }
 }

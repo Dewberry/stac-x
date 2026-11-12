@@ -74,6 +74,7 @@ export const GET = jsonRoute("collection", async (req: Request, { params }: { pa
       { rel: "root", href: withBase(withEnvHome(env)), type: "text/html" },
       ...versionLinks,
       ...away,
+      ...c.resourceLinks,
       ...c.items.map((i) => ({ rel: "item", href: `${base}/items/${encodeURIComponent(i.id)}`, type: "application/geo+json" })),
     ],
     ...(Object.keys(c.assets).length ? { assets: c.assets } : {}),

@@ -9,6 +9,7 @@ import { ItemHoverProvider, LinkedMap } from "@/components/item-hover";
 import { ItemsList } from "@/components/items-list";
 import { MetaTable, type Entry } from "@/components/meta-table";
 import { QcChip } from "@/components/qc-chip";
+import { ResourceLinks } from "@/components/resource-links";
 import { CollapsiblePanel, homeCrumb, Icon, ICONS, PageHead, Panel } from "@/components/shell";
 import { NotInEnv } from "@/components/not-in-env";
 import { VersionMenu, type VersionChoice } from "@/components/version-menu";
@@ -321,6 +322,11 @@ export default async function CollectionPage({ params }: Props) {
             <CollapsiblePanel title="Assets" note={assetNote(c.assets)} id="assets">
               <Assets assets={c.assets} plotsFirst />
             </CollapsiblePanel>
+          )}
+          {c.resourceLinks.length > 0 && (
+            <Panel title="Additional resources" note={String(c.resourceLinks.length)} id="links">
+              <ResourceLinks links={c.resourceLinks} />
+            </Panel>
           )}
           <Panel title="Metadata" id="meta">
             <div className="pb-2">

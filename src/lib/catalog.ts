@@ -4,10 +4,10 @@ import { refreshMs, sources as configuredSources } from "./config";
 import { ENVS, type EnvKey } from "./env";
 import { editsUri, readEdits } from "./edits";
 import { kindOf } from "./collection-hierarchy";
-import { collectionName } from "./format";
+import { collectionName, isParquetType } from "./format";
 import { NotStac, ParquetUnreadable, readItems } from "./parquet";
 import { collectionsOf, jsonItemsChanged, readCollectionJson, resolveHref, type JsonStac } from "./stac-json";
-import { tidyAsset, tidyHistory, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
+import { resourceLinks, tidyAsset, tidyHistory, tidyProviders, VERSION_RELS, type CatalogItem, type Collection, type QcEdit, type QcEvent, type StacAsset, type StacItem, type StacLink } from "./stac";
 import { awsAvailable, baseName, head, isJsonSource, isS3, listSourceFiles, readJson } from "./storage";
 import { groupVersions } from "./versions";
 
@@ -158,6 +158,22 @@ export async function isCatalogAsset(href: string): Promise<boolean> {
   for (const e of ENVS) {
     const { collections } = await getCatalogElsewhere(e.key);
     if (collections.some((c) => has(c.assets) || c.items.some((i) => has(i.assets)))) return true;
+  }
+  return false;
+}
+
+/**
+ * The same for the asset route alone: an asset's href, or the href of a
+ * link the pages list under "Additional resources" (a source spreadsheet
+ * on S3 that a browser can't open by its s3:// address). Not the tree
+ * links, so the route never hands out the catalog's own JSON.
+ */
+export async function isCatalogDownload(href: string): Promise<boolean> {
+  if (await isCatalogAsset(href)) return true;
+  const has = (links: StacLink[]) => links.some((l) => l.href === href);
+  for (const e of ENVS) {
+    const { collections } = await getCatalogElsewhere(e.key);
+    if (collections.some((c) => has(c.resourceLinks) || c.items.some((i) => has(resourceLinks(i.links))))) return true;
   }
   return false;
 }
@@ -516,6 +532,11 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
       versionLinks: Array.isArray(links)
         ? (links as StacLink[]).filter((l) => l && typeof l.href === "string" && VERSION_RELS.includes(l.rel))
         : [],
+      // The parquet link is the collection's own items, shown as its Data
+      // panel, not something else to read.
+      resourceLinks: resourceLinks(links)
+        .filter((l) => !isParquetType(l.type, l.href))
+        .map((l) => ({ ...l, href: docBase ? resolveHref(l.href, docBase) : l.href })),
       // Filled in by build(), from the listing.
       versionsElsewhere: [],
       series: lone(id),
@@ -560,6 +581,7 @@ function derivedCollection(cache: Cache, id: string, stacId: string, items: Cata
     experimental: false,
     docHref: docHrefOf(items),
     versionLinks: [],
+    resourceLinks: [],
     versionsElsewhere: [],
     series: lone(id),
     qc,
