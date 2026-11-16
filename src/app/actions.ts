@@ -35,7 +35,7 @@ export async function saveQcAction(_prev: SaveState, form: FormData): Promise<Sa
   try {
     const session = await getSession();
     if (!session) return { ok: false, error: "Your sign-in has ended. Reload the page to sign in again." };
-    if (!session.reviewer) return { ok: false, error: "Your account can't save reviews. Ask an FFRD Cloud admin for the reviewer role." };
+    if (!session.reviewer) return { ok: false, error: "Your account can't save reviews. Ask an FFRD Cloud admin for STAC admin access." };
     if (!isEnv(env)) return { ok: false, error: "Unknown environment." };
     const c = await getCollection(env, collection);
     if (!c) return { ok: false, error: "Collection not found." };

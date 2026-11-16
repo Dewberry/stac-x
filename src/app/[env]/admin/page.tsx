@@ -44,8 +44,8 @@ export default async function AdminPage({ params, searchParams }: Props) {
       <div className="sx-page">
         <PageHead crumbs={[homeCrumb(env), { label: "Admin" }]} title="Admin" />
         <p className="sx-callout">
-          Your account can browse the catalog but can&apos;t review it. Ask an FFRD Cloud admin for the reviewer role,
-          then sign out and back in.
+          Your account can browse the catalog but can&apos;t review it. Ask an FFRD Cloud admin for STAC admin
+          access, then sign out and back in.
         </p>
       </div>
     );
