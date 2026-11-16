@@ -33,18 +33,21 @@ FFRD Cloud (`ffrd-model-viewer-local`): `stac-x-local`, the same settings
 with `http://localhost:3000/*` for the redirect URIs and no back-channel
 URL, since Keycloak can't reach a laptop.
 
-## Reviewers
+## Admins
 
-To limit who can use Admin and save QC (which also promotes collections),
-create a role and set `STAC_REVIEWER_ROLE` to its name. Either kind works:
+Admin and saving QC (which also promotes collections) are limited to the
+`stac-admin` role on the `stac-x` client, by setting
+`STAC_REVIEWER_ROLE=stac-admin`. It's a client role so it means nothing in
+the other FFRD apps. The realm's own `admin` role wasn't reused: its group
+also carries S3 admin in FFRD Cloud and has people in it who don't review
+here.
 
-- a client role on `stac-x` (Clients, stac-x, Roles), which keeps it out of
-  the other FFRD apps, or
-- a realm role, if one already means the right people.
+People get it through the `stac_admin` group, the way the realm hands out
+its other roles: add someone under Groups, stac_admin, Members. The role is
+read at sign-in, so they have to sign out and back in. Everyone else who can
+sign in can browse.
 
-Assign it to users or to a group. The role is read when someone signs in,
-so a person given it has to sign out and back in. Leave `STAC_REVIEWER_ROLE`
-unset and everyone who can sign in can review.
+Leave `STAC_REVIEWER_ROLE` unset and everyone who can sign in can review.
 
 ## The app's environment
 
@@ -54,7 +57,7 @@ KEYCLOAK_CLIENT_ID=stac-x
 KEYCLOAK_CLIENT_SECRET=<from the Credentials tab>
 AUTH_SECRET=<a long random string, different per deployment>
 AUTH_URL=https://ffrd.cloud.dewberryanalytics.com
-#STAC_REVIEWER_ROLE=stac-reviewer
+STAC_REVIEWER_ROLE=stac-admin
 ```
 
 `AUTH_URL` is the origin alone, with no `/stac`. The base path is baked into
