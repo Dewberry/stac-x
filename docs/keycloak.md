@@ -19,8 +19,8 @@ In the admin console (`/auth/admin/ffrd/console/`), Clients, then Create client:
 | PKCE method (Advanced tab) | S256 |
 | Root URL | `https://ffrd.cloud.dewberryanalytics.com/stac` |
 | Home URL | `https://ffrd.cloud.dewberryanalytics.com/stac/` |
-| Valid redirect URIs | `https://ffrd.cloud.dewberryanalytics.com/stac/*` and, for local work, `http://localhost:3000/*` |
-| Valid post logout redirect URIs | the same two |
+| Valid redirect URIs | `https://ffrd.cloud.dewberryanalytics.com/stac/*` |
+| Valid post logout redirect URIs | `https://ffrd.cloud.dewberryanalytics.com/stac/*` |
 | Web origins | `+` |
 | Front channel logout | Off |
 | Backchannel logout URL | `https://ffrd.cloud.dewberryanalytics.com/stac/api/auth/backchannel-logout` |
@@ -28,9 +28,10 @@ In the admin console (`/auth/admin/ffrd/console/`), Clients, then Create client:
 
 Then copy the secret from the Credentials tab.
 
-The local redirect URI is there so a laptop can sign in against the real
-realm. Take it off if the realm's policy is to keep production clients
-production-only, and use a second client for local work instead.
+For local work, make a second client the way the realm already does for
+FFRD Cloud (`ffrd-model-viewer-local`): `stac-x-local`, the same settings
+with `http://localhost:3000/*` for the redirect URIs and no back-channel
+URL, since Keycloak can't reach a laptop.
 
 ## Reviewers
 
@@ -73,3 +74,30 @@ change to the server's `.env` and a container restart, with no rebuild.
   back-channel URL and the session here ends on its next request.
 - Each QC save records the username in the sidecar (`by`), and Admin's
   activity shows it. Records saved before sign-in have none.
+
+## One sign-in with FFRD Cloud
+
+FFRD Cloud (`ffrd-model-viewer`) is a client in the same realm, so the two
+apps share Keycloak's session. How far that goes depends on realm settings
+as much as on this app. As read from the admin console on 2026-11-16:
+
+| Setting | Value |
+| --- | --- |
+| SSO Session Idle | 30 minutes |
+| SSO Session Max | 10 hours |
+| Access Token Lifespan | 5 days, and `ffrd-model-viewer` inherits it |
+| `ffrd-model-viewer` back-channel logout URL | none |
+
+What that means:
+
+- Signed in to one app, opening the other needs no password while
+  Keycloak's session is alive. Neither app talks to Keycloak after sign-in,
+  so that session idles out 30 minutes later, and after that the other app
+  asks for the password again.
+- Signing out of FFRD Cloud signs you out here on your next request, through
+  the back-channel URL above, as long as Keycloak's session was still alive.
+  If it had already idled out there's nothing for Keycloak to end, so
+  nothing is sent and the session here runs to its eight hours.
+- Signing out here ends Keycloak's session, but FFRD Cloud isn't told. It
+  only goes back to Keycloak when its access token expires, which is five
+  days, so it stays signed in until then.
