@@ -39,11 +39,14 @@ export const keycloak = authEnabled
   : null;
 
 /**
- * A realm role or a role on this app's client that's needed to review:
- * the Admin page and saving QC, which also promotes. Unset, anyone who can
- * sign in can review, the same as before there was sign-in.
+ * The role needed to review: the Admin page and saving QC, which also
+ * promotes. A role on this app's client or a realm role, by name. It
+ * defaults to stac-admin, so a deployment that leaves the setting out
+ * keeps Admin closed instead of opening it to everyone in the realm.
+ * Setting it to * lets anyone who can sign in review.
  */
-const reviewerRole = process.env.STAC_REVIEWER_ROLE?.trim() || "";
+const reviewerRole = process.env.STAC_REVIEWER_ROLE?.trim() || "stac-admin";
+const anyoneReviews = reviewerRole === "*";
 
 // The same value as BASE_PATH in lib/utils.ts, read here directly to keep
 // this file free of src/lib.
@@ -160,7 +163,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           (typeof profile.preferred_username === "string" && profile.preferred_username) || profile.email || profile.sub;
       }
       if (account) {
-        token.reviewer = !reviewerRole || rolesIn(account.access_token).includes(reviewerRole);
+        token.reviewer = anyoneReviews || rolesIn(account.access_token).includes(reviewerRole);
         if (account.refresh_token) token.refresh_token = account.refresh_token;
         token.checkedAt = Date.now();
         return token;
