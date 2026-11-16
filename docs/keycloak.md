@@ -68,8 +68,8 @@ change to the server's `.env` and a container restart, with no rebuild.
   already signed in to another FFRD app doesn't see a sign-in page at all.
 - API routes, the asset and preview proxies and server actions answer 401
   without a session. `/api/health` stays open for the Docker health check.
-- Sessions last eight hours. Sign out ends the Keycloak session too, so it
-  signs the person out of the other FFRD apps.
+- A session lasts as long as Keycloak's does (see below). Sign out ends the
+  Keycloak session too.
 - When the Keycloak session ends anywhere else, Keycloak calls the
   back-channel URL and the session here ends on its next request.
 - Each QC save records the username in the sidecar (`by`), and Admin's
@@ -88,16 +88,26 @@ as much as on this app. As read from the admin console on 2026-11-16:
 | Access Token Lifespan | 5 days, and `ffrd-model-viewer` inherits it |
 | `ffrd-model-viewer` back-channel logout URL | none |
 
-What that means:
+This app checks in with Keycloak every five minutes while it's in use
+(`src/keycloak-session.ts`): it trades its refresh token for a new one,
+which counts as activity there, and ends its own session when Keycloak
+won't take the token. What that means:
 
 - Signed in to one app, opening the other needs no password while
-  Keycloak's session is alive. Neither app talks to Keycloak after sign-in,
-  so that session idles out 30 minutes later, and after that the other app
-  asks for the password again.
-- Signing out of FFRD Cloud signs you out here on your next request, through
-  the back-channel URL above, as long as Keycloak's session was still alive.
-  If it had already idled out there's nothing for Keycloak to end, so
-  nothing is sent and the session here runs to its eight hours.
+  Keycloak's session is alive. Working here keeps it alive. FFRD Cloud
+  doesn't, so after 30 minutes spent only there, this app asks for the
+  password again.
+- Signing out of FFRD Cloud signs you out here on your next request,
+  through the back-channel URL above. If Keycloak's session had already
+  ended, the next check notices instead, within five minutes.
+- Leave this app idle past the realm's 30 minutes and the next page asks
+  you to sign in again. No session here lasts past the realm's 10 hours.
 - Signing out here ends Keycloak's session, but FFRD Cloud isn't told. It
   only goes back to Keycloak when its access token expires, which is five
-  days, so it stays signed in until then.
+  days, so it stays signed in until then. Setting Access Token Lifespan to
+  a few minutes on the `ffrd-model-viewer` client (Advanced tab) would
+  close that: it already refreshes on expiry and signs out when the refresh
+  fails.
+
+If Keycloak is down or answers with a server error, the check is skipped
+and sessions here carry on.
