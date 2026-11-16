@@ -259,7 +259,7 @@ the landing folder listed above.
 The app signs people in with Keycloak (OpenID Connect, through Auth.js).
 Set `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`,
 `AUTH_SECRET` and `AUTH_URL` (see `.env.example`), and every page and API
-route needs a session. Each QC save records the username of whoever made
+route needs a session, which ends when Keycloak's does. Each QC save records the username of whoever made
 it. `STAC_REVIEWER_ROLE` limits Admin and QC saves to people with that role;
 everyone else who can sign in can still browse. The Keycloak client's
 settings are in [docs/keycloak.md](docs/keycloak.md).

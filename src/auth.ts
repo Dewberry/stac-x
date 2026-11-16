@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Keycloak from "next-auth/providers/keycloak";
 import { isSessionEnded } from "./backchannel-logout";
+import { keepAlive } from "./keycloak-session";
 
 /**
  * Sign-in through Keycloak, with Auth.js. The realm is FFRD's
@@ -16,10 +17,12 @@ import { isSessionEnded } from "./backchannel-logout";
  * with no issuer, which would take every /api/auth route down, so the
  * provider is left out rather than registered empty.
  *
- * Sessions are JWT cookies, eight hours long, with nothing stored server
- * side. The refresh token is kept in the cookie for one reason: federated
- * logout hands it back to Keycloak to end the session there too, which
- * skips Keycloak's "Do you want to log out?" page. Nothing refreshes with it.
+ * Sessions are JWT cookies with nothing stored server side. The cookie
+ * lasts eight hours from the last request, but the session is really
+ * Keycloak's: the refresh token kept in the cookie is traded in every few
+ * minutes (keycloak-session.ts), and when Keycloak won't take it the session
+ * here is over too. Federated logout hands the same token back to end the
+ * session there, which skips Keycloak's "Do you want to log out?" page.
  *
  * This file is imported by proxy.ts, which runs apart from the render code,
  * so it stays free of imports from src/lib.
@@ -159,6 +162,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account) {
         token.reviewer = !reviewerRole || rolesIn(account.access_token).includes(reviewerRole);
         if (account.refresh_token) token.refresh_token = account.refresh_token;
+        token.checkedAt = Date.now();
+        return token;
+      }
+      // Later reads: is Keycloak's session still there? See keycloak-session.ts.
+      if (keycloak && typeof token.sid === "string" && typeof token.refresh_token === "string") {
+        const kept = await keepAlive(
+          keycloak,
+          token.sid,
+          token.refresh_token,
+          typeof token.checkedAt === "number" ? token.checkedAt : 0,
+        );
+        if (!kept) return null;
+        token.refresh_token = kept.refreshToken;
+        token.checkedAt = kept.checkedAt;
       }
       return token;
     },
