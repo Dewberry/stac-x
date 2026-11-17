@@ -63,6 +63,12 @@ import {
  * landing map is. If it can't be fetched the features still draw over a
  * plain ground and the readout says so.
  *
+ * An item whose geometry was simplified (lib/simplified.ts) says so wherever
+ * it's named: in the tooltip while it's pointed at, on its row in the card
+ * once it's clicked, and in a note that stays on the map when it's the item
+ * the page is about. It's said for each item, since one collection can hold
+ * simplified shapes beside full ones.
+ *
  * Given the deployment's area (lib/map-area.ts), the map draws it under the
  * data the way the landing map does: its outline in ink, everything outside
  * it under the sand wash. The map still opens on the data, which for a
@@ -102,6 +108,8 @@ export type MapFeatureProps = {
   tint?: 1 | 2 | 3;
   /** "extent" draws a dashed box instead of a filled shape. */
   kind?: "extent" | "feature";
+  /** Its geometry is a simplified one (lib/simplified.ts). */
+  simplified?: boolean;
 } & Symbology; // The color and weight its item asks for (lib/symbology.ts), on a line.
 
 const SRC = "sx-data";
@@ -612,17 +620,23 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   };
 
   const short = (f: MapFeatureProps) => [f.label, f.tag].filter(Boolean).join(" · ") || f.id;
+  // In a stack each simplified one is marked, since they needn't all be.
+  const stacked = (f: MapFeatureProps) => (f.simplified ? `${short(f)} (simplified geometry)` : short(f));
   const name = (f: MapFeatureProps | null) => (f ? (f.label ? `${short(f)} (${f.id})` : f.id) : null);
   // A stack is named without ids, which the tooltip beside the cursor carries.
   const hoverText = !hover
     ? null
     : hover.hits.length === 1
-      ? name(hover.hits[0])
-      : `${hover.hits.length} here: ${hover.hits.slice(0, 3).map(short).join(", ")}${hover.hits.length > 3 ? `, and ${hover.hits.length - 3} more` : ""}`;
+      ? `${name(hover.hits[0])}${hover.hits[0].simplified ? ", simplified geometry" : ""}`
+      : `${hover.hits.length} here: ${hover.hits.slice(0, 3).map(stacked).join(", ")}${hover.hits.length > 3 ? `, and ${hover.hits.length - 3} more` : ""}`;
   const readout = hoverText ? (tip && !tipped ? `${hoverText}. ${tip}` : hoverText) : (hint ?? "");
   // The tooltip steps aside while the card already lists the same stack.
   const showTip =
     hover && !(pin && hover.hits.length === pin.hits.length && hover.hits.every((h, i) => h.id === pin.hits[i].id));
+
+  // The page's own item, when its shape is a simplified one: the note for it stays up.
+  const selectedSimplified =
+    !!selected && data.features.some((f) => f.properties?.id === selected && f.properties.simplified === true);
 
   if (failed) throw failed;
   return (
@@ -648,15 +662,17 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
               {h.tag && <span className="ffx-map-tip-kind">{h.tag}</span>}
               {h.label && <span className="ffx-map-tip-label">{h.label}</span>}
               <span className="ffx-id">{h.id}</span>
+              {h.simplified && <span className="sx-map-flag">Simplified geometry</span>}
             </span>
           ))}
           {hover.hits.length > TIP_ROWS && <span className="ffx-map-tip-more">and {hover.hits.length - TIP_ROWS} more</span>}
         </div>
       )}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
+      {selectedSimplified && <div className="ffx-map-note sx-map-simplified">Simplified geometry</div>}
       {pinHost && pin && createPortal(
         <MapCard
-          rows={pin.hits.map((h) => ({ id: h.id, label: h.label, kind: h.tag, tint: h.tint, href: h.href }))}
+          rows={pin.hits.map((h) => ({ id: h.id, label: h.label, kind: h.tag, tint: h.tint, simplified: h.simplified, href: h.href }))}
         />,
         pinHost,
       )}

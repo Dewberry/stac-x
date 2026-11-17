@@ -148,6 +148,8 @@ export type Member = {
   tint?: Tint;
   start?: string | null;
   end?: string | null;
+  /** The item's own geometry is a simplified one (lib/simplified.ts). */
+  simplified?: boolean;
 };
 
 /** What the page works out from the catalog (lib/home-data.ts): the rail's areas and the map's footprints. */

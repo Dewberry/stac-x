@@ -268,7 +268,7 @@ function pickAt(m: MapLibreMap, point: Point, lngLat: LngLat, area: HomeArea | u
     if (typeof p.key === "string") keys.add(p.key);
     if (f.layer.id === L.items && typeof p.id === "string" && !seen.has(p.id)) {
       seen.add(p.id);
-      hits.push({ id: p.id, label: str(p.label) ?? p.id, hideId: p.hideId === true, kind: str(p.kind), start: str(p.start), end: str(p.end) });
+      hits.push({ id: p.id, label: str(p.label) ?? p.id, hideId: p.hideId === true, kind: str(p.kind), start: str(p.start), end: str(p.end), simplified: p.simplified === true || undefined });
     }
   }
   for (const mm of area.members ?? []) {
@@ -669,6 +669,7 @@ export function HomeMap({
                   {r.kind && <span className="ffx-map-tip-kind">{r.kind}</span>}
                   <span className="ffx-map-tip-label">{r.label}</span>
                   {!r.hideId && <span className="ffx-id">{r.id}</span>}
+                  {r.simplified && <span className="sx-map-flag">Simplified geometry</span>}
                 </span>
               ))}
               {tip.rows.length > TIP_ROWS && <span className="ffx-map-tip-more">and {tip.rows.length - TIP_ROWS} more</span>}
@@ -717,7 +718,7 @@ export function HomeMap({
   );
 }
 
-/** One item under the cursor: its name, its id and dates, and what a click does. */
+/** One item under the cursor: its name, its id and dates, whether its geometry is a simplified one, and what a click does. */
 function ItemTip({ row }: { row: Hit }) {
   const when = fmtRange(row.start, row.end);
   return (
@@ -733,6 +734,8 @@ function ItemTip({ row }: { row: Hit }) {
           {when && <span className="ffx-num">{when}</span>}
         </span>
       )}
+      {/* The item's own geometry, not the footprint the map draws for it. */}
+      {row.simplified && <span className="sx-map-tip-meta"><span className="sx-map-flag">Simplified geometry</span></span>}
       <span className="sx-map-tip-hint">Click to open the item</span>
     </>
   );

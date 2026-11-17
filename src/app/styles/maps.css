@@ -122,6 +122,22 @@
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-sec);
 }
+/* Stays on the map of an item whose geometry is a simplified one
+   (lib/simplified.ts), on the right so it's clear of the basemap note. */
+.sx-map-simplified {
+  left: auto;
+  right: 0.75rem;
+}
+/* The same thing said beside an item's name, in the tooltip and the card. */
+.sx-map-flag {
+  flex: none;
+  padding: 0 0.375rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: 999px;
+  font-size: var(--ffx-t-tiny);
+  color: var(--ffx-ink-sec);
+  white-space: nowrap;
+}
 
 /* The id of the feature under the cursor, beside it. */
 .ffx-map-tip {
