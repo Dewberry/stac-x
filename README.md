@@ -258,11 +258,11 @@ the landing folder listed above.
 
 The app signs people in with Keycloak (OpenID Connect, through Auth.js).
 Set `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`,
-`AUTH_SECRET` and `AUTH_URL` (see `.env.example`), and every page and API
-route needs a session, which ends when Keycloak's does. Each QC save records the username of whoever made
-it. Admin and QC saves need the `stac-admin`
-role (`STAC_REVIEWER_ROLE` names a different one, or `*` for no limit);
-everyone else who can sign in can still browse. The Keycloak client's
+`AUTH_SECRET` and `AUTH_URL` (see `.env.example`) to turn it on. The
+catalog stays open to read without signing in. Admin and QC saves need a
+sign-in with the `stac-admin` role (`STAC_REVIEWER_ROLE` names a different
+one, or `*` for anyone who can sign in), and each QC save records the
+username of whoever made it. A session ends when Keycloak's does. The Keycloak client's
 settings are in [docs/keycloak.md](docs/keycloak.md).
 
 With sign-in off, anyone who can reach the app can approve a collection,

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { homeCrumb, PageHead } from "@/components/shell";
@@ -39,6 +40,9 @@ type Props = {
 export default async function AdminPage({ params, searchParams }: Props) {
   const env = await pageEnv(params);
   const session = await getSession();
+  // proxy.ts sends a signed-out visitor to Keycloak before this renders.
+  // Should one get here anyway, Admin still isn't shown.
+  if (!session) redirect("/signin");
   if (session && !session.reviewer) {
     return (
       <div className="sx-page">

@@ -6,9 +6,9 @@ import { auth, authEnabled } from "@/auth";
  * Who the shell thinks you are.
  *
  * With Keycloak configured (src/auth.ts), that's the signed-in person, or
- * null when nobody is. proxy.ts sends anyone without a session to the
- * sign-in page before a catalog page renders, so null only reaches the
- * sign-in page itself.
+ * null when nobody is. The catalog is open to read without signing in, so
+ * null is the usual case on its pages. Only Admin and saving QC need a
+ * session, and proxy.ts sends a signed-out visitor to Admin on to Keycloak.
  *
  * Without it, the app runs as it did before there was an identity provider:
  * every page is open and the shell shows a fixed role, the same stand-in as

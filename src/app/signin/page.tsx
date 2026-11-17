@@ -26,9 +26,9 @@ const ERRORS: Record<string, string> = {
  * The sign-in page.
  *
  * With Keycloak configured (src/auth.ts), it's one button that goes on to
- * Keycloak. Most people never see it: proxy.ts sends a signed-out visitor
- * straight to Keycloak through /api/auth/start. It's where signing out lands
- * and where a failed sign-in comes back to, with ?error=.
+ * Keycloak. Most people never see it: the account menu's Sign in and a
+ * signed-out visit to Admin both go straight to Keycloak through
+ * /api/auth/start. It's where a failed sign-in comes back to, with ?error=.
  *
  * Without Keycloak it's the stand-in, the same as ffrd-x's: the form goes
  * straight to the catalog. Its fields have no names on purpose, so nothing
