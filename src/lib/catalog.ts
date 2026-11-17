@@ -83,6 +83,8 @@ type Cache = {
   building: Promise<Catalog> | null;
   /** The last catalog built, served while the next one is checked. Null until the first build and after a write. */
   last?: Catalog | null;
+  /** When the build behind `last` started, which is when its sources were last checked. */
+  lastAt?: number;
   /** Bumped by every write, so a build that started before it can't be served after it. */
   generation?: number;
 };
@@ -103,13 +105,23 @@ const caches = kept as Record<EnvKey, Cache>;
 
 export async function getCatalog(env: EnvKey): Promise<Catalog> {
   const cache = caches[env];
+  // Nothing is checked again until the refresh time has passed, so a build
+  // before then would only put the same collections together again, on
+  // every request. The catalog also stays the same object in between,
+  // which is what lets a page keep what it worked out from it
+  // (lib/home-data.ts).
+  if (cache.last && Date.now() - (cache.lastAt ?? 0) < refreshMs) return cache.last;
   // Coalesce concurrent builds: the three server components of a page all
   // ask, and one build serves them.
   if (!cache.building) {
     const generation = cache.generation ?? 0;
+    const startedAt = Date.now();
     const pending: Promise<Catalog> = build(env, cache)
       .then((catalog) => {
-        if ((cache.generation ?? 0) === generation) cache.last = catalog;
+        if ((cache.generation ?? 0) === generation) {
+          cache.last = catalog;
+          cache.lastAt = startedAt;
+        }
         return catalog;
       })
       .finally(() => {
@@ -121,6 +133,11 @@ export async function getCatalog(env: EnvKey): Promise<Catalog> {
   // Served from memory; a failed check is already logged per source.
   cache.building.catch(() => {});
   return cache.last;
+}
+
+/** The catalog in memory, if there is one, without waiting for anything. */
+export function peekCatalog(env: EnvKey): Catalog | null {
+  return caches[env].last ?? null;
 }
 
 /**
@@ -280,6 +297,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     const parent = c.docHref ? listing.parents[c.docHref] : undefined;
     c.parentMissing = !!parent && !loadedHrefs.has(parent);
     c.versionsElsewhere = (c.docHref && listing.elsewhere?.[c.docHref]) || [];
+    c.itemsStamp = c.sources.map((uri) => `${uri}@${cache.sources.get(uri)?.etag ?? ""}`).join("|");
   }
   try {
     const series = groupVersions(collections);

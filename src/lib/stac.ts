@@ -197,6 +197,11 @@ export type Collection = {
   childCollectionHrefs: string[];
   /** Parquet or collection JSON sources, including those with no items. */
   sources: string[];
+  /**
+   * The sources with their ETags. While it's the same, the items are the
+   * same, so what's worked out from them can be kept (lib/home-data.ts).
+   */
+  itemsStamp?: string;
   /** True when collection.json was read from the bucket; false when derived. */
   fromDocument: boolean;
   /** The collection's own assets from collection.json, hrefs resolved. */

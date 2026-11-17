@@ -10,6 +10,7 @@ import type { Tint } from "@/lib/overview";
 import { QC_STATUSES, type QcEdit, type QcStatus } from "@/lib/stac";
 import { hierarchyOf, searchCollections, type NodeKind } from "@/lib/collection-hierarchy";
 import { itemHref } from "@/lib/utils";
+import { HomeRailLoading } from "./home-loading";
 import { HomePreview } from "./home-preview";
 import { MapBoundary } from "./map-boundary";
 import { HomeRail, type CatalogHit, type Group } from "./home-rail";
@@ -17,6 +18,7 @@ import { HomeSplit } from "./home-split";
 import { ItemHoverContext } from "./item-hover";
 import type { ItemRow } from "./items-list";
 import { stateOf } from "./qc-mark";
+import { Spinner } from "./spinner";
 
 /**
  * The home page, a console for people who already know FFRD: the
@@ -41,6 +43,13 @@ import { stateOf } from "./qc-mark";
  *
  * The rail and the map are one view: pointing at an item on either side
  * lights it up on the other.
+ *
+ * The console doesn't wait for the collections. The page sends them when
+ * they're ready (app/[env]/page.tsx), and until then the map is already up
+ * on the deployment's area and the rail holds an outline of its rows
+ * (home-loading.tsx), with a line on the map saying they're loading. The
+ * map stays mounted across that change, so it doesn't start over when the
+ * rows land.
  *
  * On a phone the page is a plain column: the map, then the rail with the
  * state buttons in its head, and a selection opens a sheet over the page
@@ -141,6 +150,46 @@ export type Member = {
   end?: string | null;
 };
 
+/** What the page works out from the catalog (lib/home-data.ts): the rail's areas and the map's footprints. */
+export type HomeData = {
+  env: EnvKey;
+  areas: HomeArea[];
+  /** Where the map opens, west, south, east, north. */
+  frame: [number, number, number, number];
+  items: FeatureCollection;
+  /** A problem loading the catalog, shown at the top of the list. */
+  notice: string | null;
+};
+
+const NO_AREAS: HomeArea[] = [];
+const NO_ITEMS: FeatureCollection = { type: "FeatureCollection", features: [] };
+
+/**
+ * The page's data once it's here: null while the promise the server sent
+ * is still open. Reading it with `use` would suspend the whole console,
+ * map included, and the point is for the map to be up meanwhile. A failed
+ * load is thrown while rendering, so the error page takes it.
+ */
+function useHomeData(source: HomeData | Promise<HomeData>, env: EnvKey): HomeData | null {
+  const waiting = "then" in source;
+  const [settled, setSettled] = useState<{ data?: HomeData; error?: unknown } | null>(null);
+  useEffect(() => {
+    if (!("then" in source)) return;
+    let live = true;
+    source.then(
+      (data) => live && setSettled({ data }),
+      (error: unknown) => live && setSettled({ error }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [source]);
+  if (!waiting) return source;
+  if (settled?.error) throw settled.error;
+  // What came for another environment isn't this one's.
+  return settled?.data?.env === env ? settled.data : null;
+}
+
 /** How long, in ms, the pointer rests on a collection before the map previews it. */
 const PREVIEW_DELAY = 120;
 
@@ -149,29 +198,32 @@ export type Rows = ItemRow[] | "error" | null;
 
 export function HomeConsole({
   env,
-  areas,
+  data: source,
   area,
-  frame,
-  items,
+  frame: areaFrame,
   emptyText,
-  notice,
   railShare,
 }: {
   env: EnvKey;
-  areas: HomeArea[];
+  /** The collections, or the promise of them when the server is still working them out. */
+  data: HomeData | Promise<HomeData>;
   /** The deployment's area; null when none is set. */
   area: FocusArea | null;
-  /** Where the map opens, west, south, east, north. */
-  frame: [number, number, number, number];
-  items: FeatureCollection;
+  /** Where the map opens when an area is set. Null when it depends on the collections. */
+  frame: [number, number, number, number] | null;
   /** What the rail says when the environment has no collections. */
   emptyText: string;
-  /** A problem loading the catalog, shown at the top of the list. */
-  notice?: string | null;
   /** The collection list's share of the width, in percent (lib/rail-share.ts). */
   railShare: number;
 }) {
   const router = useRouter();
+  const data = useHomeData(source, env);
+  const loading = !data;
+  const areas = data?.areas ?? NO_AREAS;
+  const items = data?.items ?? NO_ITEMS;
+  const notice = data?.notice ?? null;
+  // With no area set the map waits for the collections to know where to open.
+  const frame = areaFrame ?? data?.frame ?? null;
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   // The shape of the selected collection under the cursor, on the map or in
@@ -457,7 +509,7 @@ export function HomeConsole({
         {/* The page has no visible title (the header names the app), but a screen reader's outline needs one. */}
         <h1 className="sr-only">Collections in {envMeta(env).label}</h1>
         <p className="sr-only" role="status">
-          {previewArea ? !previewArea.drawn
+          {loading ? "Loading the collections…" : previewArea ? !previewArea.drawn
             ? `No map preview available for ${previewArea.name}.`
             : previewArea.lazy && !footprints[previewArea.slug]
               ? `Loading map preview for ${previewArea.name}.`
@@ -470,6 +522,7 @@ export function HomeConsole({
         </p>
         <HomeSplit initial={railShare}>
           <div className="sx-console-map">
+            {frame && (
             <MapBoundary label={area ? `Collections in ${area.name}` : "Collections on the map"} fill>
             <HomeMap
               areas={mapAreas}
@@ -488,6 +541,14 @@ export function HomeConsole({
               onOpenItem={openItem}
             />
             </MapBoundary>
+            )}
+            {/* For the eye; the status line above says it to a screen reader. */}
+            {loading && (
+              <p className="sx-loading-status" aria-hidden="true">
+                <Spinner />
+                Loading the collections…
+              </p>
+            )}
           </div>
           {current && (
             <HomePreview
@@ -502,6 +563,7 @@ export function HomeConsole({
               onClose={close}
             />
           )}
+          {loading ? <HomeRailLoading /> : (
           <HomeRail
             env={env}
             collectionCount={collections.length}
@@ -534,6 +596,7 @@ export function HomeConsole({
             onHover={setHovered}
             onSelect={select}
           />
+          )}
         </HomeSplit>
       </div>
     </ItemHoverContext.Provider>
