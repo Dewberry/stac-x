@@ -14,8 +14,9 @@ import { Icon, ICONS } from "./icons";
  * collection page the rows carry id and dates and come in pages. In the
  * home rail (`compact`) each row is the item's name alone, on one line
  * with a chevron, in a block that scrolls inside the rail with a note
- * under it saying how many more are below. There's no sort, since with
- * names alone there's nothing to sort by eye, and no search box either
+ * under it saying how many more are below. Either way the rows start in
+ * the catalog's own order. The rail has no sort, since with names alone
+ * there's nothing to sort by eye, and no search box either
  * unless the collection has more rows than the block shows, since a list
  * that's all in view has nothing to search. The collection page is where
  * the full table is. Filtering runs in the browser over a compact summary
@@ -42,7 +43,10 @@ const PAGE = 12;
 /** How many rows the rail's block shows before it scrolls; a search box is only worth having past that. */
 const WINDOW = 5;
 
-type Sort = "id" | "label" | "start";
+// "catalog" is the order the catalog lists the items in, which is how they
+// start. Whoever wrote the catalog may have put them in an order that means
+// something, and sorting by id up front threw that away.
+type Sort = "catalog" | "id" | "label" | "start";
 
 export function ItemsList({
   env,
@@ -66,7 +70,7 @@ export function ItemsList({
   activeIds?: ReadonlySet<string>;
 }) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("id");
+  const [sort, setSort] = useState<Sort>("catalog");
   const [page, setPage] = useState(0);
   const q = useDeferredValue(query.trim().toLowerCase());
   // Shared with the page's map: pointing at a row lights up its shape.
@@ -75,8 +79,8 @@ export function ItemsList({
   const filtered = useMemo(() => {
     let out = rows;
     if (q) out = out.filter((r) => r.id.toLowerCase().includes(q) || r.label?.toLowerCase().includes(q));
-    const key = (r: ItemRow) =>
-      sort === "label" ? (r.label ?? r.id) : sort === "start" ? (r.start ?? "") : r.id;
+    if (sort === "catalog") return out;
+    const key = (r: ItemRow) => (sort === "label" ? (r.label ?? r.id) : sort === "start" ? (r.start ?? "") : r.id);
     return [...out].sort((a, b) => key(a).localeCompare(key(b), undefined, { numeric: true }));
   }, [rows, q, sort]);
 
@@ -182,6 +186,7 @@ export function ItemsList({
           <label className="ffx-field ffx-field-select ml-auto">
             <span className="ffx-field-label">Sort</span>
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+              <option value="catalog">Catalog order</option>
               <option value="id">Id</option>
               <option value="label">Name</option>
               <option value="start">Start date</option>
