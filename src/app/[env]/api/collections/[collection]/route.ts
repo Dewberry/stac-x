@@ -60,12 +60,12 @@ export const GET = jsonRoute("collection", async (req: Request, { params }: { pa
     keywords: c.keywords,
     providers: c.providers,
     // A catalog's extent is the generator's placeholder; it's never passed on.
-    ...(c.kind === "dataset" ? { extent: { spatial: { bbox: c.bbox ? [c.bbox] : [] }, temporal: { interval: [c.temporal] } } } : {}),
+    ...(c.kind === "collection" ? { extent: { spatial: { bbox: c.bbox ? [c.bbox] : [] }, temporal: { interval: [c.temporal] } } } : {}),
     ...c.extra,
     ...(versioned ? { version: here?.label ?? c.version, deprecated: c.deprecated } : {}),
     ...(c.experimental ? { experimental: true } : {}),
     // A catalog has no review state; a pending one would say it waits for review.
-    ...(c.kind === "dataset" ? qcFields(c.qc) : {}),
+    ...(c.kind === "collection" ? qcFields(c.qc) : {}),
     "stac-x:environment": env,
     "stac-x:sources": c.sources,
     "stac-x:item_count": c.itemCount,

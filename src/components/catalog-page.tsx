@@ -11,42 +11,42 @@ import type { Collection } from "@/lib/stac";
 import { collectionHref } from "@/lib/utils";
 
 /**
- * A catalog's page. A catalog is a folder (lib/collection-hierarchy.ts):
+ * A catalog's page. A catalog only holds other nodes (lib/collection-hierarchy.ts):
  * a title, a description and what's inside, nothing else. So it has no map,
  * items, assets, review state or JSON to download, all of which would say
- * there's data here when there isn't. What's inside comes datasets first,
+ * there's data here when there isn't. What's inside comes collections first,
  * then the catalogs inside it with how much each holds. The right column
  * says where it sits and the few facts it has.
  *
- * The columns split the way a dataset's page does: what to browse on the
+ * The columns split the way a collection's page does: what to browse on the
  * left, the rest on the right.
  */
 
-/** A node directly inside a catalog, or inside a dataset that holds catalogs. */
-export type Inside = { collection: Collection; datasetsBelow: number };
+/** A node directly inside a catalog, or inside a collection that holds catalogs. */
+export type Inside = { collection: Collection; collectionsBelow: number };
 
 const plural = (n: number, one: string, many: string) => `${fmtNum(n)} ${n === 1 ? one : many}`;
 
-/** "Nothing in it yet" for an empty catalog, or how many datasets are anywhere below it. */
-const holds = (n: number) => (n ? plural(n, "dataset", "datasets") : "Nothing in it yet");
+/** "Nothing in it yet" for an empty catalog, or how many collections are anywhere below it. */
+const holds = (n: number) => (n ? plural(n, "collection", "collections") : "Nothing in it yet");
 
 /**
- * The line beside a catalog's title: "6 datasets · 17 catalogs inside with
- * nothing in them yet", or "3 catalogs inside · no datasets anywhere below
+ * The line beside a catalog's title: "6 collections · 17 catalogs inside with
+ * nothing in them yet", or "3 catalogs inside · no collections anywhere below
  * yet" when it's empty all the way down.
  */
-function summaryOf(datasetsBelow: number, inside: Inside[]): string {
+function summaryOf(collectionsBelow: number, inside: Inside[]): string {
   const catalogs = inside.filter((i) => i.collection.kind === "catalog");
-  const empty = catalogs.filter((i) => !i.datasetsBelow).length;
-  if (datasetsBelow) {
-    const tail = empty === 1 ? "1 folder inside with nothing in it yet" : `${fmtNum(empty)} folders inside with nothing in them yet`;
-    return empty ? `${plural(datasetsBelow, "dataset", "datasets")} · ${tail}` : plural(datasetsBelow, "dataset", "datasets");
+  const empty = catalogs.filter((i) => !i.collectionsBelow).length;
+  if (collectionsBelow) {
+    const tail = empty === 1 ? "1 catalog inside with nothing in it yet" : `${fmtNum(empty)} catalogs inside with nothing in them yet`;
+    return empty ? `${plural(collectionsBelow, "collection", "collections")} · ${tail}` : plural(collectionsBelow, "collection", "collections");
   }
-  return catalogs.length ? `${plural(catalogs.length, "folder inside", "folders inside")} · no datasets anywhere below yet` : "Nothing in it yet";
+  return catalogs.length ? `${plural(catalogs.length, "catalog inside", "catalogs inside")} · no collections anywhere below yet` : "Nothing in it yet";
 }
 
-/** A dataset inside a catalog: its name and review state, its count at the right. */
-function DatasetRow({ env, c }: { env: EnvKey; c: Collection }) {
+/** A collection inside a catalog: its name and review state, its count at the right. */
+function CollectionRow({ env, c }: { env: EnvKey; c: Collection }) {
   const state = c.qc?.qc ?? "pending";
   const unit = unitOf(c);
   const one: Record<typeof unit, string> = { points: "point", shapes: "shape", items: "item" };
@@ -70,7 +70,7 @@ function DatasetRow({ env, c }: { env: EnvKey; c: Collection }) {
   );
 }
 
-/** A catalog inside another, or inside a dataset: folder, name, id, description, and how much it holds. */
+/** A catalog inside another, or inside a collection: catalog, name, id, description, and how much it holds. */
 function CatalogRow({ env, inside }: { env: EnvKey; inside: Inside }) {
   const c = inside.collection;
   return (
@@ -84,20 +84,20 @@ function CatalogRow({ env, inside }: { env: EnvKey; inside: Inside }) {
           {c.title !== c.id && <span className="ffx-id sx-inside-id">{c.id}</span>}
           {c.description && <span className="sx-row-desc">{c.description}</span>}
         </span>
-        <span className="sx-inside-status">{holds(inside.datasetsBelow)}</span>
+        <span className="sx-inside-status">{holds(inside.collectionsBelow)}</span>
       </Link>
     </li>
   );
 }
 
-/** What's directly inside a catalog or a dataset: datasets first, then catalogs, each a link to its page. */
+/** What's directly inside a catalog or a collection: collections first, then catalogs, each a link to its page. */
 export function InsideRows({ env, inside }: { env: EnvKey; inside: Inside[] }) {
   return (
     <ul className="sx-inside-list">
       {inside
-        .filter((i) => i.collection.kind === "dataset")
+        .filter((i) => i.collection.kind === "collection")
         .map((i) => (
-          <DatasetRow key={i.collection.id} env={env} c={i.collection} />
+          <CollectionRow key={i.collection.id} env={env} c={i.collection} />
         ))}
       {inside
         .filter((i) => i.collection.kind === "catalog")
@@ -120,7 +120,7 @@ export function CatalogLayout({
   c,
   ancestors,
   inside,
-  datasetsBelow,
+  collectionsBelow,
 }: {
   env: EnvKey;
   c: Collection;
@@ -128,13 +128,13 @@ export function CatalogLayout({
   ancestors: Collection[];
   /** What's directly inside it, by name. */
   inside: Inside[];
-  datasetsBelow: number;
+  collectionsBelow: number;
 }) {
   const type = ffrdField(c, "catalog_type");
   const spec = ffrdField(c, "specification_version");
   const details: Entry[] = [
     { key: "id", value: c.id, label: "Id" },
-    { key: "kind", value: "Folder", label: "Kind" },
+    { key: "kind", value: "Catalog", label: "Kind" },
     // The file under it is still a STAC Collection; say so, so the two nouns aren't confused.
     { key: "stored_as", value: `${c.type} (STAC)`, label: "Stored as" },
     ...(type != null ? [{ key: "catalog_type", value: type, label: "Catalog type" }] : []),
@@ -156,8 +156,8 @@ export function CatalogLayout({
         }
         subtitle={
           <>
-            <span className="sx-kind">Folder</span>
-            <span>{summaryOf(datasetsBelow, inside)}</span>
+            <span className="sx-kind">Catalog</span>
+            <span>{summaryOf(collectionsBelow, inside)}</span>
           </>
         }
         actions={<CopyButton currentUrl label="Copy link" icon={ICONS.link} />}
@@ -180,7 +180,7 @@ export function CatalogLayout({
           <Panel title="Inside" note={inside.length ? fmtNum(inside.length) : undefined} id="inside">
             {inside.length > 0 && <InsideRows env={env} inside={inside} />}
             <p className="sx-inside-note">
-              A folder has no extent, no items and no review state of its own; the datasets that land inside it
+              A catalog has no extent, no items and no review state of its own; the collections that land inside it
               get reviewed one by one.
             </p>
           </Panel>

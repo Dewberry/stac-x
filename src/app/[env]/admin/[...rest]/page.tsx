@@ -25,8 +25,8 @@ export default async function AdminComingSoon({ params }: Props) {
   const name = humanize(pageParam(rest[0] ?? ""));
 
   const { collections } = await getCatalog(env);
-  // The queue's own count: datasets only, since catalogs aren't reviewed.
-  const waiting = collections.filter((c) => c.kind === "dataset" && (c.qc?.qc ?? "pending") === "pending").length;
+  // The queue's own count: collections only, since catalogs aren't reviewed.
+  const waiting = collections.filter((c) => c.kind === "collection" && (c.qc?.qc ?? "pending") === "pending").length;
   const here = envMeta(env).label;
 
   return (
@@ -43,7 +43,7 @@ export default async function AdminComingSoon({ params }: Props) {
               title="Review queue"
               sub={
                 waiting > 0
-                  ? `${fmtNum(waiting)} ${waiting === 1 ? "dataset" : "datasets"} waiting for review in ${here}`
+                  ? `${fmtNum(waiting)} ${waiting === 1 ? "collection" : "collections"} waiting for review in ${here}`
                   : `Nothing waiting for review in ${here}`
               }
             />
@@ -55,7 +55,7 @@ export default async function AdminComingSoon({ params }: Props) {
           }
         >
           <p>
-            <code className="ffx-id">{asked}</code> isn&apos;t built yet. Reviewing and approving datasets works today.
+            <code className="ffx-id">{asked}</code> isn&apos;t built yet. Reviewing and approving collections works today.
           </p>
         </MessageCard>
       </div>

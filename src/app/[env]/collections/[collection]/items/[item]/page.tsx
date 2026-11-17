@@ -210,7 +210,7 @@ export default async function ItemPage({ params }: Props) {
         <div className="sx-col">
           {brokenGeometry && (
             <p className="sx-callout" role="status">
-              The geometry in this dataset&apos;s file couldn&apos;t be read, so the item isn&apos;t drawn on the map.
+              The geometry in this collection&apos;s file couldn&apos;t be read, so the item isn&apos;t drawn on the map.
             </p>
           )}
           <div className="sx-mapcard">
@@ -239,7 +239,7 @@ export default async function ItemPage({ params }: Props) {
               <div className="sx-desc ffx-prose">{str(p.description)}</div>
             </Panel>
           )}
-          <Panel title="Dataset" id="collection">
+          <Panel title="Collection" id="collection">
             <Link href={collectionHref(env, c.id)} className="sx-row">
               <div className="sx-row-main">
                 <div className="sx-row-title">{collectionLabel}</div>

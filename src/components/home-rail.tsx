@@ -13,42 +13,42 @@ import type { ItemRow } from "./items-list";
 import { QC_LABEL, QcMark, STATE_ORDER } from "./qc-mark";
 
 /**
- * The dataset rail, the left side of the home console: its head (Datasets,
+ * The collection rail, the left side of the home console: its head (Collections,
  * how many and in how many catalogs, the search box, the review states as
- * legend and filter) and the rows in groups. A row is a dataset: its name,
+ * legend and filter) and the rows in groups. A row is a collection: its name,
  * its count and one line of where and when. Rows sit under the top-level
  * catalog they're in, and each heading is a link that opens that catalog in
  * the rail. Top-level catalogs with nothing in them yet are named at the
  * foot of the list, not as rows.
  *
- * A search lists what matches in two parts: the datasets, each with the
+ * A search lists what matches in two parts: the collections, each with the
  * catalogs it sits in, and then the catalogs, one row per name, since a
- * name like Archive can be a folder in seven places. Neither part brings
+ * name like Archive can be a catalog in seven places. Neither part brings
  * along what's inside a match. The line under the box says plainly when
  * nothing reviewable matched.
  *
  * With a catalog open (?in=, home-scope.tsx) the head is that catalog's:
- * the way back, its name and description, and how many datasets and empty
- * catalogs are in it. Its datasets are the rows, under the catalogs inside
+ * the way back, its name and description, and how many collections and empty
+ * catalogs are in it. Its collections are the rows, under the catalogs inside
  * it that hold them, and its empty catalogs fold under one heading at the
  * end. Opening or leaving a catalog moves focus to the rail's title and
  * says what's showing.
  *
- * The selected row opens in place (OpenRow) with the dataset's
+ * The selected row opens in place (OpenRow) with the collection's
  * description, its review state, the way in and its items. Pointing at a
  * row previews its footprint on the map. Enter and Space open and close a
- * row like a click, as on any button; the open row's Browse dataset goes
- * on to the dataset's page.
+ * row like a click, as on any button; the open row's Browse collection goes
+ * on to the collection's page.
  */
 
-/** One group of the rail's rows, under its top-level catalog, or under no heading for datasets at the top. */
+/** One group of the rail's rows, under its top-level catalog, or under no heading for collections at the top. */
 export type Group = { key: string; catalog: { slug: string; name: string } | null; rows: HomeArea[] };
 
 /** What the search found, while there is one. */
 export type Search = {
   q: string;
-  /** Matching datasets, before the review filter. */
-  datasets: number;
+  /** Matching collections, before the review filter. */
+  collections: number;
 };
 
 /**
@@ -71,23 +71,23 @@ const word = (n: number) => WORDS[n] ?? fmtNum(n);
 const listOf = (parts: string[]) => parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
 
 /** Whether a catalog has anything in it yet, for its row. */
-const catalogNote = (a: HomeArea) => a.datasetsBelow ? plural(a.datasetsBelow, "dataset", "datasets") : "Nothing in it yet";
+const catalogNote = (a: HomeArea) => a.collectionsBelow ? plural(a.collectionsBelow, "collection", "collections") : "Nothing in it yet";
 
 /**
  * The line under the search box, and a note for the list when nothing that
- * can be reviewed matched: "No datasets match “archive”. 7 empty catalogs
+ * can be reviewed matched: "No collections match “archive”. 7 empty catalogs
  * are named Archive."
  */
 function summaryOf(search: Search, hits: CatalogHit[], opened: HomeArea | null): { line: string; note: string | null } {
   const places = hits.flatMap((h) => h.places);
   const catalogs = places.length;
-  const allEmpty = places.every((p) => !p.area.datasetsBelow);
-  const noun = allEmpty ? (catalogs === 1 ? "empty folder" : "empty folders") : catalogs === 1 ? "folder" : "folders";
+  const allEmpty = places.every((p) => !p.area.collectionsBelow);
+  const noun = allEmpty ? (catalogs === 1 ? "empty catalog" : "empty catalogs") : catalogs === 1 ? "catalog" : "catalogs";
   const quoted = `“${search.q}”`;
-  if (search.datasets && catalogs) {
-    return { line: `${plural(search.datasets, "dataset", "datasets")} and ${fmtNum(catalogs)} ${noun} match ${quoted}.`, note: null };
+  if (search.collections && catalogs) {
+    return { line: `${plural(search.collections, "collection", "collections")} and ${fmtNum(catalogs)} ${noun} match ${quoted}.`, note: null };
   }
-  if (search.datasets) return { line: `${plural(search.datasets, "dataset matches", "datasets match")} ${quoted}.`, note: null };
+  if (search.collections) return { line: `${plural(search.collections, "collection matches", "collections match")} ${quoted}.`, note: null };
   if (!catalogs) return { line: `Nothing matches ${quoted}.`, note: null };
   const name = hits.length === 1 ? hits[0].name : null;
   const what = name
@@ -97,12 +97,12 @@ function summaryOf(search: Search, hits: CatalogHit[], opened: HomeArea | null):
   if (allEmpty) {
     const a = name && /^[aeiou]/i.test(name) ? "An" : "A";
     note = !name
-      ? "Nothing to review here. None of these folders holds a dataset yet."
+      ? "Nothing to review here. None of these catalogs holds a collection yet."
       : catalogs === 1
-        ? `Nothing to review here. ${a} ${name} folder exists in one place in the tree, but it doesn't hold a dataset yet.`
-        : `Nothing to review here. ${a} ${name} folder exists in ${word(catalogs)} places in ${opened ? opened.name : "the tree"}, but none of them holds a dataset yet.`;
+        ? `Nothing to review here. ${a} ${name} catalog exists in one place in the tree, but it doesn't hold a collection yet.`
+        : `Nothing to review here. ${a} ${name} catalog exists in ${word(catalogs)} places in ${opened ? opened.name : "the tree"}, but none of them holds a collection yet.`;
   }
-  return { line: `No datasets match ${quoted}. ${what}`, note };
+  return { line: `No collections match ${quoted}. ${what}`, note };
 }
 
 /**
@@ -116,11 +116,11 @@ function whereEach(hit: CatalogHit, opened: HomeArea | null): string {
   const tops = [...byTop].sort(([a], [b]) => a.localeCompare(b));
   const here = opened ? `directly in ${opened.name}` : "at the top level";
   const where = tops.length > 3
-    ? `under ${word(tops.length)} ${opened ? "folders in it" : "top-level folders"}`
+    ? `under ${word(tops.length)} ${opened ? "catalogs in it" : "top-level catalogs"}`
     : tops.length > 1 && tops.every(([top, n]) => top && n === 1)
       ? `one each under ${listOf(tops.map(([top]) => top))}`
       : listOf(tops.map(([top, n]) => (top ? `${word(n)} under ${top}` : `${word(n)} ${here}`)));
-  return `${fmtNum(hit.places.length)} folders share this name, ${where}. Open to see where each sits.`;
+  return `${fmtNum(hit.places.length)} catalogs share this name, ${where}. Open to see where each sits.`;
 }
 
 /** The searched-for text underlined wherever it is in a name, in river blue. */
@@ -139,7 +139,7 @@ function Hit({ text, q }: { text: string; q: string }) {
 
 export function HomeRail({
   env,
-  datasetCount,
+  collectionCount,
   rootsWithData,
   allInCatalogs,
   emptyRoots,
@@ -170,13 +170,13 @@ export function HomeRail({
   onSelect,
 }: {
   env: EnvKey;
-  /** Every dataset in the environment. */
-  datasetCount: number;
-  /** Top-level catalogs with at least one dataset below them. */
+  /** Every collection in the environment. */
+  collectionCount: number;
+  /** Top-level catalogs with at least one collection below them. */
   rootsWithData: number;
-  /** Every dataset sits in some catalog, so "in N catalogs" is the whole story. */
+  /** Every collection sits in some catalog, so "in N catalogs" is the whole story. */
   allInCatalogs: boolean;
-  /** Top-level catalogs with no dataset anywhere below them, by name. */
+  /** Top-level catalogs with no collection anywhere below them, by name. */
   emptyRoots: HomeArea[];
   /** The catalog open in the rail, if one is. */
   opened: HomeArea | null;
@@ -186,22 +186,22 @@ export function HomeRail({
   emptyInOpened: HomeArea[];
   /** How many catalogs are directly inside a catalog. */
   catalogsInside: (slug: string) => number;
-  /** The catalogs the open dataset sits in, top first. */
+  /** The catalogs the open collection sits in, top first. */
   trail: HomeArea[];
-  /** What's directly inside the open dataset. */
+  /** What's directly inside the open collection. */
   childCollections: HomeArea[];
-  /** Every dataset the rail is about: all of them, or the opened catalog's. */
+  /** Every collection the rail is about: all of them, or the opened catalog's. */
   total: number;
-  /** While searching, the catalogs each matching dataset sits in, top first. */
+  /** While searching, the catalogs each matching collection sits in, top first. */
   paths: Record<string, string[]>;
   /** While searching, the matching catalogs, by name. */
   catalogHits: CatalogHit[];
   groups: Group[];
-  /** How many datasets are in each review state. */
+  /** How many collections are in each review state. */
   byState: Record<QcStatus, number>;
   /** A problem loading the catalog, shown at the top of the list. */
   notice?: string | null;
-  /** What the rail says when the environment has no datasets. */
+  /** What the rail says when the environment has no collections. */
   emptyText: string;
   filter: QcStatus | null;
   onFilter: (v: QcStatus | null) => void;
@@ -210,7 +210,7 @@ export function HomeRail({
   search: Search | null;
   selected: string | null;
   hovered: string | null;
-  /** The dataset whose footprint the map is previewing, if not the selected one. */
+  /** The collection whose footprint the map is previewing, if not the selected one. */
   preview: string | null;
   rowsBySlug: Record<string, ItemRow[] | "error">;
   /** Item ids whose shape is under the cursor on the map, for the rows to light up. */
@@ -222,10 +222,10 @@ export function HomeRail({
   const shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
   const summary = search ? summaryOf(search, catalogHits, opened) : null;
   const hitPlaces = catalogHits.reduce((n, h) => n + h.places.length, 0);
-  const anything = datasetCount > 0 || emptyRoots.length > 0;
+  const anything = collectionCount > 0 || emptyRoots.length > 0;
 
   // Opening or leaving a catalog replaces the whole rail, so focus goes to
-  // its title and the list starts at its top, unless a dataset that's still
+  // its title and the list starts at its top, unless a collection that's still
   // in view stays open. Not on the first render: a link to a catalog lands
   // there without taking focus from the page.
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -239,8 +239,8 @@ export function HomeRail({
   }, [openedSlug, selected]);
   // Somewhere steady for focus when the control that had it goes.
   const focusSteady = (selector: string) => (document.querySelector<HTMLElement>(selector) ?? titleRef.current)?.focus();
-  // The review states show where there are datasets to count.
-  const statesShown = datasetCount > 0 && (!opened || opened.datasetsBelow > 0);
+  // The review states show where there are collections to count.
+  const statesShown = collectionCount > 0 && (!opened || opened.collectionsBelow > 0);
 
   // Scroll the list so the open row's head is in view, below its sticky
   // catalog heading. Done by hand rather than scrollIntoView, which would
@@ -259,7 +259,7 @@ export function HomeRail({
   }, [selected]);
 
   return (
-    <aside id="dataset-list" className="sx-rail" aria-label="Datasets">
+    <aside id="collection-list" className="sx-rail" aria-label="Collections">
       <div className="sx-rail-head">
         {opened ? (
           <>
@@ -267,41 +267,41 @@ export function HomeRail({
               <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M7.5 2.5 4 6l3.5 3.5" />
               </svg>
-              {openedParent ? openedParent.name : "All datasets"}
+              {openedParent ? openedParent.name : "All collections"}
             </ScopeLink>
             <div className="sx-rail-title">
               <h2 ref={titleRef} tabIndex={-1} className="sx-scope-title">
                 <FolderGlyph />
                 {opened.name}
               </h2>
-              <span className="sx-kind">Folder</span>
+              <span className="sx-kind">Catalog</span>
             </div>
             {opened.blurb && <ScopeDesc key={opened.slug} text={opened.blurb} />}
             <p className="sx-scope-counts">
-              <b>{opened.datasetsBelow ? plural(opened.datasetsBelow, "dataset", "datasets") : "No datasets yet"}</b>
+              <b>{opened.collectionsBelow ? plural(opened.collectionsBelow, "collection", "collections") : "No collections yet"}</b>
               {emptyInOpened.length > 0 && (
                 <>
                   {" · "}
                   {emptyInOpened.length === 1
-                    ? "1 folder inside it with nothing in it yet"
-                    : `${fmtNum(emptyInOpened.length)} folders inside it with nothing in them yet`}
+                    ? "1 catalog inside it with nothing in it yet"
+                    : `${fmtNum(emptyInOpened.length)} catalogs inside it with nothing in them yet`}
                 </>
               )}
             </p>
             <Link href={opened.href} className="sx-rail-page">
-              Folder page
+              Catalog page
               <Icon d={ICONS.chevronRight} size={12} />
             </Link>
           </>
         ) : (
           <div className="sx-rail-title">
-            <h2 ref={titleRef} tabIndex={-1}>Datasets</h2>
-            {/* How many datasets, and how many of them are showing while a filter or search hides some. */}
+            <h2 ref={titleRef} tabIndex={-1}>Collections</h2>
+            {/* How many collections, and how many of them are showing while a filter or search hides some. */}
             <span className="sx-rail-count ffx-num">
               {shownCount === total ? fmtNum(total) : `${fmtNum(shownCount)} of ${fmtNum(total)}`}
             </span>
             {rootsWithData > 0 && allInCatalogs && !search && (
-              <span className="sx-rail-in">in {plural(rootsWithData, "folder", "folders")}</span>
+              <span className="sx-rail-in">in {plural(rootsWithData, "catalog", "catalogs")}</span>
             )}
           </div>
         )}
@@ -311,10 +311,10 @@ export function HomeRail({
               <circle cx="7" cy="7" r="4.5" />
               <path d="m10.5 10.5 3 3" strokeLinecap="round" />
             </svg>
-            <span className="sr-only">{opened ? `Search in ${opened.name}` : "Search datasets and folders"}</span>
+            <span className="sr-only">{opened ? `Search in ${opened.name}` : "Search collections and catalogs"}</span>
             <input
               type="search"
-              placeholder={opened ? `Search in ${opened.name}` : "Search datasets and folders"}
+              placeholder={opened ? `Search in ${opened.name}` : "Search collections and catalogs"}
               value={query}
               onChange={(e) => onQuery(e.target.value)}
             />
@@ -324,8 +324,8 @@ export function HomeRail({
             region, so a search doesn't say it again. */}
         <p className="sr-only" role="status">
           {opened
-            ? `Showing ${opened.name}, ${plural(opened.datasetsBelow, "dataset", "datasets")}`
-            : `Showing all datasets, ${fmtNum(datasetCount)}`}
+            ? `Showing ${opened.name}, ${plural(opened.collectionsBelow, "collection", "collections")}`
+            : `Showing all collections, ${fmtNum(collectionCount)}`}
         </p>
         {/* Said once the search or filter changes. The lines below show the
             same, but a status region that mounts with its text is often missed. */}
@@ -339,7 +339,7 @@ export function HomeRail({
           </p>
         )}
         {/* The review states with their counts: the legend for the open
-            row's mark, and a filter. Datasets only; catalogs aren't reviewed. */}
+            row's mark, and a filter. Collections only; catalogs aren't reviewed. */}
         {statesShown && (
           <div className="sx-rail-states" role="group" aria-label="Filter by review state">
             {STATE_ORDER.map((st) => (
@@ -380,19 +380,19 @@ export function HomeRail({
         </p>
       )}
       <ul ref={listRef} className="sx-rail-list ffx-scroll">
-        {groups.length === 0 && !search && (!opened || (opened.datasetsBelow > 0 && filter)) && (
-          <li className="sx-empty">{datasetCount ? "No datasets match." : emptyText}</li>
+        {groups.length === 0 && !search && (!opened || (opened.collectionsBelow > 0 && filter)) && (
+          <li className="sx-empty">{collectionCount ? "No collections match." : emptyText}</li>
         )}
-        {opened && !opened.datasetsBelow && !emptyInOpened.length && !search && <li className="sx-empty">Nothing in it yet.</li>}
+        {opened && !opened.collectionsBelow && !emptyInOpened.length && !search && <li className="sx-empty">Nothing in it yet.</li>}
         {/* Matches the review filter hides: say so, rather than an empty list under a line counting them. */}
-        {search && filter && statesShown && shownCount === 0 && search.datasets > 0 && (
-          <li className="sx-empty">No matching datasets are {QC_LABEL[filter]}.</li>
+        {search && filter && statesShown && shownCount === 0 && search.collections > 0 && (
+          <li className="sx-empty">No matching collections are {QC_LABEL[filter]}.</li>
         )}
         {groups.map((g) => (
           <li key={g.key} className="sx-group">
             {search && (
               <h3 className="sx-shead">
-                {g.rows.length === 1 ? "Dataset" : "Datasets"} · <span className="ffx-num">{fmtNum(g.rows.length)}</span>
+                {g.rows.length === 1 ? "Collection" : "Collections"} · <span className="ffx-num">{fmtNum(g.rows.length)}</span>
               </h3>
             )}
             {g.catalog && (
@@ -400,7 +400,7 @@ export function HomeRail({
                 <ScopeLink env={env} slug={g.catalog.slug}>
                   <FolderGlyph />
                   <span className="sx-ghead-name">{g.catalog.name}</span>
-                  <span className="sx-ghead-count">{plural(g.rows.length, "dataset", "datasets")}</span>
+                  <span className="sx-ghead-count">{plural(g.rows.length, "collection", "collections")}</span>
                   <Icon d={ICONS.chevronRight} size={12} />
                 </ScopeLink>
               </h3>
@@ -438,10 +438,10 @@ export function HomeRail({
         {!opened && !search && emptyRoots.length > 0 && (
           <li className="sx-empty-roots">
             <p>
-              {plural(emptyRoots.length, "top-level folder", "top-level folders")} with no datasets yet.{" "}
+              {plural(emptyRoots.length, "top-level catalog", "top-level catalogs")} with no collections yet.{" "}
               {emptyRoots.length === 1
-                ? "It holds folders only and will show up above once a dataset lands in it."
-                : "They hold folders only and will show up above once a dataset lands in them."}
+                ? "It holds catalogs only and will show up above once a collection lands in it."
+                : "They hold catalogs only and will show up above once a collection lands in them."}
             </p>
             <ul>
               {emptyRoots.map((r) => (
@@ -458,7 +458,7 @@ export function HomeRail({
         {search && catalogHits.length > 0 && (
           <li className="sx-group">
             <h3 className="sx-shead">
-              {catalogHits.every((h) => h.places.every((p) => !p.area.datasetsBelow)) ? "Folders with nothing in them yet" : "Folders"}
+              {catalogHits.every((h) => h.places.every((p) => !p.area.collectionsBelow)) ? "Catalogs with nothing in them yet" : "Catalogs"}
               {" · "}
               <span className="ffx-num">{fmtNum(hitPlaces)}</span>
             </h3>
@@ -506,7 +506,7 @@ function CatalogHitRow({ env, hit, q, opened }: { env: EnvKey; hit: CatalogHit; 
             <span className="sx-crow-name">
               <Hit text={area.name} q={q} />
             </span>
-            <span className="sx-crow-sub">{path.length ? path.join(" › ") : "Top-level folder"}</span>
+            <span className="sx-crow-sub">{path.length ? path.join(" › ") : "Top-level catalog"}</span>
           </span>
           <span className="sx-crow-note">{catalogNote(area)}</span>
         </ScopeLink>
@@ -615,7 +615,7 @@ function EmptyFold({
           className="sx-ehead"
           aria-expanded={open}
           aria-controls={listId}
-          aria-label={`Folders inside ${opened.name} with nothing in them yet, ${catalogs.length}`}
+          aria-label={`Catalogs inside ${opened.name} with nothing in them yet, ${catalogs.length}`}
           onClick={() => setOpen(!open)}
         >
           <Chevron />
@@ -631,7 +631,7 @@ function EmptyFold({
                 <ScopeLink env={env} slug={c.slug} className="sx-erow">
                   <FolderGlyph />
                   <span className="sx-erow-name">{c.name}</span>
-                  {inside > 0 && <span className="sx-erow-note">{plural(inside, "folder inside", "folders inside")}</span>}
+                  {inside > 0 && <span className="sx-erow-note">{plural(inside, "catalog inside", "catalogs inside")}</span>}
                 </ScopeLink>
               </li>
             );
@@ -674,7 +674,7 @@ function AreaRow({
   area: HomeArea;
   childCollections: HomeArea[];
   trail: HomeArea[];
-  /** Where the dataset sits, shown only while searching. */
+  /** Where the collection sits, shown only while searching. */
   path?: string[];
   /** The search, to underline in the name. */
   q: string;

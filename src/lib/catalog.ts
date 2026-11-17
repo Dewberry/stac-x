@@ -125,7 +125,7 @@ export async function getCatalog(env: EnvKey): Promise<Catalog> {
 
 /**
  * Another environment's catalog, for a page that's about this one: where a
- * dataset stands elsewhere, a version held there, whether an href is an
+ * collection stands elsewhere, a version held there, whether an href is an
  * asset anywhere. If that environment can't be built, the page goes on
  * without it rather than failing with it.
  */
@@ -290,13 +290,13 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     console.error("stac-x: grouping collection versions failed, so each is shown on its own:", e);
     for (const c of collections) c.series = lone(c.id);
   }
-  // An earlier version of a dataset is a dataset, even one whose file
-  // holds metadata alone (the first cut of a dataset often has no rows
-  // yet): it's reviewed and opened as one, not shown as an empty folder.
+  // An earlier version of a collection is a collection, even one whose file
+  // holds metadata alone (the first cut of a collection often has no rows
+  // yet): it's reviewed and opened as one, not shown as an empty catalog.
   for (const c of collections) {
     if (c.kind === "catalog" && c.series.versions.length > 1 &&
-        collections.some((o) => o.series === c.series && o.kind === "dataset")) {
-      c.kind = "dataset";
+        collections.some((o) => o.series === c.series && o.kind === "collection")) {
+      c.kind = "collection";
     }
   }
   for (const c of collections) c.childCollectionCount = childCollectionsOf(c, collections).length;
@@ -343,11 +343,11 @@ async function listSources(env: EnvKey, cache: Cache, now: number) {
  * What each source's collections are called in this app, for the ones
  * that can't just use their STAC id.
  *
- * The generator writes every version of a dataset under the same id, one
+ * The generator writes every version of a collection under the same id, one
  * file per version (collection-v.0.2.json, collection-v.0.3.json), and the
  * Version extension's links tell them apart. Each has to be its own
  * collection here, with its own page and QC record, so when several JSON
- * sources carry a document with one id, the one the folder links as a
+ * sources carry a document with one id, the one the catalog links as a
  * child keeps the bare id (the highest version, if it links several) and
  * the others are named with their version, basin-data-dams-nid-v0.2. That
  * reads as a version suffix to versions.ts too, so the grouping sees them
@@ -505,7 +505,7 @@ async function describeCollection(cache: Cache, id: string, stacId: string, item
       stacId,
       type: _t === "Catalog" ? "Catalog" : "Collection",
       // Classified in build().
-      kind: "dataset",
+      kind: "collection",
       title: collectionName(typeof title === "string" ? title : null, stacId),
       sourceTitle: typeof title === "string" && title ? title : null,
       description: typeof description === "string" ? description : null,
@@ -561,7 +561,7 @@ function derivedCollection(cache: Cache, id: string, stacId: string, items: Cata
     id,
     stacId,
     type: "Collection",
-    kind: "dataset",
+    kind: "collection",
     title: collectionName(null, stacId),
     sourceTitle: null,
     description: null,

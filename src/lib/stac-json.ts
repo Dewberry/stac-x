@@ -137,8 +137,8 @@ const VERSION_LINK = (l: StacLink) =>
 /**
  * Every collection and sub-catalog a catalog reaches through its child
  * links; the catalog it starts from isn't one of them. A sub-catalog is a
- * node of the tree like a collection (a folder, lib/collection-hierarchy.ts),
- * so a generator that types its containers as Catalog keeps its folders. A
+ * node of the tree like a collection (lib/collection-hierarchy.ts),
+ * so a generator that types its containers as Catalog keeps them as catalogs. A
  * child that can't be read is reported rather than dropped, so a catalog
  * pointing at files that haven't been uploaded says so on the page. For a
  * collection reached through another collection's child link, `parents`
@@ -147,12 +147,12 @@ const VERSION_LINK = (l: StacLink) =>
  *
  * Once the children are in, each one's predecessor-, successor- and
  * latest-version links are followed too. A generator usually links a
- * folder to the current version of a dataset only, and the earlier ones
+ * catalog to the current version of a collection only, and the earlier ones
  * hang off it by those links (collection-v.0.3.json names
  * collection-v.0.2.json as its predecessor), so this is the only way they
- * get read. A version found this way counts as sitting in the same folder
+ * get read. A version found this way counts as sitting in the same catalog
  * as the one that named it, and is listed in `versions`, so the catalog
- * can tell which copy of a shared id the folder actually links. One whose
+ * can tell which copy of a shared id that catalog actually links. One whose
  * file is gone is skipped quietly: an old version missing isn't a broken
  * catalog.
  *
@@ -213,7 +213,7 @@ export async function collectionsOf(
   };
   await walk(start, null);
 
-  // Other versions, after every child is known, so a version the folder
+  // Other versions, after every child is known, so a version the catalog
   // links itself is a child first. Each round can turn up more (0.3 names
   // 0.2, which names 0.1), so it runs until nothing new is found.
   // The catalog's own store: its bucket, or for a local catalog its folder.
@@ -225,7 +225,7 @@ export async function collectionsOf(
     await Promise.all(
       batch.flatMap((uri) => {
         const links = Array.isArray(docs.get(uri)?.links) ? (docs.get(uri)!.links as StacLink[]) : [];
-        // The linked version sits in the folder this one does.
+        // The linked version sits in the catalog this one does.
         return links.filter(VERSION_LINK).flatMap((l) => {
           const target = resolveHref(l.href, uri);
           if (inStore(target)) return [walk(target, parents[uri] ?? start, true)];
@@ -267,7 +267,7 @@ export async function readCollectionJson(uri: string): Promise<JsonStac> {
   } catch (e) {
     // The file is the trouble, not the read: it's missing, it isn't items,
     // or it can't be decoded. That won't change until the file does, so
-    // it's kept with the file's ETag and said on the dataset's own page.
+    // it's kept with the file's ETag and said on the collection's own page.
     // Anything else (S3 refused, the network dropped) is the read's
     // trouble, and is left to fail the source and be tried again.
     const itemsError =

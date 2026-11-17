@@ -111,7 +111,7 @@
     font-size: 30px;
   }
 }
-/* What's inside a catalog, or a dataset that holds catalogs: datasets with
+/* What's inside a catalog, or a collection that holds catalogs: collections with
    their count and review state, catalogs with their folder, id and what
    they hold. */
 .sx-inside-list > li + li {

@@ -170,7 +170,7 @@ export type Collection = {
   stacId: string;
   /** The STAC type its document has. Derived collections are Collections. */
   type: "Catalog" | "Collection";
-  /** A catalog (a folder) or a dataset; see kindOf in collection-hierarchy.ts. */
+  /** A catalog or a collection; see kindOf in collection-hierarchy.ts. */
   kind: NodeKind;
   /** The name to show, from collectionName. */
   title: string;
@@ -184,7 +184,7 @@ export type Collection = {
   bbox: [number, number, number, number] | null;
   temporal: [string | null, string | null];
   itemCount: number;
-  /** Links a parquet file or JSON items, so it's a dataset even before it has rows. */
+  /** Links a parquet file or JSON items, so it's a collection even before it has rows. */
   itemsLinked: boolean;
   /**
    * Reached through a document that didn't load, so it sits at the top of
@@ -237,7 +237,7 @@ export type Collection = {
    */
   geometryErrors: number;
   /**
-   * Why the dataset's items file couldn't be read, when it couldn't: the
+   * Why the collection's items file couldn't be read, when it couldn't: the
    * collection is shown without items, and its pages say this instead.
    * Null when the items read fine or there were none to read.
    */

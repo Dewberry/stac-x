@@ -20,20 +20,20 @@ import { stateOf } from "./qc-mark";
 
 /**
  * The home page, a console for people who already know FFRD: the
- * dataset rail on the left and the map on the right, filling the window
+ * collection rail on the left and the map on the right, filling the window
  * under the environment band. Nothing here says what stac-x is; the header
  * does that.
  *
- * The rail's rows are datasets, grouped under the top-level catalog each
+ * The rail's rows are collections, grouped under the top-level catalog each
  * sits in; catalogs are never rows (lib/collection-hierarchy.ts). Top-level
- * catalogs with no dataset anywhere below them are named once at the foot
+ * catalogs with no collection anywhere below them are named once at the foot
  * of the list. A heading opens its catalog in the rail (?in=,
- * home-scope.tsx): the rail and the map narrow to that catalog's datasets,
+ * home-scope.tsx): the rail and the map narrow to that catalog's collections,
  * one level of headings down, with its empty catalogs folded at the end.
- * The review states in the head count datasets only and are the legend for
- * the marks and the review filter in one. Search matches datasets by title
+ * The review states in the head count collections only and are the legend for
+ * the marks and the review filter in one. Search matches collections by title
  * and description.
- * Selecting a dataset opens its row in place, with enough to decide
+ * Selecting a collection opens its row in place, with enough to decide
  * whether to open it and its items listed by name, and draws its footprint
  * on the map, which frames it. Pointing at another row previews that one's
  * footprint over the selection. Enter or Space on a row opens it like a
@@ -62,7 +62,7 @@ export type HomeArea = {
   /** The latest version's collection id, for the item links. */
   id: string;
   name: string;
-  /** A catalog (a folder) or a dataset; see lib/collection-hierarchy.ts. */
+  /** A catalog or a collection; see lib/collection-hierarchy.ts. */
   kind: NodeKind;
   /** The middle of its extent is in the deployment's area. */
   inArea: boolean;
@@ -89,11 +89,11 @@ export type HomeArea = {
   itemCount: number;
   /** Loaded parent series, for grouping under catalogs. */
   parentSlugs: string[];
-  /** For a catalog with datasets, where the map goes when it's opened in the rail. */
+  /** For a catalog with collections, where the map goes when it's opened in the rail. */
   frame: [number, number, number, number] | null;
-  /** Datasets anywhere below it. Zero for a catalog means it's empty. */
-  datasetsBelow: number;
-  /** For a dataset, how many empty catalogs sit directly inside it (Project Scoping's ten). */
+  /** Collections anywhere below it. Zero for a catalog means it's empty. */
+  collectionsBelow: number;
+  /** For a collection, how many empty catalogs sit directly inside it (Project Scoping's ten). */
   emptyInside: number;
   /** What the items are on the map: all points, any shapes, or no geometry at all. */
   unit: ItemUnit;
@@ -168,7 +168,7 @@ export function HomeConsole({
   emptyText: string;
   /** A problem loading the catalog, shown at the top of the list. */
   notice?: string | null;
-  /** The dataset list's share of the width, in percent (lib/rail-share.ts). */
+  /** The collection list's share of the width, in percent (lib/rail-share.ts). */
   railShare: number;
 }) {
   const router = useRouter();
@@ -210,7 +210,7 @@ export function HomeConsole({
   }, [selected, rowsBySlug, load]);
 
   const hierarchy = useMemo(() => hierarchyOf(areas), [areas]);
-  const datasets = useMemo(() => areas.filter((a) => a.kind === "dataset"), [areas]);
+  const collections = useMemo(() => areas.filter((a) => a.kind === "collection"), [areas]);
   // The catalog opened in the rail, from ?in= (home-scope.tsx). A slug that
   // isn't a catalog here, or isn't here at all, opens nothing.
   const inParam = useSearchParams().get("in");
@@ -218,14 +218,14 @@ export function HomeConsole({
     const a = inParam ? bySlug.get(inParam) : null;
     return a?.kind === "catalog" ? a : null;
   }, [inParam, bySlug]);
-  // The datasets the rail is about: all of them, or the opened catalog's.
+  // The collections the rail is about: all of them, or the opened catalog's.
   const inView = useMemo(() => {
-    if (!opened) return datasets;
+    if (!opened) return collections;
     const below = hierarchy.descendants([opened.slug]);
-    return datasets.filter((a) => below.has(a.slug));
-  }, [datasets, opened, hierarchy]);
+    return collections.filter((a) => below.has(a.slug));
+  }, [collections, opened, hierarchy]);
   // Opening or leaving a catalog starts the rail afresh there. The search
-  // that found the catalog would hide what's in it, and a dataset left
+  // that found the catalog would hide what's in it, and a collection left
   // selected outside it would come back on Back. On a phone the sheet goes
   // too, since the rail it covers is what changed. Done while rendering,
   // the way React keeps state in step with a changed input.
@@ -246,23 +246,23 @@ export function HomeConsole({
     () => opened ? hierarchy.childrenOf(opened.slug).filter((c) => hierarchy.isEmpty(c.slug)) : [],
     [opened, hierarchy],
   );
-  // Top-level catalogs that hold a dataset, and those that hold none yet.
+  // Top-level catalogs that hold a collection, and those that hold none yet.
   const roots = useMemo(() => {
     const top = areas.filter((a) => hierarchy.roots.has(a.slug) && a.kind === "catalog");
     return {
-      full: top.filter((a) => a.datasetsBelow > 0).length,
-      empty: top.filter((a) => a.datasetsBelow === 0),
-      all: datasets.every((d) => hierarchy.rootCatalogOf(d.slug)),
+      full: top.filter((a) => a.collectionsBelow > 0).length,
+      empty: top.filter((a) => a.collectionsBelow === 0),
+      all: collections.every((d) => hierarchy.rootCatalogOf(d.slug)),
     };
-  }, [areas, datasets, hierarchy]);
+  }, [areas, collections, hierarchy]);
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
   const childCollections = useMemo(() => activeSelected ? hierarchy.childrenOf(activeSelected) : [], [hierarchy, activeSelected]);
-  // An open dataset's child datasets can be previewed without becoming rows.
+  // An open collection's child collections can be previewed without becoming rows.
   // Catalogs inside it have nothing to draw.
   const previewableIds = useMemo(
-    () => new Set([...shownIds, ...childCollections.filter((child) => child.kind === "dataset").map((child) => child.slug)]),
+    () => new Set([...shownIds, ...childCollections.filter((child) => child.kind === "collection").map((child) => child.slug)]),
     [shownIds, childCollections],
   );
   const activeHovered = hovered && shownIds.has(hovered) ? hovered : null;
@@ -271,12 +271,12 @@ export function HomeConsole({
     for (const a of scope) counts[stateOf(a)]++;
     return counts;
   }, [scope]);
-  // While searching, where each matching dataset sits, for its row.
+  // While searching, where each matching collection sits, for its row.
   const paths = useMemo(() => searching
     ? Object.fromEntries(shown.map((a) => [a.slug, hierarchy.pathOf(a.slug)]))
     : {}, [hierarchy, searching, shown]);
   // Catalogs that match, in the opened catalog or anywhere, one entry per
-  // name: an Archive folder in seven places is one row that opens to seven.
+  // name: an Archive catalog in seven places is one row that opens to seven.
   const catalogHits = useMemo<CatalogHit[]>(() => {
     if (!q) return [];
     const below = opened ? hierarchy.descendants([opened.slug]) : null;
@@ -294,9 +294,9 @@ export function HomeConsole({
     for (const hit of byName.values()) hit.places.sort((x, y) => x.path.join(" ").localeCompare(y.path.join(" ")));
     return [...byName.values()].sort((x, y) => x.name.localeCompare(y.name));
   }, [q, areas, opened, hierarchy]);
-  // Datasets under the catalog they sit in one level down from where the
+  // Collections under the catalog they sit in one level down from where the
   // rail is: a top-level catalog on the landing, a catalog inside the opened
-  // one when one's open. Catalogs by name. Datasets directly at that level
+  // one when one's open. Catalogs by name. Collections directly at that level
   // come first, under no heading.
   const groups = useMemo<Group[]>(() => {
     if (!shown.length) return [];
@@ -315,13 +315,13 @@ export function HomeConsole({
       !x.catalog ? -1 : !y.catalog ? 1 : x.catalog.name.localeCompare(y.catalog.name) || x.key.localeCompare(y.key));
   }, [shown, searching, hierarchy, opened]);
   // The way back out of the opened catalog: the catalog it's in, or the
-  // landing. A dataset above it (Project Scoping's catalogs) can't be opened
+  // landing. A collection above it (Project Scoping's catalogs) can't be opened
   // in the rail, so the way back skips it.
   const openedParent = useMemo(
     () => opened ? (hierarchy.ancestorsOf(opened.slug).filter((t) => t.kind === "catalog").at(-1) ?? null) : null,
     [opened, hierarchy],
   );
-  // Where the open dataset sits, for its facts.
+  // Where the open collection sits, for its facts.
   const trail = useMemo(
     () => current ? hierarchy.ancestorsOf(current.slug).filter((t) => t.kind === "catalog") : [],
     [current, hierarchy],
@@ -455,7 +455,7 @@ export function HomeConsole({
     <ItemHoverContext.Provider value={hoverValue}>
       <div className="sx-home">
         {/* The page has no visible title (the header names the app), but a screen reader's outline needs one. */}
-        <h1 className="sr-only">Datasets in {envMeta(env).label}</h1>
+        <h1 className="sr-only">Collections in {envMeta(env).label}</h1>
         <p className="sr-only" role="status">
           {previewArea ? !previewArea.drawn
             ? `No map preview available for ${previewArea.name}.`
@@ -470,7 +470,7 @@ export function HomeConsole({
         </p>
         <HomeSplit initial={railShare}>
           <div className="sx-console-map">
-            <MapBoundary label={area ? `Datasets in ${area.name}` : "Datasets on the map"} fill>
+            <MapBoundary label={area ? `Collections in ${area.name}` : "Collections on the map"} fill>
             <HomeMap
               areas={mapAreas}
               items={mapItems}
@@ -504,7 +504,7 @@ export function HomeConsole({
           )}
           <HomeRail
             env={env}
-            datasetCount={datasets.length}
+            collectionCount={collections.length}
             rootsWithData={roots.full}
             allInCatalogs={roots.all}
             emptyRoots={roots.empty}
@@ -525,7 +525,7 @@ export function HomeConsole({
             onFilter={(value) => { resetSelection(); setFilter(value); }}
             query={query}
             onQuery={(value) => { resetSelection(); setQuery(value); }}
-            search={searching ? { q, datasets: scope.length } : null}
+            search={searching ? { q, collections: scope.length } : null}
             selected={activeSelected}
             hovered={activeHovered}
             preview={preview}

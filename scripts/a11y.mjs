@@ -38,9 +38,9 @@ if (!home) {
   process.exit(2);
 }
 
-// The home page links every collection; take the first dataset with an item
+// The home page links every collection; take the first collection with an item
 // for the collection and item pages, and the first catalog for a catalog's
-// page, which is laid out apart from a dataset's.
+// page, which is laid out apart from a collection's.
 const homeHtml = await (await fetch(BASE + ENV)).text();
 const candidates = [...new Set(homeHtml.match(new RegExp(`${ENV}/collections/[^"/?#\\\\]+`, "g")) ?? [])].slice(0, 60);
 let collection = null;
@@ -68,7 +68,7 @@ const pages = [
   `${ENV}/admin/not-built-yet`,
   `${ENV}/no-such-page`,
 ].filter(Boolean);
-if (!collection) console.log("No dataset with items found, so collection and item pages are skipped.\n");
+if (!collection) console.log("No collection with items found, so collection and item pages are skipped.\n");
 
 const browser = await chromium.launch();
 let failures = 0;
