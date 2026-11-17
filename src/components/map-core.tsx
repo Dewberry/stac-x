@@ -71,6 +71,8 @@ export function palette(host: HTMLElement) {
     mapWater: c("--ffx-map-water"),
     mapShade: c("--ffx-map-shade"),
     mapLight: c("--ffx-map-light"),
+    /** Whether this is the dark palette, for the colors the data brings in two shades. */
+    dark: resolveTheme() === "dark",
   };
   probe.remove();
   return p;
@@ -86,6 +88,24 @@ export type Palette = ReturnType<typeof palette>;
 export function tintColor(p: Palette): ExpressionSpecification {
   return ["match", ["get", "tint"], 1, p.traceSoft, 2, p.trace, 3, p.traceDeep, p.trace];
 }
+/**
+ * A line's color: the one its item asks for (lib/symbology.ts, the feature's
+ * `color`, or `colorDark` on the dark map when that one differs), and
+ * `plain` for a line that doesn't ask.
+ */
+export function lineColor(p: Palette, plain: string): ExpressionSpecification {
+  const own: ExpressionSpecification[] = p.dark ? [["get", "colorDark"], ["get", "color"]] : [["get", "color"]];
+  return ["to-color", ["coalesce", ...own, plain]];
+}
+/** A line's width: `base` times the weight its item asks for, which is 1 when it doesn't. */
+export function lineWidth(base: number): ExpressionSpecification {
+  return ["*", base, ["coalesce", ["get", "size"], 1]];
+}
+/** One value for a line that brings its own color, another for a plain one. */
+export function ifColored(colored: number, plain: number): ExpressionSpecification {
+  return ["case", ["has", "color"], colored, plain];
+}
+
 /** The fill's opacity by its tint, the pale blue stronger so it shows on the white basin; `plain` for a shape with none. */
 export function tintOpacity(plain: number): ExpressionSpecification {
   return ["match", ["get", "tint"], 1, 0.45, 2, 0.22, 3, 0.2, plain];

@@ -11,6 +11,7 @@ import type {
   Popup,
 } from "maplibre-gl";
 import type { FeatureCollection, Position } from "geojson";
+import type { Symbology } from "@/lib/symbology";
 import { MapCard } from "./map-card";
 import {
   applyBasemap,
@@ -18,6 +19,9 @@ import {
   Controls,
   creditsOf,
   dressBasemap,
+  ifColored,
+  lineColor,
+  lineWidth,
   MapCredits,
   palette,
   tintColor,
@@ -40,7 +44,8 @@ import {
  * everything under the cursor and the card lists the whole stack. On an item
  * page the only feature is the page's own, so a click there opens nothing.
  * Points and lines are river blue, the color for
- * data in this app; polygon outlines are drawn in ink, with an extent box
+ * data in this app, except a line item that asks for a color and weight of
+ * its own (lib/symbology.ts); polygon outlines are drawn in ink, with an extent box
  * dashed so it never reads as data. Lines are thin and a little see-through
  * while zoomed out: a basin's stream network is thousands of them, and at
  * the width an outline gets they ran together into one dark shape.
@@ -83,7 +88,7 @@ export type MapFeatureProps = {
   tint?: 1 | 2 | 3;
   /** "extent" draws a dashed box instead of a filled shape. */
   kind?: "extent" | "feature";
-};
+} & Symbology; // The color and weight its item asks for (lib/symbology.ts), on a line.
 
 const SRC = "sx-data";
 /** The stretch of line under the cursor, drawn over the data while hovering. */
@@ -145,6 +150,14 @@ function boundsOf(data: FeatureCollection, bbox?: MapProps["bbox"]): LngLatBound
 const poly: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "MultiPolygon"]];
 const line: ExpressionSpecification = ["any", ["==", ["geometry-type"], "LineString"], ["==", ["geometry-type"], "MultiLineString"]];
 const point: ExpressionSpecification = ["any", ["==", ["geometry-type"], "Point"], ["==", ["geometry-type"], "MultiPoint"]];
+/** A lit line's width over a line of this base width: its own for a plain line, 1.75px more for one with a color. */
+function lit(base: number): ExpressionSpecification {
+  return ["+", lineWidth(base), ifColored(1.75, 0)];
+}
+/** The hover line's width: `width`, or a pixel more than the line under it when that's heavier. */
+function over(width: number, base: number): ExpressionSpecification {
+  return ["max", width, ["+", lineWidth(base), 1]];
+}
 const isExtent: ExpressionSpecification = ["==", ["get", "kind"], "extent"];
 const notExtent: ExpressionSpecification = ["!=", ["get", "kind"], "extent"];
 
@@ -170,8 +183,8 @@ function selectedFilter(ids: (string | null | undefined)[]): ExpressionSpecifica
  * the item would light up the basin; the reach under the cursor is what
  * someone pointing at the map means.
  */
-function linesNear(m: MapLibreMap, at: { x: number; y: number }): Position[][] {
-  const out: Position[][] = [];
+function linesNear(m: MapLibreMap, at: { x: number; y: number }): NearLine[] {
+  const out: NearLine[] = [];
   const box: [[number, number], [number, number]] = [[at.x - HIT, at.y - HIT], [at.x + HIT, at.y + HIT]];
   for (const f of m.queryRenderedFeatures(box, { layers: [L.lineData] })) {
     const g = f.geometry;
@@ -181,7 +194,8 @@ function linesNear(m: MapLibreMap, at: { x: number; y: number }): Position[][] {
       for (const c of part) {
         const q = m.project(c as [number, number]);
         if (prev && distToSegment(at, prev, q) <= HIT) {
-          out.push(part);
+          const { color, colorDark, size } = f.properties as MapFeatureProps;
+          out.push({ part, style: { color, colorDark, size } });
           break;
         }
         prev = q;
@@ -198,8 +212,15 @@ function distToSegment(p: { x: number; y: number }, a: { x: number; y: number },
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
-function hoverData(parts: Position[][]): FeatureCollection {
-  return { type: "FeatureCollection", features: parts.length ? [{ type: "Feature", properties: {}, geometry: { type: "MultiLineString", coordinates: parts } }] : [] };
+/** A reach under the cursor and the symbology of the item it's from. */
+type NearLine = { part: Position[]; style: Symbology };
+
+function hoverData(near: NearLine[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    // JSON drops the ones that aren't set, so `has` in the paint still tells them apart.
+    features: near.map(({ part, style }) => ({ type: "Feature", properties: JSON.parse(JSON.stringify(style)), geometry: { type: "LineString", coordinates: part } })),
+  };
 }
 
 function hitsAt(m: MapLibreMap, at: { x: number; y: number }): MapFeatureProps[] {
@@ -251,8 +272,8 @@ function addLayers(
     id: L.lineData, type: "line", source: SRC, filter: ["all", notExtent, line],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": p.trace,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.4, 9, 0.8, 14, 1.75],
+      "line-color": lineColor(p, p.trace),
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, lineWidth(0.4), 9, lineWidth(0.8), 14, lineWidth(1.75)],
       "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 12, 0.9],
     },
   });
@@ -275,9 +296,11 @@ function addLayers(
     id: L.hiLineData, type: "line", source: SRC, filter: ["all", notExtent, line, idsIn(lineHi)],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": p.traceDeep,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.4, 9, 0.8, 14, 1.75],
-      "line-opacity": 0.5,
+      // A line with a color of its own keeps it and thickens, since a deeper
+      // blue over it wouldn't read as the same line.
+      "line-color": lineColor(p, p.traceDeep),
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, lit(0.4), 9, lit(0.8), 14, lit(1.75)],
+      "line-opacity": ifColored(1, 0.5),
     },
   });
   map.addSource(SRC_HOVER, { type: "geojson", data: hoverData([]) });
@@ -285,8 +308,9 @@ function addLayers(
     id: L.hoverLine, type: "line", source: SRC_HOVER,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": p.traceDeep,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 9, 2.5, 14, 3.5],
+      "line-color": lineColor(p, p.traceDeep),
+      // Heavier than the line under it, however heavy its item asked for.
+      "line-width": ["interpolate", ["linear"], ["zoom"], 5, over(2, 0.4), 9, over(2.5, 0.8), 14, over(3.5, 1.75)],
     },
   });
   map.addLayer({
@@ -426,7 +450,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
       const canvas = m.getCanvas();
       let hovering = false;
       let letGo: ReturnType<typeof setTimeout> | undefined;
-      const showLines = (parts: Position[][]) => (m.getSource(SRC_HOVER) as GeoJSONSource | undefined)?.setData(hoverData(parts));
+      const showLines = (parts: NearLine[]) => (m.getSource(SRC_HOVER) as GeoJSONSource | undefined)?.setData(hoverData(parts));
       const release = () => {
         clearTimeout(letGo);
         if (!hovering || disposed) return;
