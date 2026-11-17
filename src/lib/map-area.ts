@@ -218,28 +218,3 @@ export function areaCovered(area: MapArea, polys: Position[][][]): boolean {
   }
   return true;
 }
-
-export type AreaOutline = { d: string; viewBox: string };
-
-/**
- * The area's outline as an SVG path, for the landing page while the catalog
- * loads. The catalog can take seconds to read from S3, so the loading state
- * traces the area where the map will be. Projected flat with longitude
- * scaled by the cosine of the middle latitude so the shape keeps its
- * proportions.
- */
-export function areaOutline(area: MapArea): AreaOutline {
-  const polys = area.geometry.coordinates;
-  const [w, s, e, n] = area.bbox;
-  const k = Math.cos((((s + n) / 2) * Math.PI) / 180);
-  const x = (lon: number) => ((lon - w) * k * 100).toFixed(1);
-  const y = (lat: number) => ((n - lat) * 100).toFixed(1);
-  const d = polys
-    .flatMap((rings) => rings.map((ring) => "M" + ring.map((p) => `${x(p[0])} ${y(p[1])}`).join("L") + "Z"))
-    .join("");
-  // Some room around the shape, like the map's fit padding.
-  const width = (e - w) * k * 100;
-  const height = (n - s) * 100;
-  const pad = Math.max(width, height) * 0.06;
-  return { d, viewBox: `${-pad} ${-pad} ${width + 2 * pad} ${height + 2 * pad}` };
-}
