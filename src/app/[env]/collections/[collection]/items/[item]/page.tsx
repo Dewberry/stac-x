@@ -228,7 +228,7 @@ export default async function ItemPage({ params }: Props) {
             <Assets assets={item.assets} />
           </Panel>
           {links.length > 0 && (
-            <Panel title="Additional resources" note={String(links.length)} id="links">
+            <Panel title="Links" note={String(links.length)} id="links">
               <ResourceLinks links={links} />
             </Panel>
           )}

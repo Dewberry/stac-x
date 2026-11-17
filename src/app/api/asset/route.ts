@@ -9,7 +9,7 @@ import { awsAvailable, isUnderCwd, parseRef, presign } from "@/lib/storage";
  * Turns an asset href into something a browser can open. An s3:// href
  * becomes a redirect to a presigned GET, good for an hour; a local file is
  * served directly. Only hrefs some catalog's assets carry are served, and
- * those of the links its pages list as additional resources: the presign
+ * those of the links its pages list under "Links": the presign
  * uses the server's credentials, so anything else would hand out whatever
  * those credentials can read.
  *

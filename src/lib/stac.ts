@@ -276,7 +276,7 @@ const TREE_RELS = ["self", "root", "parent", "child", "item", "items", "collecti
  * The links of a collection or item that point at something to read: what
  * it was derived from, a report, a license. Everything but the tree and
  * version links, and anything with no href. The pages list these under
- * "Additional resources", and the asset route will open them.
+ * "Links", and the asset route will open them.
  */
 export function resourceLinks(links: unknown): StacLink[] {
   if (!Array.isArray(links)) return [];
