@@ -1,6 +1,6 @@
 /* ============================== assets ==============================
-   The open body of an asset row (components/assets.tsx); the rows and
-   groups themselves are under "Assets, grouped" further down. */
+   The open body of an asset row (components/assets.tsx); the rows
+   themselves are in item-pages.css, under "The asset list". */
 .sx-asset-body {
   padding: 0 0.75rem 0.75rem;
   display: grid;
