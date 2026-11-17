@@ -10,6 +10,7 @@ import { ItemsList } from "./items-list";
 import { ScopeLink } from "./home-scope";
 import { Chevron, FolderGlyph } from "./icons";
 import { QC_LABEL, QcMark, stateOf } from "./qc-mark";
+import { Skel } from "./spinner";
 
 /**
  * What a selected collection shows: enough to decide whether to open it,
@@ -252,6 +253,9 @@ function WayIn({ area }: { area: HomeArea }) {
   );
 }
 
+/** How wide each placeholder name is while an open dataset's items load: five, as many rows as the list shows before it scrolls. */
+const ITEM_BARS = ["52%", "38%", "60%", "44%", "48%"];
+
 /** The collection's items, or where they are while they load. */
 function Items({
   env,
@@ -269,13 +273,38 @@ function Items({
   if (area.itemsError) return <p className="sx-pv-cover">Its items couldn&apos;t be read. Open the dataset to see why.</p>;
   if (rows === null)
     return (
-      <ul className="sx-loading-rows sx-loading-items" aria-label="Loading the items">
-        {[58, 44, 66].map((w, i) => (
-          <li key={i} style={{ "--w": `${w}%` } as React.CSSProperties}>
-            <b />
-          </li>
-        ))}
-      </ul>
+      // The block the list will fill, with a bar for each of the first few
+      // names. The count is known before the rows are, so a dataset with
+      // two items waits with two rows, not a guess.
+      <div className="sx-items-compact sx-loading-items" data-fill={fill || undefined}>
+        <p className="sr-only" role="status">
+          Loading the items…
+        </p>
+        <div aria-hidden="true">
+          {/* More items than the block shows at once get a search box above
+              it and a line under it (components/items-list.tsx), so both
+              have their place here too. */}
+          {area.itemCount > ITEM_BARS.length && (
+            <div className="ffx-toolbar">
+              <span className="ffx-field sx-skel-field min-w-0 flex-[1_1_12rem]" />
+            </div>
+          )}
+          <div className="sx-item-block">
+            <div className="sx-item-list">
+              {ITEM_BARS.slice(0, Math.max(1, Math.min(area.itemCount, ITEM_BARS.length))).map((w) => (
+                <div key={w} className="sx-item">
+                  <Skel w={w} />
+                </div>
+              ))}
+            </div>
+          </div>
+          {area.itemCount > ITEM_BARS.length && (
+            <p className="sx-item-foot">
+              <Skel w="55%" />
+            </p>
+          )}
+        </div>
+      </div>
     );
   if (rows === "error") return <p className="sx-pv-cover">The items couldn&apos;t be loaded. Open the dataset to see them.</p>;
   return (

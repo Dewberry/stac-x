@@ -12,3 +12,12 @@ export function Loading({ children }: { children: React.ReactNode }) {
     </p>
   );
 }
+
+/**
+ * One gray bar where something is still on its way, as wide as `w`. Inside a
+ * text element it takes that element's line height, so a row of bars is as
+ * tall as the row it stands for (styles/loading.css).
+ */
+export function Skel({ w, className = "" }: { w: string; className?: string }) {
+  return <span className={`sx-skel ${className}`} style={{ "--w": w } as React.CSSProperties} />;
+}
