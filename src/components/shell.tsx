@@ -25,7 +25,7 @@ export { Icon, ICONS } from "./icons";
 /** What the home page is called wherever it's linked: the trail and the account menu. */
 const HOME_LABEL = "All datasets";
 
-/** Pages reached from the account menu rather than the bar. Admin is left out for someone without the reviewer role. */
+/** Pages reached from the account menu rather than the bar. Admin is only there for someone signed in with the admin role. */
 const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
 
 /**
@@ -86,7 +86,7 @@ export function SiteHeader({ session }: { session: Session | null }) {
             home="/"
             homeLabel={HOME_LABEL}
             signOut={session?.federated ? { post: withBase("/api/auth/federated-logout") } : { href: "/signin" }}
-            links={session?.reviewer === false ? [] : ACCOUNT_LINKS}
+            links={session?.reviewer ? ACCOUNT_LINKS : []}
             menuItems={<ThemeMenuItems />}
           />
         </div>
