@@ -194,7 +194,7 @@ export function ItemsList({
       </div>
       )}
       {slice.length === 0 ? (
-        <p className="sx-empty">{all === 0 ? "This dataset has no items." : "No items match."}</p>
+        <p className="sx-empty">{all === 0 ? "This collection has no items." : "No items match."}</p>
       ) : compact ? (
         <div className="sx-item-block" data-more={more || undefined}>
           <div ref={blockRef} className="sx-item-list" onScroll={onScroll}>
@@ -261,7 +261,7 @@ export function ItemsList({
               {openHref && (
                 <>
                   {" "}
-                  · <Link href={openHref}>Browse dataset</Link> for the full table
+                  · <Link href={openHref}>Browse collection</Link> for the full table
                 </>
               )}
             </>

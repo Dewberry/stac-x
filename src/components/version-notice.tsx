@@ -10,7 +10,7 @@ import { versionsElsewhere } from "@/lib/versions-elsewhere";
  * Said on an older version's pages, the way STAC Browser does: this isn't the
  * latest, and here's the one that is. On an item page it links to the same
  * item in the latest version when that version has it. The latest can live
- * in another environment (the Sandbox copy of a dataset names the
+ * in another environment (the Sandbox copy of a collection names the
  * Development one as its successor); then the notice says where.
  */
 export async function VersionNotice({ env, c, item }: { env: EnvKey; c: Collection; item?: string }) {

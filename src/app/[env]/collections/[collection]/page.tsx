@@ -43,20 +43,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * A catalog (a folder, lib/collection-hierarchy.ts) gets its own page,
- * components/catalog-page.tsx. A dataset's page keeps the home console's
+ * A catalog (lib/collection-hierarchy.ts) gets its own page,
+ * components/catalog-page.tsx. A collection's page keeps the home console's
  * shape: the list on the left (its description, folded, then its items and
  * the rows they came from) and the map on the right, with its assets and
  * metadata under the map. The panels are STAC Browser's; the columns are
- * the home page's, so the map stays where it was when a dataset is opened
+ * the home page's, so the map stays where it was when a collection is opened
  * from there. QC is recorded for the
- * dataset as a whole and reviewed from Admin, so the page only shows its
+ * collection as a whole and reviewed from Admin, so the page only shows its
  * state in the subtitle. Under the items, the catalogs it holds, if any,
  * and the first rows of the file the items came from, for a look at the
  * data itself.
  *
- * The trail above a dataset goes through its catalogs, each opening the
- * home page's rail on that catalog, where its other datasets are.
+ * The trail above a collection goes through its catalogs, each opening the
+ * home page's rail on that catalog, where its other collections are.
  */
 export default async function CollectionPage({ params }: Props) {
   const env = await pageEnv(params);
@@ -71,10 +71,10 @@ export default async function CollectionPage({ params }: Props) {
   // Directly inside this version, with how much each holds.
   const inside: Inside[] = childCollectionsOf(c, catalog.collections).map((child) => ({
     collection: child,
-    datasetsBelow: tree.datasetsBelow(child.series.id),
+    collectionsBelow: tree.collectionsBelow(child.series.id),
   }));
   if (c.kind === "catalog") {
-    return <CatalogLayout env={env} c={c} ancestors={ancestors} inside={inside} datasetsBelow={tree.datasetsBelow(c.series.id)} />;
+    return <CatalogLayout env={env} c={c} ancestors={ancestors} inside={inside} collectionsBelow={tree.collectionsBelow(c.series.id)} />;
   }
 
   // Listed even when the items' geometry can't be sorted into shapes.
@@ -252,7 +252,7 @@ export default async function CollectionPage({ params }: Props) {
             // place of the list, so an empty list isn't taken for no items.
             <Panel title="Items" id="items">
               <p className="sx-callout" role="status">
-                This dataset&apos;s items couldn&apos;t be read, so none are listed or drawn. {c.itemsError}
+                This collection&apos;s items couldn&apos;t be read, so none are listed or drawn. {c.itemsError}
               </p>
             </Panel>
           ) : (
@@ -260,7 +260,7 @@ export default async function CollectionPage({ params }: Props) {
               <ItemsList env={env} collection={c.id} rows={rows} />
             </Panel>
           )}
-          {/* A dataset that also holds catalogs (Project Scoping's ten): they go along with it. */}
+          {/* A collection that also holds catalogs (Project Scoping's ten): they go along with it. */}
           {inside.length > 0 && (
             <Panel title={insideTitle(inside)} note={fmtNum(inside.length)} id="inside">
               <InsideRows env={env} inside={inside} />
@@ -299,7 +299,7 @@ export default async function CollectionPage({ params }: Props) {
         <div className="sx-col">
           {brokenGeometry && (
             <p className="sx-callout" role="status">
-              The geometry in this dataset&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
+              The geometry in this collection&apos;s file couldn&apos;t be read, so its items aren&apos;t drawn on the map.
               The rest of the page shows what the file has.
             </p>
           )}
@@ -340,7 +340,7 @@ export default async function CollectionPage({ params }: Props) {
   );
 }
 
-/** "Folders inside" when that's all a dataset holds, which is the usual case; "Inside" when a dataset is among them. */
+/** "Catalogs inside" when that's all a collection holds, which is the usual case; "Inside" when a collection is among them. */
 function insideTitle(inside: Inside[]): string {
-  return inside.every((i) => i.collection.kind === "catalog") ? "Folders inside" : "Inside";
+  return inside.every((i) => i.collection.kind === "catalog") ? "Catalogs inside" : "Inside";
 }

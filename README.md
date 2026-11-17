@@ -1,6 +1,6 @@
 # stac-x
 
-![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with its description, version, dates, license and asset count, its review state, a Browse dataset button and the gages listed by name](docs/images/home.png)
+![The stac-x homepage set up for the South Platte basin, in Test with Stream Gages selected: its 192 sites drawn as dots across the basin, and its row open in the collection list with its description, version, dates, license and asset count, its review state, a Browse collection button and the gages listed by name](docs/images/home.png)
 
 A STAC viewer for reviewing a catalog before it's published.
 
@@ -111,34 +111,34 @@ JSON reads and ETag checks run eight files at a time; GeoParquet is still
 recommended for large collections. Changes to linked items or pages are
 picked up at the configured refresh interval, even if the collection is unchanged.
 
-Every node is read as either a dataset or a folder (a node that only holds
+Every node is read as either a collection or a catalog (a node that only holds
 other nodes), worked out from what it holds on every load. A collection with
 items, or with a link to where its items are (a GeoParquet file, even with
-zero rows yet, or JSON items), is a dataset. Otherwise a document typed
-`Catalog` is a folder; a leaf with collection-level assets is a dataset (a
-bundle of files); a node with children stays a folder even when a manifest
-or README is attached to it; and anything with nothing in it is a folder.
+zero rows yet, or JSON items), is a collection. Otherwise a document typed
+`Catalog` is a catalog; a leaf with collection-level assets is a collection (a
+bundle of files); a node with children stays a catalog even when a manifest
+or README is attached to it; and anything with nothing in it is a catalog.
 A node whose parent document was listed but didn't load sits at the top of
 the list and its row says so. Missing or unreadable linked files still report
 an error; they aren't treated as intentionally empty collections.
 
-The home page lists datasets, grouped under the top-level folder each sits
-in. Folders are never rows: a heading opens one in the rail (`?in=<slug>`),
-with its datasets under the folders inside it and its empty folders folded
-at the end, and top-level folders with nothing in them yet are named at the
-foot of the list. Search matches datasets and folders by title and
+The home page lists collections, grouped under the top-level catalog each sits
+in. Catalogs are never rows: a heading opens one in the rail (`?in=<slug>`),
+with its collections under the catalogs inside it and its empty catalogs folded
+at the end, and top-level catalogs with nothing in them yet are named at the
+foot of the list. Search matches collections and catalogs by title and
 description, without bringing in a match's descendants, and lists the two
-apart; folders that share a name are one row that opens to where each sits.
-The review counts, the map and the Admin queue cover datasets only. A folder's
+apart; catalogs that share a name are one row that opens to where each sits.
+The review counts, the map and the Admin queue cover collections only. A catalog's
 page shows what's inside it and where it sits, with no map, items or review
 state. Loaded children whose parents couldn't be loaded stay at the top level,
 and rootless cyclic branches stay visible rather than disappearing.
 
-Dataset pages keep the home page's shape: the description (folded to start)
+Collection pages keep the home page's shape: the description (folded to start)
 and the items on the left, the map with the assets and metadata on the right.
 Item pages keep their maps at the top left. Assets open to begin with and
 fold away. On
-desktop, the handle on the edge of the map hides the dataset list and brings it
+desktop, the handle on the edge of the map hides the collection list and brings it
 back. Long item lists scroll in their own box so the rest of the page stays in
 view; item search, sort and paging stay outside the scrolling rows. Phones keep
 the stacked map and list.
@@ -239,7 +239,7 @@ The app reads stac-geoparquet and static STAC JSON items.
   12 different symbologies for one collection and the rest as plain lines.
 - A collection whose parquet file can't be read (it's missing, it has no
   `id` column, or it needs more memory or time than a file is allowed)
-  still shows as a dataset, with the reason where its items would be.
+  still shows as a collection, with the reason where its items would be.
 - A file written from a pandas frame of items, with bbox, links, assets and
   properties as JSON text and the geometry as WKB bytes with no `geo`
   metadata, is read too. A geometry that still isn't valid is dropped from
@@ -295,7 +295,7 @@ Each parquet file is decoded by a process of its own, two at a time, with
 a limit on its memory and its time. What a file costs to decode can't be
 told from its size, and a server that runs out of memory can't recover, so
 a file that needs more than its limit ends that process instead: its
-dataset says why, and the rest of the app carries on. The limits are
+collection says why, and the rest of the app carries on. The limits are
 `STAC_PARQUET_MEMORY_MB`, `STAC_PARQUET_MAX_MB` and
 `STAC_PARQUET_TIMEOUT_SECONDS` (see `.env.example`).
 

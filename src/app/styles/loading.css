@@ -259,7 +259,7 @@
   height: 8px;
 }
 
-/* The first rows of a dataset's file while they're read
+/* The first rows of a collection's file while they're read
    (components/data-panel.tsx): the line above the table, then its head
    and five rows, at the height the table will have. */
 .sx-skel-table {
@@ -349,7 +349,7 @@
 .sx-loading-rows .sx-row-unit .sx-skel {
   height: 8px;
 }
-/* An open dataset's items in the rail while they're fetched
+/* An open collection's items in the rail while they're fetched
    (components/home-preview.tsx): the block the list will fill, with a bar
    for each of the first few names. */
 .sx-loading-items .sx-item {

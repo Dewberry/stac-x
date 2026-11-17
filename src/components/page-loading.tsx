@@ -10,7 +10,7 @@ import { Skel } from "./spinner";
  * Those pages wait on the catalog. Most of the time that's memory, but the
  * first read after a QC save rebuilds it, and from S3 that can take
  * seconds. Without a loading state Next holds the old page on screen until
- * the new one is ready, so a click on a dataset, or a save in Admin, looked
+ * the new one is ready, so a click on a collection, or a save in Admin, looked
  * like nothing had happened.
  *
  * Each page gets its own outline here, built from the same panels, rows
@@ -128,7 +128,7 @@ function FieldOutline({ search, className = "", width }: { search?: boolean; cla
   );
 }
 
-/** List rows: a name over a line of facts, as the items and the datasets inside a folder are listed. */
+/** List rows: a name over a line of facts, as the items and the collections inside a catalog are listed. */
 function RowsOutline({ names, desc }: { names: string[]; desc?: boolean }) {
   return (
     <div className="sx-rows">
@@ -177,8 +177,8 @@ function MetaOutline({ values }: { values: string[] }) {
 const ITEM_NAMES = ["46%", "34%", "52%", "30%", "42%", "38%"];
 
 /**
- * A dataset's page: the list on the left (the description, folded, then
- * the items) and the map on the right over the metadata. A folder's page
+ * A collection's page: the list on the left (the description, folded, then
+ * the items) and the map on the right over the metadata. A catalog's page
  * shares the address, and there's no telling which it is until the catalog
  * is read; it gets this outline too, and its left column is close.
  */
@@ -215,7 +215,7 @@ export function CollectionLoading() {
   );
 }
 
-/** An item's page: the map over its assets on the left, its dataset and metadata on the right. */
+/** An item's page: the map over its assets on the left, its collection and metadata on the right. */
 export function ItemLoading() {
   return (
     <LoadingPage label="Loading the item…">
@@ -251,7 +251,7 @@ export function ItemLoading() {
           </PanelOutline>
         </div>
         <div className="sx-col">
-          <PanelOutline title="Dataset">
+          <PanelOutline title="Collection">
             <RowsOutline names={["11rem"]} desc />
           </PanelOutline>
           <PanelOutline title="Metadata">

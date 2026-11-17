@@ -1,8 +1,8 @@
 /* ============================== home page ===============================
 
-   A console for people who already know FFRD: the dataset rail on the
+   A console for people who already know FFRD: the collection rail on the
    left, the map on the right, edge to edge under the environment band. The
-   selected dataset opens in its row, items and all, and the map frames
+   selected collection opens in its row, items and all, and the map frames
    it. From lg the page doesn't scroll; only the rail's list does, under
    the rail's head, and an open row's items in their own short box, so a
    905-item list doesn't push the rest of the rail away. The body becomes
@@ -27,7 +27,7 @@
     display: none;
   }
   /* The header and the band run the full width too, with their edges on
-     the rail's 16px so the wordmark sits over "Datasets". */
+     the rail's 16px so the wordmark sits over "Collections". */
   body:has(.sx-home) :is(.sx-header-inner, .ffx-envband-inner) {
     max-width: none;
     padding-inline: 16px;
@@ -465,8 +465,8 @@
 .sx-folder {
   flex: none;
 }
-/* A top-level catalog over its datasets: the folder, the name in small
-   caps, how many datasets, and a chevron, since the whole bar opens the
+/* A top-level catalog over its collections: the folder, the name in small
+   caps, how many collections, and a chevron, since the whole bar opens the
    catalog in the rail. On a wide screen it stays at the top of the list
    while its rows scroll; on a phone the page scrolls, under the header. */
 .sx-ghead {
@@ -518,7 +518,7 @@
   flex: none;
   color: var(--ffx-ink-mut);
 }
-/* A search's two parts, datasets then catalogs: labeled like the catalog
+/* A search's two parts, collections then catalogs: labeled like the catalog
    headings, but they're labels, not links. */
 .sx-shead {
   display: flex;
@@ -543,7 +543,7 @@
   }
 }
 /* A catalog that matched, or several sharing a name: the folder, the name
-   in secondary ink so it reads quieter than a dataset, and where it is. */
+   in secondary ink so it reads quieter than a collection, and where it is. */
 .sx-crow {
   display: flex;
   align-items: center;
@@ -629,7 +629,7 @@
 }
 /* An opened catalog's empty catalogs, folded under one heading at the end
    of the list. Each is a quiet link row, indented under the heading, in
-   secondary ink so they read as shelves next to the datasets above. */
+   secondary ink so they read as shelves next to the collections above. */
 .sx-ehead {
   display: flex;
   align-items: center;
@@ -739,7 +739,7 @@
   color: var(--ffx-ink);
   overflow-wrap: anywhere;
 }
-/* In search results, the catalogs a dataset sits in lead its line. */
+/* In search results, the catalogs a collection sits in lead its line. */
 .sx-row-path {
   overflow-wrap: anywhere;
 }
@@ -931,7 +931,7 @@ mark.sx-hit {
 .sx-pv-grid .ffx-id {
   font-size: 11px;
 }
-/* Where an open dataset sits: each catalog a link, underlined since it's
+/* Where an open collection sits: each catalog a link, underlined since it's
    in a line of text. */
 .sx-pv-in {
   color: var(--ffx-active-text);

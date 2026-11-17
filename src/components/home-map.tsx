@@ -671,7 +671,7 @@ export function HomeMap({
 
   if (failed) throw failed;
   return (
-    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label={area ? `Datasets in ${area.name}` : "Datasets on the map"}>
+    <figure ref={frameRef} className="ffx-map sx-home-map" aria-label={area ? `Collections in ${area.name}` : "Collections on the map"}>
       <div ref={canvasRef} className="ffx-map-canvas sx-home-canvas" />
       {tip && (
         <div className="ffx-map-tip sx-map-tip" data-stack={tip.rows.length > 1 || undefined} data-flip={tip.flip || undefined} style={{ left: tip.x, top: tip.y }} aria-hidden="true">
@@ -763,7 +763,7 @@ function HomeCard({ area, hits }: { area: HomeArea; hits: Hit[] }) {
   return (
     <MapCard
       head={area.name}
-      action={{ href: area.href, label: "Browse dataset" }}
+      action={{ href: area.href, label: "Browse collection" }}
       note={
         <>
           <span className="ffx-num">{fmtNum(area.itemCount)}</span> {area.itemCount === 1 ? "item" : "items"}

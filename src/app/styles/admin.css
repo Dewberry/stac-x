@@ -525,7 +525,7 @@ a.sx-activity-title:hover {
   color: var(--ffx-ink-mut);
   white-space: normal;
 }
-/* The top-level catalog over its datasets in the queue, as in the home
+/* The top-level catalog over its collections in the queue, as in the home
    rail: a folder, the name in small caps, and how many. */
 .sx-queue .sx-qgroup th {
   height: 34px;

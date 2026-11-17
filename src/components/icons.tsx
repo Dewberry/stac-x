@@ -47,7 +47,7 @@ export const ICONS = {
 
 /**
  * The folder beside a catalog's name, wherever one is named: group
- * headings, breadcrumbs, catalog rows. Datasets never carry it, so it's
+ * headings, breadcrumbs, catalog rows. Collections never carry it, so it's
  * how the two kinds tell apart at a glance.
  */
 export function FolderGlyph({ size = 14 }: { size?: number }) {

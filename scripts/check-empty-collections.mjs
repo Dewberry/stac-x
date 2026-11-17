@@ -183,17 +183,17 @@ sources = [catalogUri];
 // has no items or assets); the catalog the environment is read from isn't.
 const subUri = "file:///checks/sub/catalog.json";
 put(catalogUri, { type: "Catalog", id: "root", links: [{ rel: "child", href: "sub/catalog.json" }] });
-put(subUri, { type: "Catalog", id: "sub", title: "Sub", description: "A folder", links: [{ rel: "child", href: "../collection.json" }] });
+put(subUri, { type: "Catalog", id: "sub", title: "Sub", description: "A catalog", links: [{ rel: "child", href: "../collection.json" }] });
 catalog = await snapshot();
 assert.equal(catalog.errors.length, 0);
 assert.equal(JSON.stringify(catalog.collections.map((c) => c.id).sort()), JSON.stringify(["empty", "sub"]));
 const sub = catalog.collections.find((c) => c.id === "sub");
 assert.equal(sub.type, "Catalog");
 assert.equal(sub.kind, "catalog");
-assert.equal(sub.description, "A folder");
+assert.equal(sub.description, "A catalog");
 assert.equal(JSON.stringify(childCollectionsOf(sub, catalog.collections).map((c) => c.id)), JSON.stringify(["empty"]));
-// A metadata-only collection with an asset of its own is a dataset.
-assert.equal(catalog.collections.find((c) => c.id === "empty").kind, "dataset");
+// A metadata-only collection with an asset of its own is a collection.
+assert.equal(catalog.collections.find((c) => c.id === "empty").kind, "collection");
 put(catalogUri, { type: "Catalog", links: [{ rel: "child", href: "collection.json" }] });
 
 // Adding a parquet link and later removing it must refresh without stale items.
@@ -201,9 +201,9 @@ put(parquet, { items: [], collections: {} });
 put(uri, { ...doc, assets: {}, links: [{ rel: "items", href: "items.parquet" }] });
 c = (await snapshot()).collections[0];
 assert.equal(c.itemCount, 0);
-// A collection that links a data file is a dataset waiting for rows, not a folder.
+// A collection that links a data file is a collection waiting for rows, not a catalog.
 assert.equal(c.itemsLinked, true);
-assert.equal(c.kind, "dataset");
+assert.equal(c.kind, "collection");
 put(uri, { ...doc, links: [{ rel: "items", href: "items.parquet" }] });
 put(parquet, { items: [{ id: "one", collection: "old-id", properties: {}, links: [], assets: {}, geometry: null, bbox: null }], collections: {} });
 c = (await snapshot()).collections[0];

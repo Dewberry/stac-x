@@ -78,7 +78,7 @@ function memoryShare(): number {
 
 /**
  * What reading one parquet file may cost, so a file that goes wrong costs
- * its own dataset and not the server (see decode in parquet.ts).
+ * its own collection and not the server (see decode in parquet.ts).
  *
  * memoryMb is the heap the process decoding a file gets. Two files are
  * decoded at a time, which is why the default is a quarter of the server's

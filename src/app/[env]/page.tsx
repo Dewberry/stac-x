@@ -18,18 +18,18 @@ import { collectionHref, collectionJsonHref } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 /**
- * The landing page: where the catalog's datasets are, on one map that
+ * The landing page: where the catalog's collections are, on one map that
  * opens on the deployment's area (lib/map-area.ts) or, with none set, on
- * everything the datasets cover.
+ * everything the collections cover.
  *
  * Every node in the catalog is an area here, so the rail can group and
- * search by catalog, but only datasets are drawn, counted and framed. A
+ * search by catalog, but only collections are drawn, counted and framed. A
  * catalog has no extent of its own; the box the generator gives it is a
- * placeholder (lib/collection-hierarchy.ts). A dataset links to its page,
+ * placeholder (lib/collection-hierarchy.ts). A collection links to its page,
  * its counts are real, and its footprint is drawn on the map when it's
  * selected (points for gages, the covered area for a model; see
  * lib/overview.ts), so a new parquet file in the bucket shows up here with
- * no code change. A dataset whose extent covers most of the area (gages)
+ * no code change. A collection whose extent covers most of the area (gages)
  * says "Whole area" in the rail.
  */
 
@@ -39,18 +39,18 @@ const MEMBERS_MAX = 24;
 /** Share of the area a collection's extent has to cover to count as area-wide. */
 const WIDE = 0.7;
 
-/** How many times the area's box a dataset's box has to be to count as reaching beyond the area. */
+/** How many times the area's box a collection's box has to be to count as reaching beyond the area. */
 const LARGER = 3;
 
-/** How much of a dataset's box has to lie outside the area for it to be wider than the area even when it covers it. */
+/** How much of a collection's box has to lie outside the area for it to be wider than the area even when it covers it. */
 const OUTSIDE = 0.5;
 
 /** What the rail says when an environment has nothing in it yet. */
 const EMPTY: Record<EnvKey, string> = {
-  sandbox: "Datasets show up here once they land in the Sandbox catalog.",
-  dev: "Datasets show up here once they land in the Development catalog.",
-  test: "Datasets show up here once they're approved in Development.",
-  prod: "Datasets show up here once they're approved in Test.",
+  sandbox: "Collections show up here once they land in the Sandbox catalog.",
+  dev: "Collections show up here once they land in the Development catalog.",
+  test: "Collections show up here once they're approved in Development.",
+  prod: "Collections show up here once they're approved in Test.",
 };
 
 export default async function Home({ params }: { params: Promise<{ env: string }> }) {
@@ -95,7 +95,7 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
   // server, fetched when the collection is picked.
   const lazy = new Set<string>();
   const footprints: Footprint[] = latest
-    .filter((c) => c.kind === "dataset")
+    .filter((c) => c.kind === "collection")
     .sort((x, y) => extentArea(y.bbox) - extentArea(x.bbox))
     .map((c) => {
       try {
@@ -137,7 +137,7 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
     return names.size === 1 ? (names.values().next().value ?? null) : null;
   };
 
-  // Where a dataset's extent sits against the area. A box several times
+  // Where a collection's extent sits against the area. A box several times
   // the area's (a five-state storm domain, a national inventory) reaches
   // beyond it, even though it covers all of it; so does one that covers it
   // but lies mostly outside it (a survey that runs on down the Platte); and
@@ -176,7 +176,7 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
       itemCount: c.itemCount,
       parentSlugs: [],
       frame: null,
-      datasetsBelow: 0,
+      collectionsBelow: 0,
       emptyInside: 0,
       unit: broken ? "items" : unitOf(c),
       geometryError: broken || undefined,
@@ -203,19 +203,19 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
   for (const a of areas) a.parentSlugs = parents.get(a.slug) ?? [];
   const tree = hierarchyOf(areas);
   for (const a of areas) {
-    a.datasetsBelow = tree.datasetsBelow(a.slug);
-    if (a.kind === "dataset") a.emptyInside = tree.childrenOf(a.slug).filter((c) => tree.isEmpty(c.slug)).length;
+    a.collectionsBelow = tree.collectionsBelow(a.slug);
+    if (a.kind === "collection") a.emptyInside = tree.childrenOf(a.slug).filter((c) => tree.isEmpty(c.slug)).length;
   }
-  // Where the map goes when a catalog is opened in the rail: its datasets'
+  // Where the map goes when a catalog is opened in the rail: its collections'
   // boxes, leaving out the ones that reach beyond the area (a storm domain,
   // a national inventory), so a catalog of basin-wide data opens on the
   // basin and one of a single watershed opens on that watershed. When some
   // were left out the area stays in the frame, so a catalog of mostly
-  // area-wide data doesn't open on its one small dataset.
+  // area-wide data doesn't open on its one small collection.
   const bySlug = new Map(areas.map((a) => [a.slug, a]));
   for (const a of areas) {
-    if (a.kind !== "catalog" || !a.datasetsBelow) continue;
-    const below = [...tree.descendants([a.slug])].map((s) => bySlug.get(s)!).filter((d) => d.kind === "dataset" && d.bbox);
+    if (a.kind !== "catalog" || !a.collectionsBelow) continue;
+    const below = [...tree.descendants([a.slug])].map((s) => bySlug.get(s)!).filter((d) => d.kind === "collection" && d.bbox);
     const near = area ? below.filter((d) => d.coverage !== "beyond") : below;
     const boxes = near.map((d) => d.bbox);
     if (area && near.length < below.length) boxes.push(area.bbox);
@@ -227,12 +227,12 @@ async function HomeData({ env, railShare }: { env: EnvKey; railShare: number }) 
       env={env}
       areas={areas}
       area={area && { name: area.name, geometry: area.geometry }}
-      frame={mapFrame(area, areas.filter((a) => a.kind === "dataset").map((a) => a.bbox))}
+      frame={mapFrame(area, areas.filter((a) => a.kind === "collection").map((a) => a.bbox))}
       items={items}
       // Only shown when something is wrong. The details go to the server log.
       notice={
         catalog.errors.length > 0 || failed.size > 0
-          ? "Some datasets or folders couldn't be loaded and may be missing. Try again in a minute."
+          ? "Some collections or catalogs couldn't be loaded and may be missing. Try again in a minute."
           : null
       }
       emptyText={EMPTY[env]}

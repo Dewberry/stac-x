@@ -512,8 +512,8 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
     const m = mapRef.current;
     const src = m?.getSource(SRC) as GeoJSONSource | undefined;
     if (src) src.setData(data);
-    // Child previews replace the dataset without rebuilding the map. Frame
-    // each dataset, including the parent's items when the pointer leaves.
+    // Child previews replace the collection without rebuilding the map. Frame
+    // each collection, including the parent's items when the pointer leaves.
     if (m) {
       const bounds = boundsOf(data, bbox);
       if (bounds) m.fitBounds(bounds, { ...FIT, duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 750 });

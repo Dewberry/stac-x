@@ -32,10 +32,10 @@ import { withBase } from "@/lib/utils";
  * one-key shortcuts for Approve or Reject: approving copies files to the
  * next environment, which shouldn't happen on a stray keypress.
  *
- * This is the only place a dataset is reviewed or moved; its page just
+ * This is the only place a collection is reviewed or moved; its page just
  * shows its state. The sheet itself is in admin-review-sheet.tsx.
  *
- * The queue is datasets only. Catalogs are folders with nothing to review
+ * The queue is collections only. Catalogs have nothing of their own to review
  * (lib/collection-hierarchy.ts); they appear as the headings the rows are
  * grouped under, by top-level catalog, which can be turned off.
  */
@@ -43,7 +43,7 @@ import { withBase } from "@/lib/utils";
 export type QueueRow = {
   id: string;
   title: string;
-  /** The top-level catalog it sits in; null for a dataset at the top. */
+  /** The top-level catalog it sits in; null for a collection at the top. */
   group: { slug: string; name: string } | null;
   /** Empty catalogs directly inside it (Project Scoping's ten). */
   emptyInside: number;
@@ -84,16 +84,16 @@ const SORTS: { value: Sort; label: string }[] = [
 
 // The labels say what they do on their own, since a phone hides "Group by".
 const GROUPINGS: { value: Grouping; label: string }[] = [
-  { value: "catalog", label: "By folder" },
+  { value: "catalog", label: "By catalog" },
   { value: "none", label: "Not grouped" },
 ];
 
 const EMPTY: Record<Filter, string> = {
   pending: "Nothing is waiting for review.",
-  needs_revision: "No datasets need revision.",
-  rejected: "No datasets have been rejected.",
-  approved: "No datasets have been approved yet.",
-  all: "There are no datasets in this environment.",
+  needs_revision: "No collections need revision.",
+  rejected: "No collections have been rejected.",
+  approved: "No collections have been approved yet.",
+  all: "There are no collections in this environment.",
 };
 
 const isFilter = (v: unknown): v is Filter => FILTERS.some((f) => f.value === v);
@@ -127,7 +127,7 @@ export function AdminConsole({
   initial,
 }: {
   env: EnvKey;
-  /** The environment's datasets. */
+  /** The environment's collections. */
   rows: QueueRow[];
   /** The catalogs around them, which aren't reviewed. */
   catalogCount: number;
@@ -187,17 +187,17 @@ export function AdminConsole({
   const groups = useMemo(() => groupsOf(shown, grouping), [shown, grouping]);
   const ordered = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
   const next = nextEnv(env);
-  // What approving does here, said plainly: only some datasets can be sent
-  // on yet (lib/promote.ts), and catalogs never are. Over every dataset, not
+  // What approving does here, said plainly: only some collections can be sent
+  // on yet (lib/promote.ts), and catalogs never are. Over every collection, not
   // the tab, so an empty tab doesn't claim they all can be.
   const sendable = rows.filter((r) => r.sendable).length;
   const approveNote = !next
-    ? "Folders are never approved on their own."
+    ? "Catalogs are never approved on their own."
     : sendable === rows.length
-      ? `Approving a dataset sends it to ${next.label}. Folders are never approved on their own.`
+      ? `Approving a collection sends it to ${next.label}. Catalogs are never approved on their own.`
       : sendable === 0
-        ? `Approving a dataset records the decision here; sending it to ${next.label} along with the folder path it sits in is coming soon. Folders are never approved on their own.`
-        : `Approving a dataset sends it to ${next.label}, except one read from a STAC catalog, which keeps its approval here until sending those is built. Folders are never approved on their own.`;
+        ? `Approving a collection records the decision here; sending it to ${next.label} along with the catalog path it sits in is coming soon. Catalogs are never approved on their own.`
+        : `Approving a collection sends it to ${next.label}, except one read from a STAC catalog, which keeps its approval here until sending those is built. Catalogs are never approved on their own.`;
 
   const stats = useMemo(() => {
     const waiting = rows.filter((r) => statusOf(r) === "pending");
@@ -264,8 +264,8 @@ export function AdminConsole({
           </dt>
           <dd>{fmtNum(stats.waiting)}</dd>
           <dd className="sx-stat-note">
-            Datasets.
-            {catalogCount > 0 && <> The {plural(catalogCount, "folder", "folders")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.</>}
+            Collections.
+            {catalogCount > 0 && <> The {plural(catalogCount, "catalog", "catalogs")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.</>}
           </dd>
         </div>
         <div className="sx-stat">
@@ -300,7 +300,7 @@ export function AdminConsole({
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="m10.5 10.5 3 3" strokeLinecap="round" />
               </svg>
-              <span className="sr-only">Search datasets</span>
+              <span className="sr-only">Search collections</span>
               <input
                 type="search"
                 placeholder="Search title or id"
@@ -335,7 +335,7 @@ export function AdminConsole({
           </div>
 
           {selectedShown.length > 0 && (
-            <div className="sx-bulk" role="region" aria-label="Selected datasets">
+            <div className="sx-bulk" role="region" aria-label="Selected collections">
               <span className="ffx-num">
                 <b>{selectedShown.length}</b> selected
               </span>
@@ -386,7 +386,7 @@ export function AdminConsole({
 
           <div id="queue-panel" role="tabpanel" aria-labelledby={`tab-${filter}`} tabIndex={-1}>
             {shown.length === 0 ? (
-              <p className="sx-empty">{q ? "No datasets match that search." : EMPTY[filter]}</p>
+              <p className="sx-empty">{q ? "No collections match that search." : EMPTY[filter]}</p>
             ) : (
               <>
                 <QueueTable
@@ -542,7 +542,7 @@ function QueueTable({
               />
             </th>
             <th scope="col" aria-sort={sort === "title" ? "ascending" : undefined}>
-              Dataset
+              Collection
             </th>
             <th scope="col" className="ffx-r">
               Items
@@ -564,7 +564,7 @@ function QueueTable({
                   <span className="sx-qgroup-in">
                     <FolderGlyph />
                     <span className="sx-qgroup-name">{g.name}</span>
-                    <span className="sx-qgroup-count">{plural(g.rows.length, "dataset", "datasets")}</span>
+                    <span className="sx-qgroup-count">{plural(g.rows.length, "collection", "collections")}</span>
                   </span>
                 </th>
               </tr>
@@ -596,7 +596,7 @@ function QueueTable({
                         Older version
                       </span>
                     )}
-                    {r.emptyInside > 0 && <span>Also holds {plural(r.emptyInside, "empty folder", "empty folders")}</span>}
+                    {r.emptyInside > 0 && <span>Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>}
                   </span>
                 </td>
                 <td className="ffx-r ffx-num">{fmtNum(r.itemCount)}</td>
@@ -621,7 +621,7 @@ function QueueTable({
 }
 
 /**
- * The queue on a phone, where the table won't fit: one card per dataset
+ * The queue on a phone, where the table won't fit: one card per collection
  * with the same facts, selection and Review, under the same catalog headings. Above 64rem the table shows
  * instead; both are in the page and CSS picks one.
  */
@@ -654,7 +654,7 @@ function QueueCards({
             <h3 className="sx-qgroup-card">
               <FolderGlyph />
               <span className="sx-qgroup-name">{g.name}</span>
-              <span className="sx-qgroup-count">{plural(g.rows.length, "dataset", "datasets")}</span>
+              <span className="sx-qgroup-count">{plural(g.rows.length, "collection", "collections")}</span>
             </h3>
           )}
           <ul>
@@ -673,7 +673,7 @@ function QueueCards({
                   </Link>
                   <span className="ffx-id sx-qcard-id">{r.id}</span>
                   {r.emptyInside > 0 && (
-                    <span className="sx-qcard-holds">Also holds {plural(r.emptyInside, "empty folder", "empty folders")}</span>
+                    <span className="sx-qcard-holds">Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>
                   )}
                   <span className="sx-qcard-facts">
                     <span className="ffx-num">{fmtNum(r.itemCount)} items</span>

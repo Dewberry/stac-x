@@ -139,7 +139,7 @@ async function inTurn<T>(work: () => Promise<T>): Promise<T> {
  * Decoded in the server's own process, a file like that runs it out of
  * memory, and that isn't an error that can be caught: the server dies, and
  * since the catalog is read at boot it dies again on every restart. In a
- * process of its own the same file ends that process, the dataset says
+ * process of its own the same file ends that process, the collection says
  * why, and every other page carries on.
  *
  * A worker thread with a memory limit looks like the lighter way to do
@@ -253,7 +253,7 @@ export async function readItems(uri: string): Promise<ParquetStac> {
   if (h.size > maxFileMb * 1024 * 1024) {
     // Too big to hold. Its schema is still read, by byte range, to tell a
     // data table sitting among the sources (skipped, as ever) from an
-    // items file that's too big to load (an error on its dataset).
+    // items file that's too big to load (an error on its collection).
     const peek = await decode({ uri, byteLength: h.size, rowEnd: 0, requireColumn: "id" });
     if (peek.missing) throw new NotStac(uri);
     throw new ParquetUnreadable(`At ${fmtBytes(h.size)} it's over the ${fmtNum(maxFileMb)} MB an items file may be (STAC_PARQUET_MAX_MB).`);

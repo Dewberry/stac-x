@@ -1,37 +1,37 @@
 /**
  * The catalog tree, shared by server and client: which loaded nodes are
- * catalogs (folders) and which are datasets, how they nest, and search.
+ * catalogs and which are collections, how they nest, and search.
  *
  * A catalog has a title, a description and children, and nothing else: no
- * extent, no items, no review state. A dataset has items or assets of its
+ * extent, no items, no review state. A collection has items or assets of its
  * own and is the only thing that's counted, reviewed, drawn or promoted. A
- * dataset can still have children (Project Scoping holds ten empty
+ * collection can still have children (Project Scoping holds ten empty
  * catalogs); they travel with it.
  */
 import type { Collection } from "./stac";
 
-export type NodeKind = "catalog" | "dataset";
+export type NodeKind = "catalog" | "collection";
 
 /**
  * Every node in the catalog is a STAC Collection, and stays one: the
- * generator writes its folders as Collections with a placeholder extent,
+ * generator writes its containers as Collections with a placeholder extent,
  * and the viewer never rewrites them. So the kind is worked out from what
- * a node holds, on every load, and a folder that gains data becomes a
- * dataset with nothing to configure:
+ * a node holds, on every load, and a catalog that gains data becomes a
+ * collection with nothing to configure:
  *
  * - Items, or a link to where its items are (a parquet file, JSON items),
- *   make a dataset, even with no rows yet.
+ *   make a collection, even with no rows yet.
  * - Otherwise a document typed Catalog is a catalog.
- * - Otherwise a leaf with collection-level assets is a dataset (a bundle
+ * - Otherwise a leaf with collection-level assets is a collection (a bundle
  *   of files with no items), but a node with children keeps being a
- *   folder when a manifest or a README is attached to it.
- * - Otherwise it's a catalog: an empty leaf (an Archive folder, Grids' AEP
- *   Grids) is an empty folder.
+ *   catalog when a manifest or a README is attached to it.
+ * - Otherwise it's a catalog: an empty leaf (Archive, Grids' AEP
+ *   Grids) is an empty catalog.
  */
 export function kindOf(c: Pick<Collection, "type" | "itemCount" | "itemsLinked" | "assets" | "childCollectionHrefs">): NodeKind {
-  if (c.itemCount > 0 || c.itemsLinked) return "dataset";
+  if (c.itemCount > 0 || c.itemsLinked) return "collection";
   if (c.type === "Catalog") return "catalog";
-  if (Object.keys(c.assets).length > 0 && c.childCollectionHrefs.length === 0) return "dataset";
+  if (Object.keys(c.assets).length > 0 && c.childCollectionHrefs.length === 0) return "collection";
   return "catalog";
 }
 
@@ -51,7 +51,7 @@ export function collectionAncestors(collection: Collection, collections: Collect
       parents.set(href, list);
     }
   }
-  // A version the folder doesn't link itself (an earlier one, reached
+  // A version the catalog doesn't link itself (an earlier one, reached
   // through the current version's links) sits where its other versions do.
   const byId = new Map(collections.map((c) => [c.id, c]));
   const parentOf = (c: Collection, seen: Set<string>): Collection | undefined => {
@@ -126,13 +126,13 @@ export function hierarchyOf<T extends HierarchyNode>(nodes: T[]) {
   // their otherwise unreachable branch visible until its links are fixed.
   for (const n of nodes) if (!reachable.has(n.slug)) roots.add(n.slug);
 
-  // Each node's datasets anywhere below it, counted once.
+  // Each node's collections anywhere below it, counted once.
   const below = new Map<string, number>();
-  function datasetsBelow(slug: string): number {
+  function collectionsBelow(slug: string): number {
     let n = below.get(slug);
     if (n === undefined) {
       n = 0;
-      for (const d of descendants([slug])) if (d !== slug && bySlug.get(d)!.kind === "dataset") n++;
+      for (const d of descendants([slug])) if (d !== slug && bySlug.get(d)!.kind === "collection") n++;
       below.set(slug, n);
     }
     return n;
@@ -147,8 +147,8 @@ export function hierarchyOf<T extends HierarchyNode>(nodes: T[]) {
    */
   const catalogsBelow = (slug: string): number => childrenOf(slug).filter((c) => c.kind === "catalog").length;
 
-  /** A catalog with no dataset anywhere below it. */
-  const isEmpty = (slug: string): boolean => bySlug.get(slug)?.kind === "catalog" && datasetsBelow(slug) === 0;
+  /** A catalog with no collection anywhere below it. */
+  const isEmpty = (slug: string): boolean => bySlug.get(slug)?.kind === "catalog" && collectionsBelow(slug) === 0;
 
   /**
    * One ancestor trail, root first, for headings, breadcrumbs and search
@@ -176,13 +176,13 @@ export function hierarchyOf<T extends HierarchyNode>(nodes: T[]) {
     return top?.kind === "catalog" ? top : null;
   };
 
-  return { roots, descendants, childrenOf, datasetsBelow, catalogsBelow, isEmpty, ancestorsOf, pathOf, rootCatalogOf };
+  return { roots, descendants, childrenOf, collectionsBelow, catalogsBelow, isEmpty, ancestorsOf, pathOf, rootCatalogOf };
 }
 
 export type Hierarchy<T extends HierarchyNode> = ReturnType<typeof hierarchyOf<T>>;
 
 /**
- * Datasets and catalogs whose title or description has the text in it. A
+ * Collections and catalogs whose title or description has the text in it. A
  * match doesn't bring its descendants along: a parent named Storm doesn't
  * make everything under it a storm.
  */

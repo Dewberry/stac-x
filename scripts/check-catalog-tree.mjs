@@ -5,7 +5,7 @@
 //                                                       also Development's real tree, read as the app reads it
 //
 // The live numbers are the tree as it stood in October 2026 (125 nodes, 7
-// datasets). When a dataset lands, update them with it.
+// collections). When a collection lands, update them with it.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -33,44 +33,44 @@ function load(file) {
   return loaded.exports;
 }
 
-// Catalogs and datasets. Items or an items link make a dataset; a node
-// with items and children is a dataset that also holds catalogs; a node
+// Catalogs and collections. Items or an items link make a collection; a node
+// with items and children is a collection that also holds catalogs; a node
 // with nothing in it is a catalog, leaf or not.
 const { collectionParents, hierarchyOf, kindOf, searchCollections } = load(resolve(root, "collection-hierarchy.ts"));
 const node = (over) => ({ type: "Collection", itemCount: 0, itemsLinked: false, assets: {}, childCollectionHrefs: [], ...over });
-assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "dataset"); // Items win over the type.
+assert.equal(kindOf(node({ type: "Catalog", itemCount: 3 })), "collection"); // Items win over the type.
 assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"] })), "catalog");
-assert.equal(kindOf(node({})), "catalog"); // An empty leaf is a shelf, not a dataset.
-assert.equal(kindOf(node({ itemCount: 1 })), "dataset");
-assert.equal(kindOf(node({ itemsLinked: true })), "dataset"); // A parquet file with no rows yet.
-assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"], itemCount: 1 })), "dataset");
-assert.equal(kindOf(node({ assets: { plot: { href: "p.png" } } })), "dataset"); // A bundle of files.
-assert.equal(kindOf(node({ assets: { manifest: { href: "m.csv" } }, childCollectionHrefs: ["a.json"] })), "catalog"); // A folder with a manifest.
+assert.equal(kindOf(node({})), "catalog"); // An empty leaf is a shelf, not a collection.
+assert.equal(kindOf(node({ itemCount: 1 })), "collection");
+assert.equal(kindOf(node({ itemsLinked: true })), "collection"); // A parquet file with no rows yet.
+assert.equal(kindOf(node({ childCollectionHrefs: ["a.json"], itemCount: 1 })), "collection");
+assert.equal(kindOf(node({ assets: { plot: { href: "p.png" } } })), "collection"); // A bundle of files.
+assert.equal(kindOf(node({ assets: { manifest: { href: "m.csv" } }, childCollectionHrefs: ["a.json"] })), "catalog"); // A catalog with a manifest.
 assert.equal(kindOf(node({ type: "Catalog", assets: { readme: { href: "r.md" } } })), "catalog");
 
-// The tree's shape in miniature: two roots with datasets, one without, a
-// same-named empty catalog in two places, and a dataset that holds catalogs.
+// The tree's shape in miniature: two roots with collections, one without, a
+// same-named empty catalog in two places, and a collection that holds catalogs.
 const tree = [
   { slug: "basin", name: "Basin Data", kind: "catalog", parentSlugs: [] },
-  { slug: "storms", name: "Storm Catalog", kind: "dataset", blurb: "Hourly rain", parentSlugs: ["basin"] },
-  { slug: "scoping", name: "Project Scoping", kind: "dataset", parentSlugs: ["basin"] },
+  { slug: "storms", name: "Storm Catalog", kind: "collection", blurb: "Hourly rain", parentSlugs: ["basin"] },
+  { slug: "scoping", name: "Project Scoping", kind: "collection", parentSlugs: ["basin"] },
   { slug: "scoping-a", name: "Archive", kind: "catalog", parentSlugs: ["scoping"] },
   { slug: "dams", name: "Dams", kind: "catalog", parentSlugs: ["basin"] },
   { slug: "nid", name: "NID", kind: "catalog", parentSlugs: ["dams"] },
   { slug: "terrain", name: "Terrain", kind: "catalog", parentSlugs: [] },
-  { slug: "base", name: "Terrain Base", kind: "dataset", parentSlugs: ["terrain"] },
+  { slug: "base", name: "Terrain Base", kind: "collection", parentSlugs: ["terrain"] },
   { slug: "conf", name: "Conformance", kind: "catalog", parentSlugs: [] },
   { slug: "conf-storms", name: "Storm Catalog", kind: "catalog", parentSlugs: ["conf"] },
   { slug: "conf-a", name: "Archive", kind: "catalog", parentSlugs: ["conf-storms"] },
-  { slug: "orphan", name: "Orphan", kind: "dataset", parentSlugs: ["missing"] },
+  { slug: "orphan", name: "Orphan", kind: "collection", parentSlugs: ["missing"] },
 ];
 const h = hierarchyOf(tree);
 const slugsOf = (list) => Array.from(list, (n) => n.slug);
 assert.deepEqual([...h.roots], ["basin", "terrain", "conf", "orphan"]);
-assert.equal(h.datasetsBelow("basin"), 2);
+assert.equal(h.collectionsBelow("basin"), 2);
 assert.equal(h.catalogsBelow("basin"), 1);
-assert.equal(h.datasetsBelow("conf"), 0);
-assert.equal(h.datasetsBelow("storms"), 0);
+assert.equal(h.collectionsBelow("conf"), 0);
+assert.equal(h.collectionsBelow("storms"), 0);
 assert.equal(h.catalogsBelow("scoping"), 1);
 assert.ok(h.isEmpty("conf") && h.isEmpty("dams") && h.isEmpty("scoping-a"));
 assert.ok(!h.isEmpty("basin") && !h.isEmpty("storms") && !h.isEmpty("terrain"));
@@ -96,15 +96,15 @@ assert.deepEqual(found("nothing matches"), []);
 const cyclic = [
   { slug: "a", name: "A", kind: "catalog", parentSlugs: ["b"] },
   { slug: "b", name: "B", kind: "catalog", parentSlugs: ["a"] },
-  { slug: "c", name: "C", kind: "dataset", parentSlugs: ["b"] },
+  { slug: "c", name: "C", kind: "collection", parentSlugs: ["b"] },
 ];
 const hc = hierarchyOf(cyclic);
 assert.equal(hc.roots.size, 3); // Rootless bad links don't hide data.
-assert.equal(hc.datasetsBelow("a"), 1);
+assert.equal(hc.collectionsBelow("a"), 1);
 assert.deepEqual(Array.from(hc.pathOf("c")), ["A", "B"]);
 const selfLink = hierarchyOf([{ slug: "self", name: "Self", kind: "catalog", parentSlugs: ["self"] }]);
 assert.equal(selfLink.roots.size, 1);
-assert.equal(selfLink.datasetsBelow("self"), 0);
+assert.equal(selfLink.collectionsBelow("self"), 0);
 
 // A child link to an older version still parents the latest visible series.
 const family = [
@@ -123,7 +123,7 @@ if (process.argv.includes("--live")) {
   assert.equal(catalog.errors.length, 0, `Development read with errors: ${catalog.errors.join("; ")}`);
   const nodes = treeNodesOf(catalog.collections).map((n) => ({ ...n, blurb: n.collection.description ?? undefined }));
   const t = hierarchyOf(nodes);
-  const datasets = nodes.filter((n) => n.kind === "dataset");
+  const collections = nodes.filter((n) => n.kind === "collection");
   const byName = (name) => nodes.filter((n) => n.name === name);
   const one = (name) => {
     const [n, ...rest] = byName(name);
@@ -131,40 +131,40 @@ if (process.argv.includes("--live")) {
     return n;
   };
   assert.equal(nodes.length, 125);
-  assert.equal(datasets.length, 7);
-  assert.equal(nodes.length - datasets.length, 118);
-  assert.deepEqual(Array.from(datasets, (d) => d.collection.itemCount).sort((a, b) => b - a), [450, 363, 192, 39, 2, 1, 1]);
-  assert.deepEqual(Array.from(datasets, (d) => d.name).sort(),
+  assert.equal(collections.length, 7);
+  assert.equal(nodes.length - collections.length, 118);
+  assert.deepEqual(Array.from(collections, (d) => d.collection.itemCount).sort((a, b) => b - a), [450, 363, 192, 39, 2, 1, 1]);
+  assert.deepEqual(Array.from(collections, (d) => d.name).sort(),
     ["Existing Models", "Land Cover", "Project Scoping", "Storm Catalog", "Stream Gages", "Structure Inventory", "Terrain Base"]);
   // The tree as the generator writes it: every node a Collection.
   assert.ok(nodes.every((n) => n.collection.type === "Collection"));
-  // Every dataset has items or assets; no catalog has either.
-  assert.ok(datasets.every((d) => d.collection.itemCount > 0 || Object.keys(d.collection.assets).length > 0));
-  assert.ok(nodes.every((n) => n.kind === "dataset" || (n.collection.itemCount === 0 && !Object.keys(n.collection.assets).length)));
+  // Every collection has items or assets; no catalog has either.
+  assert.ok(collections.every((d) => d.collection.itemCount > 0 || Object.keys(d.collection.assets).length > 0));
+  assert.ok(nodes.every((n) => n.kind === "collection" || (n.collection.itemCount === 0 && !Object.keys(n.collection.assets).length)));
   const roots = nodes.filter((n) => t.roots.has(n.slug));
   assert.deepEqual(Array.from(roots, (r) => r.name).sort(), ["Basin Data", "Calibration", "Conformance", "Production", "Terrain"]);
   assert.ok(roots.every((r) => r.kind === "catalog"));
   const basin = one("Basin Data");
   assert.equal(t.childrenOf(basin.slug).length, 23);
-  assert.equal(t.datasetsBelow(basin.slug), 6);
+  assert.equal(t.collectionsBelow(basin.slug), 6);
   assert.equal(t.catalogsBelow(basin.slug), 17);
   assert.equal(t.childrenOf(basin.slug).filter((c) => t.isEmpty(c.slug)).length, 17);
-  assert.equal(t.datasetsBelow(one("Terrain").slug), 1);
+  assert.equal(t.collectionsBelow(one("Terrain").slug), 1);
   for (const name of ["Calibration", "Conformance", "Production"]) assert.ok(t.isEmpty(one(name).slug), `${name} should be empty`);
-  // Project Scoping: one item and ten empty catalogs, a dataset.
+  // Project Scoping: one item and ten empty catalogs, a collection.
   const scoping = one("Project Scoping");
-  assert.equal(scoping.kind, "dataset");
+  assert.equal(scoping.kind, "collection");
   assert.equal(scoping.collection.itemCount, 1);
   assert.equal(t.catalogsBelow(scoping.slug), 10);
   assert.ok(t.childrenOf(scoping.slug).every((c) => t.isEmpty(c.slug)));
-  for (const d of datasets) assert.ok(t.rootCatalogOf(d.slug), `${d.name} has no root catalog`);
-  assert.equal(datasets.filter((d) => t.rootCatalogOf(d.slug).slug === basin.slug).length, 6);
-  // Search: "storm" is one dataset and three empty catalogs; "archive" is seven empty catalogs.
+  for (const d of collections) assert.ok(t.rootCatalogOf(d.slug), `${d.name} has no root catalog`);
+  assert.equal(collections.filter((d) => t.rootCatalogOf(d.slug).slug === basin.slug).length, 6);
+  // Search: "storm" is one collection and three empty catalogs; "archive" is seven empty catalogs.
   const storm = searchCollections(nodes, "storm");
-  assert.equal(storm.filter((n) => n.kind === "dataset").length, 1);
+  assert.equal(storm.filter((n) => n.kind === "collection").length, 1);
   assert.equal(storm.filter((n) => n.kind === "catalog" && t.isEmpty(n.slug)).length, 3);
   const archive = searchCollections(nodes, "archive");
-  assert.equal(archive.filter((n) => n.kind === "dataset").length, 0);
+  assert.equal(archive.filter((n) => n.kind === "collection").length, 0);
   assert.equal(archive.length, 7);
   assert.equal(new Set(archive.map((n) => n.name)).size, 1);
   // Catalogs at depth 5, with their trail.
@@ -172,6 +172,6 @@ if (process.argv.includes("--live")) {
   assert.ok(grids && grids.kind === "catalog");
   assert.equal(t.pathOf(grids.slug)[0], "Conformance");
   assert.equal(t.catalogsBelow(grids.slug), 3);
-  assert.equal(t.datasetsBelow(grids.slug), 0);
+  assert.equal(t.collectionsBelow(grids.slug), 0);
   console.log("Development tree checks passed.");
 }

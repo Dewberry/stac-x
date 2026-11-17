@@ -167,7 +167,7 @@ export function areaShare(area: MapArea, [w, s, e, n]: Bbox): number {
 
 /**
  * How much of a box lies outside the area, from 0 to 1, on a grid over the
- * box. A dataset can cover the whole area and still be mostly somewhere
+ * box. A collection can cover the whole area and still be mostly somewhere
  * else (a survey that follows the Platte on into Nebraska), and the landing
  * page says "wider than" rather than "whole" for that.
  */

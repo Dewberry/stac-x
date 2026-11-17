@@ -12,9 +12,9 @@ need to know is here.
   would drop the edit anyway. Writes are conditional on the sidecar's ETag
   so two reviewers can't overwrite each other.
 - Collection and item pages have STAC Browser's panels, named as it names
-  them. The dataset page's columns follow the home console instead: the
+  them. The collection page's columns follow the home console instead: the
   list on the left, the map on the right, so the map stays put when a
-  dataset is opened from the home page. The description starts folded
+  collection is opened from the home page. The description starts folded
   there, since the rail already showed it.
 - The look is the "Atlas" direction: map-first, white cards on a pale
   canvas, river blue for data and links, green/amber/red only for QC state
@@ -25,13 +25,16 @@ need to know is here.
   with ffrd-x, the values are not). Components use the semantic utilities
   (`bg-surface`, `text-ink-mut`) and the `ffx-`/`sx-` classes, never raw hex.
 - Fonts: Bricolage Grotesque (headings), Instrument Sans (body), DM Mono (ids).
+- Use STAC's own words everywhere, in the UI, the docs and the code:
+  catalog, collection, item, asset. Never "dataset"; clients asked for it
+  to go.
 - Writing style for comments, docs and UI copy: plain, contractions, US
   spelling, no em dashes.
 - Parquet is never decoded in the server's own process. `lib/parquet.ts`
   starts `lib/parquet-worker.mjs` as a child process for each file, with a
   cap on its memory and time, because a file's cost can't be told from its
   size and running out of memory can't be caught. A file that goes over
-  ends the child, and its dataset shows the reason (`itemsError`). The
+  ends the child, and its collection shows the reason (`itemsError`). The
   worker is plain JavaScript that Node runs unbundled; `next.config.ts`
   ships it, and the Dockerfile checks it loads.
 - Every page shows only real collections from the catalog. The app is shown

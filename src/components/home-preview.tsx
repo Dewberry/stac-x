@@ -15,7 +15,7 @@ import { Skel } from "./spinner";
 /**
  * What a selected collection shows: enough to decide whether to open it,
  * and its child collections and items. Its description, where its QC stands, the last reviewer's
- * note when it was sent back, the way in (Browse dataset), then the items
+ * note when it was sent back, the way in (Browse collection), then the items
  * by name with a search and a sort. The summary line (dates, place,
  * version) sits above it, in the row on a wide screen and in the sheet's
  * header on a phone, so the body doesn't repeat it. On a wide screen this
@@ -31,7 +31,7 @@ export const COVERAGE_LABEL: Record<NonNullable<HomeArea["coverage"]>, string> =
 };
 
 /**
- * The line under a dataset's name in the rail: in search results the
+ * The line under a collection's name in the rail: in search results the
  * catalogs it sits in, then its review state once someone has decided it,
  * the years it covers, where it is against the area, the empty catalogs it
  * holds, and its version when there are earlier ones (an open row has that
@@ -60,9 +60,9 @@ export function AreaSub({ area, open, path }: { area: HomeArea; open?: boolean; 
   if (area.coverage) parts.push(COVERAGE_LABEL[area.coverage]);
   if (area.itemsError) parts.push("Items couldn't be read");
   if (area.geometryError) parts.push("Geometry couldn't be read");
-  if (area.parentMissing) parts.push("Its folder couldn't be read");
+  if (area.parentMissing) parts.push("The catalog it sits in couldn't be read");
   if (area.emptyInside)
-    parts.push(`Also holds ${fmtNum(area.emptyInside)} empty ${area.emptyInside === 1 ? "folder" : "folders"}`);
+    parts.push(`Also holds ${fmtNum(area.emptyInside)} empty ${area.emptyInside === 1 ? "catalog" : "catalogs"}`);
   return (
     <span className="sx-row-sub">
       {parts.map((p, i) => (
@@ -162,7 +162,7 @@ export function fmtSpan(t: HomeArea["temporal"]): string | null {
 type Fact = { label: string; value: ReactNode; wide?: boolean };
 
 /**
- * What the open row says about a dataset besides its description, each
+ * What the open row says about a collection besides its description, each
  * only when the catalog has it. First where it sits, each catalog a link
  * that opens it in the rail. `brief` is the phone's sheet, whose header
  * already carries the dates: where it sits, the version and the id.
@@ -247,13 +247,13 @@ function WayIn({ area }: { area: HomeArea }) {
   return (
     <div className="sx-pv-btns">
       <Link href={area.href} className="ffx-btn sx-pv-go">
-        Browse dataset
+        Browse collection
       </Link>
     </div>
   );
 }
 
-/** How wide each placeholder name is while an open dataset's items load: five, as many rows as the list shows before it scrolls. */
+/** How wide each placeholder name is while an open collection's items load: five, as many rows as the list shows before it scrolls. */
 const ITEM_BARS = ["52%", "38%", "60%", "44%", "48%"];
 
 /** The collection's items, or where they are while they load. */
@@ -270,11 +270,11 @@ function Items({
   activeIds?: ReadonlySet<string>;
   fill?: boolean;
 }) {
-  if (area.itemsError) return <p className="sx-pv-cover">Its items couldn&apos;t be read. Open the dataset to see why.</p>;
+  if (area.itemsError) return <p className="sx-pv-cover">Its items couldn&apos;t be read. Open the collection to see why.</p>;
   if (rows === null)
     return (
       // The block the list will fill, with a bar for each of the first few
-      // names. The count is known before the rows are, so a dataset with
+      // names. The count is known before the rows are, so a collection with
       // two items waits with two rows, not a guess.
       <div className="sx-items-compact sx-loading-items" data-fill={fill || undefined}>
         <p className="sr-only" role="status">
@@ -306,15 +306,15 @@ function Items({
         </div>
       </div>
     );
-  if (rows === "error") return <p className="sx-pv-cover">The items couldn&apos;t be loaded. Open the dataset to see them.</p>;
+  if (rows === "error") return <p className="sx-pv-cover">The items couldn&apos;t be loaded. Open the collection to see them.</p>;
   return (
     <ItemsList env={env} collection={area.id} rows={rows} compact fill={fill} openHref={area.href} activeIds={activeIds} />
   );
 }
 
 /**
- * What's directly inside an open dataset (Project Scoping's catalogs).
- * Catalogs say whether anything has landed in them; a dataset inside says
+ * What's directly inside an open collection (Project Scoping's catalogs).
+ * Catalogs say whether anything has landed in them; a collection inside says
  * how many items it has, and previews on hover or keyboard focus.
  */
 function ChildCollections({ collections, preview, onHover }: {
@@ -331,7 +331,7 @@ function ChildCollections({ collections, preview, onHover }: {
         setOpen(event.currentTarget.open);
         if (!event.currentTarget.open) onHover(null);
       }}>
-      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">{collections.every((c) => c.kind === "catalog") ? "Folders inside" : "Inside"} <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
+      <summary className="sx-child-summary"><Chevron /><h3 id={heading} className="sx-child-heading">{collections.every((c) => c.kind === "catalog") ? "Catalogs inside" : "Inside"} <span className="ffx-num">({fmtNum(collections.length)})</span></h3></summary>
       <div className="sx-item-block">
         <ul className="sx-item-list">
           {collections.map((child) => (
@@ -340,7 +340,7 @@ function ChildCollections({ collections, preview, onHover }: {
                 href={child.href}
                 className="sx-item"
                 data-active={preview === child.slug || undefined}
-                {...(child.kind === "dataset" && {
+                {...(child.kind === "collection" && {
                   onMouseEnter: () => onHover(child.slug),
                   onMouseLeave: () => onHover(null),
                   onFocus: () => onHover(child.slug),
@@ -350,10 +350,10 @@ function ChildCollections({ collections, preview, onHover }: {
                 {child.kind === "catalog" && <FolderGlyph />}
                 <span className="sx-item-name">{child.name}</span>
                 <span className="sx-child-count text-ink-mut">
-                  {child.kind === "dataset"
+                  {child.kind === "collection"
                     ? <span><span className="ffx-num">{fmtNum(child.itemCount)}</span> {child.itemCount === 1 ? "item" : "items"}</span>
-                    : child.datasetsBelow
-                      ? <span><span className="ffx-num">{fmtNum(child.datasetsBelow)}</span> {child.datasetsBelow === 1 ? "dataset" : "datasets"}</span>
+                    : child.collectionsBelow
+                      ? <span><span className="ffx-num">{fmtNum(child.collectionsBelow)}</span> {child.collectionsBelow === 1 ? "collection" : "collections"}</span>
                       : <span>Nothing in it yet</span>}
                 </span>
               </Link>

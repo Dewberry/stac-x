@@ -38,7 +38,7 @@ import { baseName, NotFound, PreconditionFailed, read, write } from "./storage";
  *
  * A sidecar is a plain file in the bucket, so it can be edited by hand or
  * cut short by a failed upload. One that isn't JSON, or isn't the shape
- * this app writes, is read as holding nothing, so its dataset still shows
+ * this app writes, is read as holding nothing, so its collection still shows
  * (as not reviewed) and the rest of its file's collections with it. It's
  * never written over, though: what's in it may be the only record of a
  * review, so a save is turned down until someone mends or removes the file.
@@ -102,7 +102,7 @@ export async function readEdits(parquetUri: string): Promise<ReadEdits> {
 
 /** What a person is told when a save meets a sidecar that can't be read. */
 export function unreadableMessage(parquetUri: string, why: string): string {
-  return `${baseName(editsUri(parquetUri))}, the review record beside this dataset's file, can't be read (${why}), so nothing was saved over it. Fix or delete that file, then save again.`;
+  return `${baseName(editsUri(parquetUri))}, the review record beside this collection's file, can't be read (${why}), so nothing was saved over it. Fix or delete that file, then save again.`;
 }
 
 export type EditInput = {

@@ -42,20 +42,20 @@ export function HomeLoading({ railShare }: { railShare: number }) {
             Loading the catalog…
           </p>
         </div>
-        <aside className="sx-rail" aria-label="Datasets">
+        <aside className="sx-rail" aria-label="Collections">
           {/* The same head as the console's, inert, so it's there before the
               rows are. */}
           <div className="sx-rail-head">
             <div className="sx-rail-title">
-              <h2>Datasets</h2>
+              <h2>Collections</h2>
             </div>
             <label className="ffx-field">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                 <circle cx="7" cy="7" r="4.5" />
                 <path d="m10.5 10.5 3 3" strokeLinecap="round" />
               </svg>
-              <span className="sr-only">Search datasets and folders</span>
-              <input type="search" placeholder="Search datasets and folders" disabled />
+              <span className="sr-only">Search collections and catalogs</span>
+              <input type="search" placeholder="Search collections and catalogs" disabled />
             </label>
             {/* The states and their marks are always the same four; only the counts wait. */}
             <div className="sx-rail-states sx-loading-states" aria-hidden="true">

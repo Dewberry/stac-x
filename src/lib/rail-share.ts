@@ -1,5 +1,5 @@
 /**
- * How much of the landing page's width the dataset list takes beside the
+ * How much of the landing page's width the collection list takes beside the
  * map, as a percent. A person drags the divider between them
  * (components/home-split.tsx) and the choice is kept in a cookie, so the
  * page, and its loading state, render at that width from the server
