@@ -4,15 +4,18 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ExpressionSpecification, GeoJSONSource, LngLat, Map as MapLibreMap, Point, Popup } from "maplibre-gl";
-import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
+import type { FeatureCollection } from "geojson";
 import {
   applyBasemap,
+  AREA_LINE,
+  areaData,
   blankStyle,
   Controls,
   creditsOf,
   MapCredits,
   dressBasemap,
   LAYER_RELIEF,
+  outsideArea,
   palette,
   SRC_TERRAIN,
   lineColor,
@@ -105,25 +108,6 @@ function fitPadding() {
 /** How close the map goes when it frames one collection: a watershed, not a street. */
 const FIT_MAX_ZOOM = 11;
 
-/**
- * Everything but the area: the world as an outer ring with the area cut out
- * as a hole. Painted as a translucent wash so the country around it stays
- * readable (gages and collections run past the edge) but the area is the
- * subject. Nothing when there's no area.
- */
-function outside(shape: MultiPolygon | null): FeatureCollection {
-  if (!shape) return { type: "FeatureCollection", features: [] };
-  const world: Polygon = {
-    type: "Polygon",
-    coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], ...shape.coordinates.map((poly) => poly[0])],
-  };
-  return { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: world }] };
-}
-
-function areaData(area: FocusArea | null): FeatureCollection {
-  return { type: "FeatureCollection", features: area ? [{ type: "Feature", properties: {}, geometry: area.geometry }] : [] };
-}
-
 function addLayers(
   map: MapLibreMap,
   p: Palette,
@@ -137,9 +121,9 @@ function addLayers(
   areaCovered: boolean,
 ) {
   dressBasemap(map, p);
-  map.addSource(SRC_MASK, { type: "geojson", data: outside(area?.geometry ?? null) });
+  map.addSource(SRC_MASK, { type: "geojson", data: outsideArea(area?.geometry ?? null) });
   map.addSource(SRC_ITEMS, { type: "geojson", data: items });
-  map.addSource(SRC_AREA, { type: "geojson", data: areaData(area) });
+  map.addSource(SRC_AREA, { type: "geojson", data: areaData(area?.geometry ?? null) });
 
   // The surround token carries its own alpha, so each palette picks how
   // much of the outside to dim.
@@ -158,7 +142,7 @@ function addLayers(
   map.addLayer({
     id: L.areaLine, type: "line", source: SRC_AREA,
     layout: { "line-join": "round" },
-    paint: { "line-color": p.ink, "line-width": areaLineWidth(areaHighlight), "line-opacity": 0.85 },
+    paint: { "line-color": p.ink, "line-width": areaLineWidth(areaHighlight), "line-opacity": AREA_LINE.opacity },
   });
 
   map.addLayer({
@@ -252,7 +236,7 @@ const HIT = 4;
 const TIP_ROWS = 6;
 
 function areaLineWidth(highlight: boolean) {
-  return highlight ? 3.25 : 2.5;
+  return highlight ? AREA_LINE.widthLit : AREA_LINE.width;
 }
 
 /** An item the map can name: a dot, or one of a few keyed shapes. */

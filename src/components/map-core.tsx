@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ExpressionSpecification, IControl, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import { withBase } from "@/lib/utils";
 
 /**
@@ -126,6 +127,29 @@ export function blankStyle(p: Palette): StyleSpecification {
     layers: [{ id: "ground", type: "background", paint: { "background-color": p.ground } }],
   };
 }
+
+/**
+ * Everything but the deployment's area (lib/map-area.ts): the world as an
+ * outer ring with the area cut out as a hole. Painted as a translucent wash
+ * so the country around it stays readable (gages and collections run past
+ * the edge) but the area is the subject. Nothing when there's no area.
+ */
+export function outsideArea(shape: MultiPolygon | null): FeatureCollection {
+  if (!shape) return { type: "FeatureCollection", features: [] };
+  const world: Polygon = {
+    type: "Polygon",
+    coordinates: [[[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]], ...shape.coordinates.map((poly) => poly[0])],
+  };
+  return { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: world }] };
+}
+
+/** The area itself, for its outline. */
+export function areaData(shape: MultiPolygon | null): FeatureCollection {
+  return { type: "FeatureCollection", features: shape ? [{ type: "Feature", properties: {}, geometry: shape }] : [] };
+}
+
+/** The area's outline, the same on every map: ink, a little heavier while a collection in it is picked. */
+export const AREA_LINE = { width: 2.5, widthLit: 3.25, opacity: 0.85 };
 
 export const SRC_TERRAIN = "ffx-terrain";
 export const LAYER_RELIEF = "ffx-relief";

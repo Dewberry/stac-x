@@ -73,6 +73,16 @@
   font: var(--ffx-t-tiny) / 1.6 var(--ffx-mono);
   border-radius: 0 0 4px 4px;
 }
+/* The way to the deployment's area on a collection's map (components/map.tsx),
+   top left, clear of the buttons on the right. The pill itself is the home
+   map's (.sx-map-pill in home.css). */
+.sx-map-area-pill {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 10px;
+  max-width: calc(100% - 64px);
+}
 .ffx-map-readout {
   display: flex;
   flex-wrap: wrap;

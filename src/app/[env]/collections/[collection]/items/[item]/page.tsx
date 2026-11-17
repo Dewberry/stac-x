@@ -16,7 +16,7 @@ import { VersionMenu, type VersionChoice } from "@/components/version-menu";
 import { VersionNotice } from "@/components/version-notice";
 import { getCatalog, getCollection } from "@/lib/catalog";
 import { envMeta } from "@/lib/env";
-import { LOWER_48 } from "@/lib/map-area";
+import { LOWER_48, mapArea } from "@/lib/map-area";
 import { pageEnv, pageParam } from "@/lib/page-env";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
 import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
@@ -220,6 +220,8 @@ export default async function ItemPage({ params }: Props) {
                 bbox={brokenGeometry ? LOWER_48 : item.bbox}
                 selected={item.id}
                 label={`Location of ${title}`}
+                area={mapArea()}
+                dataName="the item"
                 hint={brokenGeometry ? "Geometry couldn't be read." : item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
               />
             </MapBoundary>

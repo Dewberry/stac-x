@@ -8,7 +8,9 @@ import type { Feature, FeatureCollection, Geometry, MultiPolygon, Position } fro
  * The area a deployment is about, from STAC_MAP_AREA: a GeoJSON file of
  * polygons (a geometry, a Feature or a FeatureCollection, in WGS84), read
  * once. The landing page map opens on it, outlines it and dims everything
- * outside, and a collection that covers all of it says so. Several polygons
+ * outside, and a collection that covers all of it says so. A collection's
+ * page and an item's draw the same outline and wash under their data, with
+ * a button that goes to the area. Several polygons
  * are one area. STAC_MAP_AREA_NAME is what the page calls it ("Fit to the
  * South Platte basin"), else the file's `name` property.
  *

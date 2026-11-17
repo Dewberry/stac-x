@@ -17,7 +17,7 @@ import { VersionNotice } from "@/components/version-notice";
 import { childCollectionsOf, getCatalog, getCollection } from "@/lib/catalog";
 import { collectionAncestors, hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
 import { envMeta } from "@/lib/env";
-import { LOWER_48 } from "@/lib/map-area";
+import { LOWER_48, mapArea } from "@/lib/map-area";
 import { pageEnv, pageParam } from "@/lib/page-env";
 import type { Collection } from "@/lib/stac";
 import { versionsElsewhere } from "@/lib/versions-elsewhere";
@@ -309,6 +309,8 @@ export default async function CollectionPage({ params }: Props) {
               src={inline ? undefined : `${collectionJsonHref(env, c.id)}/footprint?items=1`}
               bbox={brokenGeometry ? LOWER_48 : c.bbox}
               label={`Items of ${c.title}`}
+              area={mapArea()}
+              dataName="the whole collection"
               hint={
                 c.itemsError ? "Items couldn't be read."
                 : brokenGeometry ? "Geometry couldn't be read."
