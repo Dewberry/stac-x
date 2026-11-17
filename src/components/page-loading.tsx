@@ -223,30 +223,31 @@ export function ItemLoading() {
       <div className="sx-cols">
         <div className="sx-col">
           <MapOutline />
-          <PanelOutline title="Assets" note="5rem">
-            <div className="sx-agroups">
-              <div className="sx-agroups-bar">
+          <PanelOutline title="Assets" note="1.5rem">
+            <div className="sx-alist">
+              <div className="sx-alist-bar">
                 <span className="sx-afilter sx-skel-field" />
-                <span className="sx-agroups-by">
-                  <Skel w="6rem" />
-                </span>
               </div>
-              {["5.5rem", "3rem", "6.5rem", "4rem", "7rem"].map((w) => (
-                <div key={w} className="sx-agroup">
-                  <div className="sx-agroup-head">
-                    <Chevron />
-                    <span className="sx-agroup-name">
-                      <b>
-                        <Skel w={w} />
-                      </b>
-                    </span>
-                    <span className="sx-agroup-meta">
-                      <Skel w="3rem" />
-                      <Skel w="1.25rem" />
-                    </span>
+              <div className="sx-arows">
+                {["9rem", "12rem", "7rem", "11rem", "8rem", "13rem", "10rem", "6rem"].map((w) => (
+                  <div key={w} className="sx-arow-wrap">
+                    <div className="sx-arow">
+                      <div className="sx-arow-line">
+                        <Chevron />
+                        <span className="sx-arow-file">
+                          <Skel w={w} />
+                        </span>
+                        <span className="sx-arow-roles">
+                          <Skel w="3rem" />
+                        </span>
+                        <span className="sx-arow-size">
+                          <Skel w="2.5rem" />
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </PanelOutline>
         </div>

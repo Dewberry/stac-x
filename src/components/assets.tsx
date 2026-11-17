@@ -1,4 +1,4 @@
-import { AssetGroups, type AssetGroupData } from "./asset-groups";
+import { AssetList } from "./asset-list";
 import { Thumbnail } from "./asset-preview";
 import { CopyButton } from "./copy-button";
 import { PreviewButton } from "./data-modal";
@@ -11,15 +11,18 @@ import type { StacAsset } from "@/lib/stac";
 import { assetHref, withBase } from "@/lib/utils";
 
 /**
- * The assets of an item, grouped by what they're for: model files, time
- * series, terrain, GIS layers and so on, worked out from each asset's roles
- * and media type. A model run can carry fifty files, and a flat list of them
- * can't be scanned. Every category starts collapsed, whatever its size.
- * Each asset is a row (file name, what it is, size) that opens to its
- * description, its image if it has one, its actions and whatever extra fields
- * it carries. The open row's header line holds its actions (Download, the
- * S3 URI to copy, Bucket View), and a parquet, CSV or JSON asset gets a
- * Preview button on its closed row that opens a look inside it in a dialog
+ * The assets of an item or a collection, as one list in name order, a page
+ * at a time, with a filter over all of it. They used to be sorted into
+ * groups (model files, terrain, GIS and so on) worked out from roles and
+ * media types, but the catalogs vary too much for any such rule to put
+ * files where a person would look for them, so there are no groups.
+ * Each asset is a row (file name, its roles, size) that opens to its title
+ * and description, its image if it has one, its media type, its actions and
+ * whatever extra fields it carries. The row shows roles and not the title because a title
+ * is often the file name again, or one sentence shared by forty files. The
+ * open row's header line holds its actions (Download, the S3 URI to copy,
+ * Bucket View), and a parquet, CSV or JSON asset gets a Preview button on
+ * its closed row that opens a look inside it in a dialog
  * (components/data-modal.tsx), read through the server.
  */
 const KNOWN = new Set(["href", "title", "description", "type", "roles"]);
@@ -28,138 +31,13 @@ function isRowList(v: unknown): v is Record<string, unknown>[] {
   return Array.isArray(v) && v.length > 0 && v.every((x) => x && typeof x === "object" && !Array.isArray(x));
 }
 
-type Bucket = { id: string; label: string; description: string };
-
-// In the order they're shown. The first bucket an asset fits is its group.
-const BUCKETS: (Bucket & { test: (roles: string[], type: string, file: string) => boolean })[] = [
-  {
-    id: "thumbs",
-    label: "Thumbnails",
-    description: "Plots and previews",
-    test: (r, t, f) => r.includes("thumbnail") || r.includes("overview") || isImageType(t, f),
-  },
-  {
-    id: "terrain",
-    label: "Terrain",
-    description: "GeoTIFF rasters and their sidecars",
-    test: (_r, t, f) => /tiff/.test(t) || /\.tiff?(\.aux\.xml)?$/.test(f),
-  },
-  { id: "series", label: "Time series", description: "HEC-DSS", test: (r, _t, f) => r.includes("hec-dss") || /\.dss$/.test(f) },
-  { id: "db", label: "Databases", description: "SQLite", test: (r, t) => /sqlite/.test(t) || r.some((x) => /sqlite/.test(x)) },
-  {
-    id: "gis",
-    label: "GIS",
-    description: "Shapefiles, projections and map layers",
-    test: (r, t, f) =>
-      r.some((x) => /-(gis|map)$|^projection$/.test(x)) || /vnd\.shp|x-dbf|geo\+json/.test(t) || /\.(shp|shx|dbf|prj|gdr)$/.test(f),
-  },
-  {
-    id: "model",
-    label: "Model data",
-    description: "Project, basin, met, control and run files",
-    test: (r) => r.some((x) => /^(hms|ras|ressim|hec-ras|hec-hms)-/.test(x)),
-  },
-  { id: "data", label: "Data", description: "Tables and data files", test: (r, t) => r.includes("data") || /parquet|csv|json/.test(t) },
-];
-const OTHER: Bucket = { id: "other", label: "Other", description: "Everything else" };
-// Data first when there is some: it's usually what someone came to download.
-const ORDER = ["model", "data", "series", "terrain", "gis", "db", "thumbs", "other"];
-
-/** What a model file is, from its role, for the row beside its name. */
-const ROLE_WHAT: Record<string, string> = {
-  project: "Project",
-  basin: "Basin model",
-  met: "Meteorologic model",
-  control: "Control spec",
-  gage: "Gage file",
-  grid: "Grid file",
-  pdata: "Paired data",
-  run: "Run spec",
-  access: "Access file",
-  terrain: "Terrain spec",
-  geometry: "Geometry",
-  plan: "Plan",
-  flow: "Flow file",
-};
-
-function bucketOf(a: StacAsset, key: string): Bucket {
-  const roles = (a.roles ?? []).map((r) => r.toLowerCase());
-  const type = (a.type ?? "").toLowerCase();
-  const file = (a.href.split("/").pop() ?? key).toLowerCase();
-  return BUCKETS.find((b) => b.test(roles, type, file)) ?? OTHER;
+function isPlot(a: StacAsset): boolean {
+  return Boolean(a.roles?.some((r) => r === "thumbnail" || r === "overview")) || isImageType(a.type, a.href);
 }
 
-function grouped(assets: Record<string, StacAsset>, plotsFirst = false) {
-  const by = new Map<string, { bucket: Bucket; entries: [string, StacAsset][] }>();
-  for (const [key, a] of Object.entries(assets)) {
-    const b = bucketOf(a, key);
-    if (!by.has(b.id)) by.set(b.id, { bucket: b, entries: [] });
-    by.get(b.id)!.entries.push([key, a]);
-  }
-  const order = plotsFirst ? ["thumbs", ...ORDER.filter((id) => id !== "thumbs")] : ORDER;
-  return order.filter((id) => by.has(id)).map((id) => by.get(id)!);
-}
-
-/** "52 in 6 groups", or just the count when there's one group. */
+/** The count beside the panel's title. */
 export function assetNote(assets: Record<string, StacAsset>): string {
-  const n = Object.keys(assets).length;
-  const g = grouped(assets).length;
-  return g > 1 ? `${n} in ${g} groups` : String(n);
-}
-
-/** What a file is from its extension, when its media type is too generic to say. */
-const EXT_WHAT: [RegExp, string][] = [
-  [/\.tiff?\.aux\.xml$/, "Raster sidecar"],
-  [/\.tiff?$/, "GeoTIFF"],
-  [/\.dss$/, "DSS file"],
-  [/\.shp$/, "Shapefile"],
-  [/\.shx$/, "Shapefile index"],
-  [/\.dbf$/, "Shapefile attributes"],
-  [/\.prj$/, "Projection"],
-  [/\.gdr$/, "Map layer"],
-  [/\.xml$/, "Map layer"],
-  [/\.sqlite3?$/, "SQLite database"],
-  [/\.txt$/, "Text"],
-];
-const GENERIC = /^(text\/plain|application\/octet-stream|application\/xml|text\/xml)?$/;
-
-function whatOf(a: StacAsset, file: string): string {
-  if (a.title && a.title !== file && !a.title.endsWith(file)) return a.title;
-  // A model role names a project file; a raster that carries one is still a GeoTIFF.
-  const generic = GENERIC.test((a.type ?? "").toLowerCase().split(";")[0].trim());
-  const role = generic ? a.roles?.find((r) => /^(hms|ras|ressim|hec-ras|hec-hms)-/i.test(r)) : undefined;
-  if (role) {
-    const [tool, part] = role.toLowerCase().replace(/^hec-/, "").split("-");
-    const what = ROLE_WHAT[part];
-    if (what) return part === "project" ? `${tool.toUpperCase()} project` : what;
-  }
-  const ext = EXT_WHAT.find(([re]) => re.test(file.toLowerCase()))?.[1];
-  return ext ?? (mediaLabel(a.type) || humanize(a.roles?.[0] ?? ""));
-}
-
-/**
- * The format chip for an asset: its media type, or where that only says
- * "text" or "bytes", its role ("HEC-DSS", "HMS-BASIN").
- */
-function formatOf(a: StacAsset, key: string): string {
-  const type = (a.type ?? "").toLowerCase().split(";")[0].trim();
-  if (!GENERIC.test(type)) return mediaLabel(a.type);
-  const role = a.roles?.find((r) => r !== "data" && r !== "metadata");
-  if (role) return role.toUpperCase();
-  const ext = /\.([a-z0-9]+)$/i.exec(a.href.split("/").pop() ?? key)?.[1];
-  return ext ? ext.toUpperCase() : mediaLabel(a.type);
-}
-
-/** At most two chips for a group; a family of roles ("HMS-BASIN", "HMS-MET") reads as one ("HMS-*"). */
-function chipsOf(formats: string[]): string[] {
-  const out: string[] = [];
-  for (const f of formats) {
-    const family = /^([A-Z]+)-/.exec(f)?.[1];
-    const shared = family && formats.filter((x) => x.startsWith(`${family}-`)).length > 1;
-    const chip = shared ? `${family}-*` : f;
-    if (!out.includes(chip)) out.push(chip);
-  }
-  return out.slice(0, 2);
+  return String(Object.keys(assets).length);
 }
 
 /**
@@ -167,44 +45,35 @@ function chipsOf(formats: string[]): string[] {
  * is the thing to see and the files behind it are secondary.
  */
 export function Assets({ assets, plotsFirst = false }: { assets: Record<string, StacAsset>; plotsFirst?: boolean }) {
-  const groups = grouped(assets, plotsFirst);
-  if (!groups.length) return <p className="sx-empty">This item has no assets.</p>;
-  const data: AssetGroupData[] = groups.map(({ bucket, entries }) => {
-    entries.sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
-    const formats = Array.from(new Set(entries.map(([key, a]) => formatOf(a, key)).filter(Boolean)));
-    return {
-      id: bucket.id,
-      label: bucket.label,
-      description: bucket.description,
-      formats: chipsOf(formats),
-      open: false,
-      rows: entries.map(([key, a]) => {
-        const file = a.href.split("/").pop() || key;
-        const what = whatOf(a, file);
-        const size = typeof a["file:size"] === "number" ? fmtBytes(a["file:size"] as number) : null;
-        return {
-          key,
-          file,
-          what,
-          size,
-          search: `${key} ${file} ${a.title ?? ""} ${what} ${a.type ?? ""} ${formatOf(a, key)} ${(a.roles ?? []).join(" ")}`.toLowerCase(),
-          action: isPreviewable(a.type, a.href) ? (
-            <PreviewButton
-              url={withBase(`/api/preview?href=${encodeURIComponent(a.href)}`)}
-              file={file}
-              ariaLabel={`Preview ${file}`}
-              title={a.title && a.title !== file ? a.title : undefined}
-              format={formatTag(a.type, a.href)}
-              icon={null}
-              actions={<AssetActions a={a} />}
-            />
-          ) : undefined,
-          body: <AssetBody k={key} a={a} />,
-        };
-      }),
-    };
-  });
-  return <AssetGroups groups={data} />;
+  const entries = Object.entries(assets).map(([key, a]) => ({ key, a, file: a.href.split("/").pop() || key }));
+  if (!entries.length) return <p className="sx-empty">This item has no assets.</p>;
+  entries.sort(
+    (x, y) =>
+      (plotsFirst ? Number(isPlot(y.a)) - Number(isPlot(x.a)) : 0) || x.file.localeCompare(y.file, undefined, { numeric: true }),
+  );
+  return (
+    <AssetList
+      rows={entries.map(({ key, a, file }) => ({
+        key,
+        file,
+        roles: a.roles ?? [],
+        size: typeof a["file:size"] === "number" ? fmtBytes(a["file:size"] as number) : null,
+        search: `${key} ${file} ${a.title ?? ""} ${a.type ?? ""} ${mediaLabel(a.type)} ${(a.roles ?? []).join(" ")}`.toLowerCase(),
+        action: isPreviewable(a.type, a.href) ? (
+          <PreviewButton
+            url={withBase(`/api/preview?href=${encodeURIComponent(a.href)}`)}
+            file={file}
+            ariaLabel={`Preview ${file}`}
+            title={a.title && a.title !== file ? a.title : undefined}
+            format={formatTag(a.type, a.href)}
+            icon={null}
+            actions={<AssetActions a={a} />}
+          />
+        ) : undefined,
+        body: <AssetBody k={key} file={file} a={a} />,
+      }))}
+    />
+  );
 }
 
 /** The same file actions in the expanded asset and its preview dialog. */
@@ -229,15 +98,16 @@ function AssetActions({ a }: { a: StacAsset }) {
 
 /**
  * The open row's header line: the title (or, without one, the description)
- * on the left and the actions on the right: Download, the copy button
- * that says what it copies, and Bucket View, which opens the file's folder
- * (only where CLOUD_VIEW_URL is set).
+ * on the left, where they say more than the file name does, and the
+ * actions on the right: Download, the copy button that says what it copies,
+ * and Bucket View, which opens the file's folder (only where CLOUD_VIEW_URL
+ * is set).
  */
-function AssetHead({ a }: { a: StacAsset }) {
+function AssetHead({ a, title, description }: { a: StacAsset; title?: string; description?: string }) {
   return (
     <div className="sx-asset-head">
-      {a.title && <div className="sx-asset-title">{a.title}</div>}
-      {!a.title && a.description && <p className="text-small text-ink-sec">{a.description}</p>}
+      {title && <div className="sx-asset-title">{title}</div>}
+      {!title && description && <p className="text-small text-ink-sec">{description}</p>}
       <div className="sx-asset-acts">
         <AssetActions a={a} />
       </div>
@@ -245,7 +115,11 @@ function AssetHead({ a }: { a: StacAsset }) {
   );
 }
 
-function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
+function AssetBody({ k: key, file, a }: { k: string; file: string; a: StacAsset }) {
+  // A title or description that only says the file name again is left out:
+  // the row above already has it.
+  const title = a.title && a.title !== file ? a.title : undefined;
+  const description = a.description && a.description !== file && a.description !== title ? a.description : undefined;
   const image = isImageType(a.type, a.href);
   const extra = Object.entries(a).filter(([k]) => !KNOWN.has(k));
   // A list of like objects (file:values on the AMS asset) is a table in
@@ -254,17 +128,14 @@ function AssetBody({ k: key, a }: { k: string; a: StacAsset }) {
   const fields = extra.filter(([, v]) => !isRowList(v));
   return (
     <>
-      <AssetHead a={a} />
-      {a.title && a.description && <p className="text-small text-ink-sec">{a.description}</p>}
+      <AssetHead a={a} title={title} description={description} />
+      {title && description && <p className="text-small text-ink-sec">{description}</p>}
       {image && <Thumbnail src={assetHref(a.href)} alt={a.title || humanize(key)} />}
-      <div className="flex flex-wrap gap-1">
-        {a.type && <span className="sx-tag">{mediaLabel(a.type)}</span>}
-        {a.roles?.map((r) => (
-          <span key={r} className="sx-tag">
-            {r}
-          </span>
-        ))}
-      </div>
+      {a.type && (
+        <div className="flex flex-wrap gap-1">
+          <span className="sx-tag">{mediaLabel(a.type)}</span>
+        </div>
+      )}
       {fields.length > 0 && <MetaTable className="-mx-3 w-auto" entries={fields.map(([k, v]) => ({ key: k, value: v }))} />}
       {tables.map(([k, rows]) => (
         <div key={k} className="sx-asset-table">

@@ -11,14 +11,14 @@
      status.css          Chips and tags.
      tables.css          Tables, metadata rows, the data dialog and the JSON tree.
      lists.css           Rows, keywords, descriptions, the pager.
-     assets.css          Assets and thumbnails (the grouped asset rows are in item-pages.css).
+     assets.css          Assets and thumbnails (the asset rows are in item-pages.css).
      review-form.css     The QC review form, promotion path and history on a collection page.
      admin.css           The Admin page: queue, bulk bar, review sheet, decision cards, activity.
      chrome.css          Header and footer.
      environments.css    Environment switcher and band, menus, account, skip link, version notice.
      maps.css            Maps, tooltips and map cards.
      home.css            The home page: console, rail, open rows, phone sheet.
-     item-pages.css      Page action menu, grouped asset rows, metadata values (Oct 2026 design review).
+     item-pages.css      Page action menu, asset rows, metadata values (Oct 2026 design review).
      admin-review.css    Queue cards and the review sheet as revised in the Oct 2026 design review.
      loading.css         The spinner, the gray bars, and each page's outline while it loads.
 */

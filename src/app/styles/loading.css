@@ -119,7 +119,7 @@
    would leave it a few pixels tall. It keeps its one line of height. */
 .sx-loading-outline .sx-row-sub,
 .sx-loading-outline .sx-subtitle,
-.sx-loading-outline .sx-agroup-name {
+.sx-loading-outline .sx-arow-line {
   align-items: center;
   min-height: 1lh;
 }
