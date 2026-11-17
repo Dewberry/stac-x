@@ -18,6 +18,7 @@ import { getCatalog, getCollection } from "@/lib/catalog";
 import { envMeta } from "@/lib/env";
 import { LOWER_48, mapArea } from "@/lib/map-area";
 import { pageEnv, pageParam } from "@/lib/page-env";
+import { isSimplified } from "@/lib/simplified";
 import { collectionName, fmtDate, fmtNum, fmtRange, humanize, itemLabel, tidyCaps } from "@/lib/format";
 import { itemKindLabel, projectTitle, untitledName } from "@/lib/item-kinds";
 import { itemVersions, type ItemVersion } from "@/lib/item-versions";
@@ -114,10 +115,12 @@ export default async function ItemPage({ params }: Props) {
   // As on the collection page: a file whose geometry couldn't be read has
   // none of it drawn, this item's included.
   const brokenGeometry = c.geometryErrors > 0;
+  // Said on the map and in its readout, since the shape drawn isn't the full one.
+  const simplified = isSimplified(p);
   const geo: FeatureCollection = {
     type: "FeatureCollection",
     features: item.geometry && !brokenGeometry
-      ? [{ type: "Feature", id: item.id, properties: { id: item.id, label: title }, geometry: item.geometry }]
+      ? [{ type: "Feature", id: item.id, properties: { id: item.id, label: title, simplified: simplified || undefined }, geometry: item.geometry }]
       : [],
   };
 
@@ -222,7 +225,7 @@ export default async function ItemPage({ params }: Props) {
                 label={`Location of ${title}`}
                 area={mapArea()}
                 dataName="the item"
-                hint={brokenGeometry ? "Geometry couldn't be read." : item.geometry ? `${item.geometry.type}, WGS 84` : "No geometry on this item."}
+                hint={brokenGeometry ? "Geometry couldn't be read." : item.geometry ? `${item.geometry.type}, WGS 84${simplified ? ", simplified geometry" : ""}` : "No geometry on this item."}
               />
             </MapBoundary>
           </div>

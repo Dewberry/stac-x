@@ -9,6 +9,7 @@ import { collectionParents, hierarchyOf } from "./collection-hierarchy";
 import { footprintBytes, footprintOf, INLINE_MAX, unitOf, type Footprint } from "./footprint";
 import { itemRowsOf } from "./item-rows";
 import { areaOutside, areaShare, inArea, mapArea, mapFrame } from "./map-area";
+import { isSimplified } from "./simplified";
 import type { Collection } from "./stac";
 import { collectionHref, collectionJsonHref } from "./utils";
 
@@ -165,7 +166,7 @@ async function compute(env: EnvKey, catalog: Catalog): Promise<HomeData> {
       const shape = shapeOf.get(i.id);
       const row = rowOf.get(i.id);
       return shape && row
-        ? [{ id: i.id, key: shape.key, tint: shape.tint, label: row.label ?? i.id, hideId: !!row.hideId, kind: row.kind ?? null, start: row.start, end: row.end }]
+        ? [{ id: i.id, key: shape.key, tint: shape.tint, label: row.label ?? i.id, hideId: !!row.hideId, kind: row.kind ?? null, start: row.start, end: row.end, simplified: isSimplified(i.properties) || undefined }]
         : [];
     });
   };

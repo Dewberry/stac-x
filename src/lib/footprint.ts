@@ -3,6 +3,7 @@ import "server-only";
 import { itemRowsOf } from "./item-rows";
 import { areaCovered, type MapArea } from "./map-area";
 import { overview, polygonsOf, type Overview } from "./overview";
+import { isSimplified } from "./simplified";
 import type { Collection } from "./stac";
 
 /**
@@ -28,9 +29,12 @@ export function footprintOf(c: Collection, area: MapArea | null): Footprint {
   const o = overview(c.items, slug, c.bbox);
   if (o.shape === "points" || o.features.some((f) => f.properties?.role === "point")) {
     const rowOf = new Map(itemRowsOf(c).map((r) => [r.id, r]));
+    // An item whose own geometry is a simplified one (lib/simplified.ts), so its dot can say so.
+    const simplified = new Set(c.items.filter((i) => isSimplified(i.properties)).map((i) => i.id));
     for (const f of o.features) {
       const row = f.properties?.role === "point" ? rowOf.get(f.properties.id) : undefined;
       if (row) Object.assign(f.properties!, { label: row.label, hideId: row.hideId, kind: row.kind, start: row.start, end: row.end });
+      if (row && simplified.has(row.id)) f.properties!.simplified = true;
     }
   }
   // Shapes that contain the whole area (a national inventory's extent box)

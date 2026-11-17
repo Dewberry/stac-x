@@ -5,7 +5,9 @@ import { Icon, ICONS } from "./icons";
 /**
  * The card a click on a map opens, on the landing map and the collection
  * page alike: each item under the click is one row, and the whole row opens
- * the item, so the card needs no buttons. A long stack scrolls. On the
+ * the item, so the card needs no buttons. A row whose shape is a simplified
+ * one says so, and keeps saying it for as long as the card is open. A long
+ * stack scrolls. On the
  * landing map a tinted band on top names the collection the items are in,
  * with the way to it; the collection page is already that collection, so
  * it has no band.
@@ -19,6 +21,8 @@ export type MapCardRow = {
   tint?: 1 | 2 | 3;
   /** The label already says the id ("Storm event 1"). */
   hideId?: boolean;
+  /** The shape drawn for it is a simplified one (lib/simplified.ts). */
+  simplified?: boolean;
   href: string;
 };
 
@@ -58,6 +62,7 @@ export function MapCard({
                     {r.kind && <span className="ffx-map-tip-kind">{r.kind}</span>}
                     {r.label && <span className="sx-card-item-name">{r.label}</span>}
                     {!(r.label && r.hideId) && <span className="ffx-id sx-card-item-id">{r.id}</span>}
+                    {r.simplified && <span className="sx-map-flag">Simplified geometry</span>}
                     <Icon d={ICONS.chevronRight} size={12} />
                   </Link>
                 </li>
