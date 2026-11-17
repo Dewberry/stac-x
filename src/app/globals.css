@@ -20,6 +20,7 @@
      home.css            The home page: console, rail, open rows, phone sheet.
      item-pages.css      Page action menu, grouped asset rows, metadata values (Oct 2026 design review).
      admin-review.css    Queue cards and the review sheet as revised in the Oct 2026 design review.
+     loading.css         The spinner, the gray bars, and each page's outline while it loads.
 */
 @import "./styles/tokens.css";
 @import "./styles/base.css";
@@ -36,3 +37,4 @@
 @import "./styles/home.css";
 @import "./styles/item-pages.css";
 @import "./styles/admin-review.css";
+@import "./styles/loading.css";

@@ -1,4 +1,4 @@
-import { PageLoading } from "@/components/page-loading";
+import { AdminLoading } from "@/components/page-loading";
 
 /**
  * Admin while the catalogs are read (components/page-loading.tsx). After a
@@ -6,5 +6,5 @@ import { PageLoading } from "@/components/page-loading";
  * the page that waits longest.
  */
 export default function Loading() {
-  return <PageLoading>Loading Admin…</PageLoading>;
+  return <AdminLoading />;
 }

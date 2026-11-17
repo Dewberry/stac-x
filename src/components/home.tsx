@@ -51,7 +51,9 @@ import { stateOf } from "./qc-mark";
 
 const HomeMap = nextDynamic(() => import("./home-map").then((m) => m.HomeMap), {
   ssr: false,
-  loading: () => <div className="animate-pulse bg-inset" style={{ position: "absolute", inset: 0 }} />,
+  // The frame behind it is already the map's still surface (.sx-console-map),
+  // the same one the loading page had, so nothing blinks while the library loads.
+  loading: () => null,
 });
 
 export type HomeArea = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DataTable } from "./data-table";
-import { Loading } from "./spinner";
+import { Skel } from "./spinner";
 import type { TablePreview } from "@/lib/data-preview";
 import { fmtBytes, fmtNum } from "@/lib/format";
 
@@ -37,7 +37,30 @@ export function DataPanel({ href, limit = 5 }: { href: string; limit?: number })
     return () => ac.abort();
   }, [href, limit]);
 
-  if (state.status === "loading") return <Loading>Reading the first rows…</Loading>;
+  // The table's own outline, at the height it will have, so the panels
+  // under this one don't jump down when the rows come in.
+  if (state.status === "loading")
+    return (
+      <>
+        <p className="sr-only" role="status">
+          Reading the first rows…
+        </p>
+        <div aria-hidden="true">
+          <p className="sx-data-note">
+            <Skel w="min(22rem, 80%)" />
+          </p>
+          <div className="sx-skel-table">
+            {Array.from({ length: limit + 1 }, (_, row) => (
+              <div key={row}>
+                {["60%", "80%", "45%", "70%"].map((w, col) => (
+                  <Skel key={col} w={row === 0 ? "40%" : w} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
   if (state.status === "error") return <p className="sx-data-note sx-form-error">Couldn&apos;t read the file: {state.error}</p>;
 
   const d = state.data!;

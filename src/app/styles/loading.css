@@ -1,0 +1,357 @@
+/* ============================== loading ==============================
+   Everything the app shows while it waits: the spinner, the gray bars, and
+   each page's outline (components/page-loading.tsx, home-loading.tsx).
+
+   An outline is the real page's own markup with bars where the data goes,
+   so its sizes come from the same rules the page uses and the two can't
+   drift apart. What's here is only the bar itself and the few pieces that
+   stand in for a control. */
+
+/* The spinner (components/spinner.tsx): a ring with one blue arc. Loading
+   is the ring with a line beside it, centered in what's still empty. It's
+   for a wait with no shape to show yet, like a file opened in the dialog. */
+.sx-spinner {
+  display: inline-block;
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid var(--ffx-rule);
+  border-top-color: var(--ffx-river);
+  border-radius: 50%;
+  animation: sx-spin 0.8s linear infinite;
+}
+.sx-spinner-lg {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-width: 2.5px;
+}
+@keyframes sx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-spinner {
+    animation-duration: 2.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+.sx-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1.5rem 1rem;
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-mut);
+}
+.sx-dm-scroll .sx-loading {
+  padding: 3.5rem 1rem;
+}
+
+/* One gray bar. It's inline, so inside a title or a table cell the line
+   keeps that element's own height and the bar sits in the middle of it. A
+   soft light passes over it; with reduced motion it's a still bar. */
+.sx-skel {
+  display: inline-block;
+  flex: none;
+  width: var(--w, 50%);
+  max-width: 100%;
+  height: 0.72em;
+  min-height: 8px;
+  border-radius: 4px;
+  vertical-align: middle;
+  background: linear-gradient(90deg, var(--sx-skel, var(--ffx-rule)) 0 38%, var(--sx-skel-hi, var(--ffx-surface-inset)) 50%, var(--sx-skel, var(--ffx-rule)) 62% 100%);
+  background-size: 240% 100%;
+  animation: sx-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes sx-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+/* On the page's own background, where the card's bar color would vanish. */
+.sx-loading-page .sx-head .sx-skel {
+  --sx-skel: var(--ffx-rule-strong);
+  --sx-skel-hi: var(--ffx-rule);
+}
+/* In the dark the light that passes over a bar has to be lighter than the
+   bar, not the inset surface, which there is the darkest thing on the page. */
+:root[data-theme="dark"] .sx-skel {
+  --sx-skel-hi: var(--ffx-rule-strong);
+}
+:root[data-theme="dark"] .sx-loading-page .sx-head .sx-skel {
+  --sx-skel-hi: color-mix(in srgb, var(--ffx-rule-strong) 75%, var(--ffx-ink));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sx-skel {
+    --sx-skel-hi: var(--ffx-rule-strong);
+  }
+  :root:not([data-theme="light"]) .sx-loading-page .sx-head .sx-skel {
+    --sx-skel-hi: color-mix(in srgb, var(--ffx-rule-strong) 75%, var(--ffx-ink));
+  }
+}
+
+/* A page's outline. Nothing in it answers the pointer, and it waits a
+   moment before it shows: most pages are ready at once, and gray bars
+   flashing up for a tenth of a second read as a glitch. */
+.sx-loading-outline {
+  display: grid;
+  gap: var(--ffx-deck-gap);
+  pointer-events: none;
+  user-select: none;
+  animation: sx-outline-in 0.2s ease-out 0.15s both;
+}
+.sx-home[aria-busy="true"] {
+  pointer-events: none;
+  animation: sx-outline-in 0.2s ease-out 0.15s both;
+}
+@keyframes sx-outline-in {
+  from {
+    opacity: 0;
+  }
+}
+/* A line laid out as a flex row has no text to hold it open, so bars alone
+   would leave it a few pixels tall. It keeps its one line of height. */
+.sx-loading-outline .sx-row-sub,
+.sx-loading-outline .sx-subtitle,
+.sx-loading-outline .sx-agroup-name {
+  align-items: center;
+  min-height: 1lh;
+}
+/* The title is a bar a little heavier than the rest. */
+.sx-loading-page .sx-title .sx-skel {
+  height: 0.62em;
+  border-radius: 6px;
+}
+
+/* Where a button goes: its box, empty. */
+.sx-skel-btn {
+  display: inline-block;
+  height: 1.875rem;
+  border: 1px solid var(--ffx-rule);
+  border-radius: var(--ffx-radius-sm);
+  background: var(--ffx-surface);
+}
+/* The one pill the page's buttons fold into below 64rem. */
+.sx-skel-more {
+  width: 2.125rem;
+}
+@media (min-width: 64rem) {
+  .sx-skel-more {
+    display: none;
+  }
+}
+/* A search or sort field with nothing in it, its edge quieter than a live one. */
+.sx-skel-field {
+  border-color: var(--ffx-rule);
+  color: var(--ffx-ink-dim);
+}
+/* A folded panel's head, as the real one's summary is sized (base.css). */
+.sx-skel-summary {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding-block: 0.875rem;
+}
+/* The map's frame, with the zoom buttons' place in its corner. */
+.sx-skel-map {
+  position: relative;
+}
+.sx-skel-map::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 136px;
+  border-radius: 10px;
+  background: var(--ffx-surface);
+  opacity: 0.7;
+}
+.sx-loading-page .ffx-map-readout {
+  min-height: 2.5rem;
+  align-items: center;
+}
+
+/* Admin's queue: a head strip and rows that stand for the table on a wide
+   screen and the cards on a narrow one. */
+.sx-skel-qhead {
+  height: 38px;
+  border-top: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-sunken);
+}
+.sx-skel-qrow {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  min-height: 69px;
+  padding: 0.75rem var(--ffx-panel-pad);
+  border-top: 1px solid var(--ffx-grid);
+}
+.sx-skel-check {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--ffx-rule-strong);
+  border-radius: 4px;
+}
+.sx-skel-qname {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.sx-skel-qfacts {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+/* Below 64rem the queue is cards: the name beside a bigger checkbox, then
+   the facts and the Review button on a line under it. */
+@media (max-width: 63.99rem) {
+  .sx-skel-qhead {
+    display: none;
+  }
+  .sx-skel-qrow {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.875rem 0.75rem;
+    padding-block: 1rem;
+    border-top-color: var(--ffx-rule);
+  }
+  .sx-skel-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+  }
+  .sx-skel-qname {
+    grid-column: 2 / -1;
+  }
+  .sx-skel-qfacts {
+    grid-column: 2;
+    align-self: center;
+    gap: 0.75rem;
+  }
+  .sx-skel-qfacts .sx-skel:last-child {
+    display: none;
+  }
+  .sx-skel-qrow .sx-skel-btn {
+    grid-column: 3;
+    height: 2.25rem;
+    border-radius: 999px;
+  }
+}
+.sx-skel-activity {
+  display: grid;
+  gap: 1rem;
+  padding: 0.5rem var(--ffx-panel-pad) 1.25rem;
+}
+.sx-skel-activity > div {
+  display: grid;
+  gap: 0.375rem;
+}
+.sx-skel-activity .sx-skel + .sx-skel {
+  height: 8px;
+}
+
+/* The first rows of a dataset's file while they're read
+   (components/data-panel.tsx): the line above the table, then its head
+   and five rows, at the height the table will have. */
+.sx-skel-table {
+  border-top: 1px solid var(--ffx-rule);
+}
+.sx-skel-table > div {
+  display: grid;
+  grid-template-columns: 1.2fr 2fr 1fr 1.4fr;
+  gap: 1.5rem;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--ffx-panel-pad);
+  border-bottom: 1px solid var(--ffx-grid);
+}
+.sx-skel-table > div:first-child {
+  height: 35px;
+  border-bottom-color: var(--ffx-rule);
+}
+.sx-skel-table > div:last-child {
+  border-bottom: 0;
+}
+
+/* The landing page while the catalog loads (components/home-loading.tsx):
+   the area traced where the map goes, and the rail with its real head and
+   bars for rows. */
+.sx-loading-map {
+  display: grid;
+  place-items: center;
+}
+.sx-loading-area {
+  position: absolute;
+  inset: 24px;
+  width: calc(100% - 48px);
+  height: calc(100% - 48px);
+}
+.sx-loading-area-under {
+  fill: var(--ffx-trace);
+  fill-opacity: 0.1;
+  stroke: var(--ffx-ink);
+  stroke-opacity: 0.28;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.sx-loading-area-trace {
+  fill: none;
+  stroke: var(--ffx-trace-strong);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 0.16 0.84;
+  animation: sx-trace 2.8s linear infinite;
+}
+@keyframes sx-trace {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+.sx-loading-status {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  background: var(--ffx-surface);
+  box-shadow: var(--ffx-shadow-float);
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  white-space: nowrap;
+}
+/* The legend's counts aren't known yet; the states and their marks are. */
+.sx-loading-states .sx-state-btn .sx-skel {
+  height: 9px;
+}
+/* The count beside each row's name is a short bar over a shorter one. */
+.sx-loading-rows .sx-row-fig .sx-skel,
+.sx-loading-rows .sx-row-title .sx-skel {
+  height: 11px;
+}
+.sx-loading-rows .sx-row-sub .sx-skel,
+.sx-loading-rows .sx-row-unit .sx-skel {
+  height: 8px;
+}
+/* An open dataset's items in the rail while they're fetched
+   (components/home-preview.tsx): the block the list will fill, with a bar
+   for each of the first few names. */
+.sx-loading-items .sx-item {
+  min-height: 39px;
+}
