@@ -10,11 +10,14 @@ import type {
   Map as MapLibreMap,
   Popup,
 } from "maplibre-gl";
-import type { FeatureCollection, Position } from "geojson";
+import type { FeatureCollection, MultiPolygon, Position } from "geojson";
 import type { Symbology } from "@/lib/symbology";
+import { Icon, ICONS } from "./icons";
 import { MapCard } from "./map-card";
 import {
   applyBasemap,
+  AREA_LINE,
+  areaData,
   blankStyle,
   Controls,
   creditsOf,
@@ -23,6 +26,7 @@ import {
   lineColor,
   lineWidth,
   MapCredits,
+  outsideArea,
   palette,
   tintColor,
   tintOpacity,
@@ -58,6 +62,12 @@ import {
  * palette, no key and no cap, dressed in the app's colors the same way the
  * landing map is. If it can't be fetched the features still draw over a
  * plain ground and the readout says so.
+ *
+ * Given the deployment's area (lib/map-area.ts), the map draws it under the
+ * data the way the landing map does: its outline in ink, everything outside
+ * it under the sand wash. The map still opens on the data, which for a
+ * national collection is far wider than the area, so a pill in the corner
+ * goes to the area, and from there back to the data.
  */
 
 export type MapProps = {
@@ -76,6 +86,10 @@ export type MapProps = {
   hint?: string;
   /** How to use the features, said once, beside the first one pointed at. */
   tip?: string;
+  /** The deployment's area, outlined under the data with a button that goes to it. */
+  area?: { name: string; geometry: MultiPolygon; bbox: [number, number, number, number] } | null;
+  /** What the pill calls the data when it goes back to it from the area. */
+  dataName?: string;
 };
 
 export type MapFeatureProps = {
@@ -93,7 +107,11 @@ export type MapFeatureProps = {
 const SRC = "sx-data";
 /** The stretch of line under the cursor, drawn over the data while hovering. */
 const SRC_HOVER = "sx-hover";
+const SRC_AREA = "sx-area";
+const SRC_MASK = "sx-mask";
 const L = {
+  mask: "sx-outside-mask",
+  areaLine: "sx-area-line",
   extentFill: "sx-extent-fill",
   extentLine: "sx-extent-line",
   fill: "sx-fill",
@@ -244,8 +262,24 @@ function addLayers(
   hi: (string | null | undefined)[],
   lineHi: (string | null | undefined)[],
   selected: string | null,
+  area: MultiPolygon | null,
 ) {
   map.addSource(SRC, { type: "geojson", data, promoteId: "id" });
+
+  // The area first, so the data draws over its wash and its outline.
+  if (area) {
+    map.addSource(SRC_MASK, { type: "geojson", data: outsideArea(area) });
+    map.addSource(SRC_AREA, { type: "geojson", data: areaData(area) });
+    map.addLayer({
+      id: L.mask, type: "fill", source: SRC_MASK,
+      paint: { "fill-color": p.mapSurround, "fill-opacity": 1 },
+    });
+    map.addLayer({
+      id: L.areaLine, type: "line", source: SRC_AREA,
+      layout: { "line-join": "round" },
+      paint: { "line-color": p.ink, "line-width": AREA_LINE.width, "line-opacity": AREA_LINE.opacity },
+    });
+  }
 
   map.addLayer({
     id: L.extentFill, type: "fill", source: SRC, filter: ["all", isExtent, poly],
@@ -334,7 +368,7 @@ function addLayers(
   });
 }
 
-export function DataMap({ data, bbox, selected = null, hovered = null, onHover, label, hint, tip }: MapProps) {
+export function DataMap({ data, bbox, selected = null, hovered = null, onHover, label, hint, tip, area = null, dataName = "the data" }: MapProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -351,6 +385,11 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   // Set when the map couldn't be built at all (no WebGL, the library didn't
   // load), and thrown below so MapBoundary shows in the map's place.
   const [failed, setFailed] = useState<unknown>(null);
+  // Whether the map is framed to the area, so the pill offers the way back.
+  const [onArea, setOnArea] = useState(false);
+  // Set by a fit to the area and read when that move ends.
+  const toAreaRef = useRef(false);
+  const areaRef = useRef(area);
   // What to light up: everything under the cursor, everything in the card,
   // and the one pointed at in the list. As a string so the effect below can
   // watch it.
@@ -373,6 +412,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
     dataRef.current = data;
     bboxRef.current = bbox;
     selectedRef.current = selected;
+    areaRef.current = area;
     hiRef.current = JSON.parse(hiKey);
     lineHiRef.current = JSON.parse(lineHiKey);
     onHoverRef.current = onHover;
@@ -423,6 +463,12 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
         const b = boundsOf(dataRef.current, bboxRef.current);
         if (b) m.fitBounds(b, FIT);
       };
+      // The pill says where the map is: on the area after a fit to it, and
+      // not after any other move, by hand or by a button.
+      m.on("moveend", () => {
+        setOnArea(toAreaRef.current);
+        toAreaRef.current = false;
+      });
       m.addControl(new Controls(m, frame, fit), "top-right");
       m.addControl(new maplibregl.ScaleControl({ unit: "imperial" }), "bottom-left");
 
@@ -430,7 +476,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
         if (m.getSource(SRC)) return;
         const p = palette(frame);
         dressBasemap(m, p);
-        addLayers(m, p, dataRef.current, hiRef.current, lineHiRef.current, selectedRef.current);
+        addLayers(m, p, dataRef.current, hiRef.current, lineHiRef.current, selectedRef.current, areaRef.current?.geometry ?? null);
         setCredits(creditsOf(m));
       };
       const basemap = () => applyBasemap(m, frame, draw, setBasemapDown, () => disposed);
@@ -487,8 +533,7 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
       unwatch = watchTheme(() => {
         if (m.getSource(SRC)) {
           for (const id of Object.values(L)) if (m.getLayer(id)) m.removeLayer(id);
-          m.removeSource(SRC);
-          if (m.getSource(SRC_HOVER)) m.removeSource(SRC_HOVER);
+          for (const id of [SRC, SRC_HOVER, SRC_AREA, SRC_MASK]) if (m.getSource(id)) m.removeSource(id);
         }
         basemap();
       });
@@ -550,6 +595,22 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
     return () => document.removeEventListener("keydown", onKey);
   }, [hovering]);
 
+  // The pill's two moves: to the area, and back to the data.
+  const glide = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 750);
+  const showArea = () => {
+    const m = mapRef.current;
+    if (!m || !area) return;
+    const [w, s, e, n] = area.bbox;
+    toAreaRef.current = true;
+    // More room on top, so the pill doesn't sit on the outline.
+    m.fitBounds([[w, s], [e, n]], { padding: { top: 56, right: FIT.padding, bottom: FIT.padding, left: FIT.padding }, duration: glide() });
+  };
+  const showData = () => {
+    const m = mapRef.current;
+    const b = boundsOf(data, bbox);
+    if (m && b) m.fitBounds(b, { ...FIT, duration: glide() });
+  };
+
   const short = (f: MapFeatureProps) => [f.label, f.tag].filter(Boolean).join(" · ") || f.id;
   const name = (f: MapFeatureProps | null) => (f ? (f.label ? `${short(f)} (${f.id})` : f.id) : null);
   // A stack is named without ids, which the tooltip beside the cursor carries.
@@ -567,6 +628,12 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
   return (
     <figure ref={frameRef} className="ffx-map" aria-label={label}>
       <div ref={canvasRef} className="ffx-map-canvas" />
+      {area && (
+        <button type="button" className="sx-map-pill sx-map-area-pill" onClick={onArea ? showData : showArea}>
+          <Icon d={ICONS.fit} size={12} />
+          {onArea ? `Show ${dataName}` : `Show ${area.name}`}
+        </button>
+      )}
       {showTip && (
         <div
           className="ffx-map-tip"
