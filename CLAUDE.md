@@ -12,7 +12,9 @@ need to know is here.
   would drop the edit anyway. Writes are conditional on the sidecar's ETag
   so two reviewers can't overwrite each other.
 - Collection and item pages have STAC Browser's panels, named as it names
-  them. The collection page's columns follow the home console instead: the
+  them. The one exception is the panel STAC Browser calls "Additional
+  resources": here it's "Links", the STAC spec's own name for the field.
+  The collection page's columns follow the home console instead: the
   list on the left, the map on the right, so the map stays put when a
   collection is opened from the home page. The description starts folded
   there, since the rail already showed it.

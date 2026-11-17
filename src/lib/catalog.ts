@@ -164,7 +164,7 @@ export async function isCatalogAsset(href: string): Promise<boolean> {
 
 /**
  * The same for the asset route alone: an asset's href, or the href of a
- * link the pages list under "Additional resources" (a source spreadsheet
+ * link the pages list under "Links" (a source spreadsheet
  * on S3 that a browser can't open by its s3:// address). Not the tree
  * links, so the route never hands out the catalog's own JSON, and only a
  * link with a whole s3:// or file:// address: a bare relative path (an

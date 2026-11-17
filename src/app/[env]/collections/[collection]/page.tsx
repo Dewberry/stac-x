@@ -324,7 +324,7 @@ export default async function CollectionPage({ params }: Props) {
             </CollapsiblePanel>
           )}
           {c.resourceLinks.length > 0 && (
-            <Panel title="Additional resources" note={String(c.resourceLinks.length)} id="links">
+            <Panel title="Links" note={String(c.resourceLinks.length)} id="links">
               <ResourceLinks links={c.resourceLinks} />
             </Panel>
           )}
