@@ -224,12 +224,18 @@ The app reads stac-geoparquet and static STAC JSON items.
   Parquet has one schema for the whole file, so every asset key becomes its
   own set of columns on every row, and a file of a few megabytes can take
   gigabytes to read. STAC JSON items don't have this problem.
-- A line item can say what kind of line it is with the `stac-x:line`
-  property, and the maps draw it in that kind's color: `stream` (river blue),
-  `road` (black) or `levee` (red). A line item without the property, or with
-  a value that isn't one of those three, is drawn as a stream. It's set on
-  each item, not on the collection, so one collection can hold more than one
-  kind. In a parquet file it's a column of that name.
+- A line item can say how it's drawn with a `symbology` property, for
+  example `"symbology": { "color": "#cb4154", "size": 0.5 }`. `color` is a
+  hex color (`#rgb` or `#rrggbb`). `size` is the line's weight as a multiple
+  of the app's own, so 1 changes nothing, 0.5 is half as heavy and 2 is
+  double; it's kept between 0.25 and 4. Both are optional, and a line item
+  without the property, or with a value that can't be used, is drawn in
+  river blue at the default weight. A color that would be hard to see on
+  the light or the dark map is swapped there for a lighter or darker shade
+  of the same hue, so a black line is white on the dark map. It's set on each item, not on the
+  collection, so one collection can hold more than one kind of line. In a
+  parquet file it's a struct column of that name. The home map draws up to
+  12 different symbologies for one collection and the rest as plain lines.
 - A collection whose parquet file can't be read (it's missing, it has no
   `id` column, or it needs more memory or time than a file is allowed)
   still shows as a dataset, with the reason where its items would be.

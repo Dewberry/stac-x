@@ -65,14 +65,14 @@ export function palette(host: HTMLElement) {
     trace: c("--ffx-trace-strong"),
     traceSoft: c("--ffx-trace"),
     traceDeep: c("--ffx-trace-deep"),
-    lineRoad: c("--ffx-line-road"),
-    lineLevee: c("--ffx-line-levee"),
     planned: c("--ffx-planned"),
     mapLand: c("--ffx-map-land"),
     mapSurround: c("--ffx-map-surround"),
     mapWater: c("--ffx-map-water"),
     mapShade: c("--ffx-map-shade"),
     mapLight: c("--ffx-map-light"),
+    /** Whether this is the dark palette, for the colors the data brings in two shades. */
+    dark: resolveTheme() === "dark",
   };
   probe.remove();
   return p;
@@ -89,12 +89,21 @@ export function tintColor(p: Palette): ExpressionSpecification {
   return ["match", ["get", "tint"], 1, p.traceSoft, 2, p.trace, 3, p.traceDeep, p.trace];
 }
 /**
- * A line's color by its type (lib/line-types.ts, the feature's `line`):
- * roads in ink, levees in red, and `plain` for a stream or a line that
- * doesn't say.
+ * A line's color: the one its item asks for (lib/symbology.ts, the feature's
+ * `color`, or `colorDark` on the dark map when that one differs), and
+ * `plain` for a line that doesn't ask.
  */
 export function lineColor(p: Palette, plain: string): ExpressionSpecification {
-  return ["match", ["get", "line"], "road", p.lineRoad, "levee", p.lineLevee, plain];
+  const own: ExpressionSpecification[] = p.dark ? [["get", "colorDark"], ["get", "color"]] : [["get", "color"]];
+  return ["to-color", ["coalesce", ...own, plain]];
+}
+/** A line's width: `base` times the weight its item asks for, which is 1 when it doesn't. */
+export function lineWidth(base: number): ExpressionSpecification {
+  return ["*", base, ["coalesce", ["get", "size"], 1]];
+}
+/** One value for a line that brings its own color, another for a plain one. */
+export function ifColored(colored: number, plain: number): ExpressionSpecification {
+  return ["case", ["has", "color"], colored, plain];
 }
 
 /** The fill's opacity by its tint, the pale blue stronger so it shows on the white basin; `plain` for a shape with none. */

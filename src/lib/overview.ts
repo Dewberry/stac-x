@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Feature, Geometry, Position } from "geojson";
-import { lineTypeOf, type LineType } from "./line-types";
+import { symbologyKey, symbologyOf, type Symbology } from "./symbology";
 import type { StacItem } from "./stac";
 
 /**
@@ -108,17 +108,18 @@ export function polygonsOf(items: StacItem[]): Position[][][] {
 function shapes(items: (Pick<StacItem, "id" | "geometry"> & Partial<Pick<StacItem, "properties">>)[]) {
   const points: { at: Position; id: string }[] = [];
   const polygons = new Map<string, { rings: Position[][]; ids: string[] }>();
-  const lines = new Map<string, { line: Position[]; type: LineType | undefined }>();
+  const lines = new Map<string, { line: Position[]; style: Symbology | undefined }>();
+  const styles = new Set<string>();
 
   for (const { id, geometry: g, properties } of items) {
     if (!g) continue;
-    const type = lineTypeOf(properties);
+    const style = lineStyle(symbologyOf(properties), styles);
     for (const part of parts(g)) {
       if (part.type === "Point") points.push({ at: round(part.coordinates), id });
       else if (part.type === "LineString") {
         const line = clean(part.coordinates);
-        // Keyed with its type, so a road and a levee on the same path are both kept.
-        lines.set(`${type ?? ""}|${JSON.stringify(line)}`, { line, type });
+        // Keyed with its symbology, so a road and a levee on the same path are both kept.
+        lines.set(`${symbologyKey(style)}|${JSON.stringify(line)}`, { line, style });
       } else {
         const rings = part.coordinates.map(clean).filter((r) => r.length >= 4);
         if (!rings.length) continue;
@@ -130,6 +131,24 @@ function shapes(items: (Pick<StacItem, "id" | "geometry"> & Partial<Pick<StacIte
     }
   }
   return { points, polygons, lines };
+}
+
+/**
+ * The most symbologies one collection's lines are drawn in here. Each is a
+ * feature of its own, and a file that gave every reach its own color would
+ * be thousands of them, so past this many the rest draw as plain lines.
+ */
+const MAX_LINE_STYLES = 12;
+
+/** The symbology to draw a line in: its own while there's room for another, and none after. */
+function lineStyle(style: Symbology | undefined, seen: Set<string>): Symbology | undefined {
+  if (!style) return undefined;
+  const k = symbologyKey(style);
+  if (!seen.has(k)) {
+    if (seen.size >= MAX_LINE_STYLES) return undefined;
+    seen.add(k);
+  }
+  return style;
 }
 
 /**
@@ -190,16 +209,17 @@ export function overview(items: StacItem[], slug: string, bbox: [number, number,
         features.push(tag("fill", { type: "MultiPolygon", coordinates: polys }));
       }
       if (polys.length) features.push(tag("line", { type: "MultiLineString", coordinates: outline(polys) }));
-      // Line items, one feature for each type they say they are (lib/line-types.ts), so each draws in its color.
-      const byType = new Map<LineType | undefined, Position[][]>();
-      for (const { line, type } of lines.values()) {
-        const had = byType.get(type);
-        if (had) had.push(line);
-        else byType.set(type, [line]);
+      // Line items, one feature for each symbology they ask for (lib/symbology.ts), so each draws in its own.
+      const byStyle = new Map<string, { style: Symbology | undefined; coordinates: Position[][] }>();
+      for (const { line, style } of lines.values()) {
+        const k = symbologyKey(style);
+        const had = byStyle.get(k);
+        if (had) had.coordinates.push(line);
+        else byStyle.set(k, { style, coordinates: [line] });
       }
-      for (const [type, coordinates] of byType) {
+      for (const { style, coordinates } of byStyle.values()) {
         const f = tag("line", { type: "MultiLineString", coordinates });
-        if (type) f.properties!.line = type;
+        Object.assign(f.properties!, style);
         features.push(f);
       }
       // A collection with both shapes (gages beside a model, say) keeps its dots.

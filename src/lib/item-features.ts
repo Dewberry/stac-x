@@ -4,15 +4,15 @@ import type { Feature } from "geojson";
 import type { ItemRow } from "@/components/items-list";
 import type { EnvKey } from "./env";
 import { INLINE_MAX } from "./footprint";
-import { lineTypeOf } from "./line-types";
+import { symbologyOf } from "./symbology";
 import type { Collection } from "./stac";
 import { itemHref } from "./utils";
 
 /**
  * A collection's items as its own page's map draws them: one feature for
  * each item that has a geometry, carrying the item's name, kind and swatch
- * from its row (lib/item-rows.ts), the link to its page, and what kind of
- * line it is when it says (lib/line-types.ts). This isn't the
+ * from its row (lib/item-rows.ts), the link to its page, and the color and
+ * weight it asks for when it does (lib/symbology.ts). This isn't the
  * home map's footprint (lib/footprint.ts), which reduces a collection to
  * its shape. Here every item stays its own feature, so pointing at one
  * lights its row up and a click opens its page.
@@ -32,7 +32,7 @@ export function itemFeaturesOf(env: EnvKey, c: Collection, rows: ItemRow[]): Fea
       {
         type: "Feature",
         id: i.id,
-        properties: { id: i.id, href: itemHref(env, c.id, i.id), label: row?.label, tag: row?.kind ?? undefined, tint: row?.tint, line: lineTypeOf(i.properties) },
+        properties: { id: i.id, href: itemHref(env, c.id, i.id), label: row?.label, tag: row?.kind ?? undefined, tint: row?.tint, ...symbologyOf(i.properties) },
         geometry: i.geometry,
       },
     ];
