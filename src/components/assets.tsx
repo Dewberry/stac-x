@@ -20,8 +20,8 @@ import { assetHref, withBase } from "@/lib/utils";
  * and description, its image if it has one, its media type, its actions and
  * whatever extra fields it carries. The row shows roles and not the title because a title
  * is often the file name again, or one sentence shared by forty files. The
- * open row's header line holds its actions (Download, the S3 URI to copy,
- * Bucket View), and a parquet, CSV or JSON asset gets a Preview button on
+ * open row holds its actions (Download, the S3 URI to copy, Bucket View,
+ * Model Library), and a parquet, CSV or JSON asset gets a Preview button on
  * its closed row that opens a look inside it in a dialog
  * (components/data-modal.tsx), read through the server.
  */
@@ -76,7 +76,15 @@ export function Assets({ assets, plotsFirst = false }: { assets: Record<string, 
   );
 }
 
-/** The same file actions in the expanded asset and its preview dialog. */
+/**
+ * The same file actions in the expanded asset and its preview dialog.
+ * Model Library is the Army Corps' repository for the models. It's shown
+ * but turned off until access is arranged with them; when it is, it'll
+ * want a link built from the href the way Cloud View's is, to a folder
+ * like .../model-library/repository/{id}?encodedDir={base64 of ["calibration"]}.
+ * The copy button reads "S3 URI" to leave room for four in a narrow
+ * panel; its full name is in its aria-label.
+ */
 function AssetActions({ a }: { a: StacAsset }) {
   const s3 = a.href.startsWith("s3://");
   const cloudView = cloudViewHref(a.href);
@@ -85,29 +93,32 @@ function AssetActions({ a }: { a: StacAsset }) {
       <a href={assetHref(a.href)} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer" download={s3 ? undefined : true}>
         <Icon d={ICONS.download} size={12} /> Download
       </a>
-      <CopyButton text={a.href} label={s3 ? "Copy S3 URI" : "Copy URL"} />
+      <CopyButton text={a.href} label={s3 ? "S3 URI" : "URL"} ariaLabel={s3 ? "Copy S3 URI" : "Copy URL"} />
       {cloudView && (
         <a href={cloudView} className="ffx-btn ffx-btn-sm" target="_blank" rel="noreferrer"
           aria-label={`Cloud View: open ${a.href.split("/").pop() || "asset"} folder`}>
           <Icon d={ICONS.external} size={12} /> Cloud View
         </a>
       )}
+      <button type="button" className="ffx-btn ffx-btn-sm" disabled title="Not available yet">
+        <Icon d={ICONS.external} size={12} /> Model Library
+      </button>
     </>
   );
 }
 
 /**
- * The open row's header line: the title (or, without one, the description)
- * on the left, where they say more than the file name does, and the
- * actions on the right: Download, the copy button that says what it copies,
- * and Bucket View, which opens the file's folder (only where CLOUD_VIEW_URL
- * is set).
+ * The top of the open row: the title and description, where they say more
+ * than the file name does, then the actions on a line of their own, since
+ * four buttons beside a title leave the title no room. The actions are
+ * Download, the copy button, Bucket View, which opens the file's folder
+ * (only where CLOUD_VIEW_URL is set), and Model Library.
  */
 function AssetHead({ a, title, description }: { a: StacAsset; title?: string; description?: string }) {
   return (
     <div className="sx-asset-head">
       {title && <div className="sx-asset-title">{title}</div>}
-      {!title && description && <p className="text-small text-ink-sec">{description}</p>}
+      {description && <p className="text-small text-ink-sec">{description}</p>}
       <div className="sx-asset-acts">
         <AssetActions a={a} />
       </div>
@@ -129,7 +140,6 @@ function AssetBody({ k: key, file, a }: { k: string; file: string; a: StacAsset 
   return (
     <>
       <AssetHead a={a} title={title} description={description} />
-      {title && description && <p className="text-small text-ink-sec">{description}</p>}
       {image && <Thumbnail src={assetHref(a.href)} alt={a.title || humanize(key)} />}
       {a.type && (
         <div className="flex flex-wrap gap-1">
