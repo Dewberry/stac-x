@@ -202,6 +202,12 @@ export type Collection = {
    * same, so what's worked out from them can be kept (lib/home-data.ts).
    */
   itemsStamp?: string;
+  /**
+   * When the newest of its source files was last written, which is when the
+   * collection arrived here or was last replaced. Admin shows it for a
+   * collection nobody has reviewed yet.
+   */
+  modifiedAt?: string | null;
   /** True when collection.json was read from the bucket; false when derived. */
   fromDocument: boolean;
   /** The collection's own assets from collection.json, hrefs resolved. */

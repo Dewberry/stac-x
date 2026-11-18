@@ -297,8 +297,26 @@
   margin-right: 0.375rem;
 }
 .sx-sheet-open {
-  font-size: 13px;
   white-space: nowrap;
+  text-decoration: none;
+}
+/* What the collection says it is, so there's something to decide on. Cut
+   at six lines; Open collection has the rest. */
+.sx-sheet-desc h3 {
+  font-size: var(--ffx-t-micro);
+  font-weight: 400;
+  color: var(--ffx-ink-mut);
+}
+.sx-sheet-desc p {
+  margin: 0.2rem 0 0;
+  font-size: var(--ffx-t-small);
+  line-height: 1.5;
+  color: var(--ffx-ink);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
 }
 .sx-sheet-scroll {
   gap: 1.125rem;

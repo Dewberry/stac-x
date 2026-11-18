@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { EnvKey } from "@/lib/env";
-import { fmtNum } from "@/lib/format";
+import { fmtNum, fmtRange } from "@/lib/format";
 import { versionName } from "@/lib/versions";
 import type { HomeArea, Rows } from "./home";
 import { ItemsList } from "./items-list";
@@ -134,29 +134,12 @@ export function UnitGlyph({ unit }: { unit: HomeArea["unit"] }) {
   return null;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 /**
- * A collection's extent as dates a person reads: "Aug 25 to 28, 2026",
- * "Mar 27, 1980 to Dec 20, 2025", or "Jan 1, 2026 to now" when it's open
- * at the end. In UTC, as the catalog writes them. Null with no extent.
+ * A collection's extent in the same form as its own page and its items:
+ * "2026-01-07", or "1980-03-27 to 2025-12-20". Null with no extent.
  */
 export function fmtSpan(t: HomeArea["temporal"]): string | null {
-  const at = (v: string | null | undefined) => {
-    const d = v ? new Date(v) : null;
-    return d && !Number.isNaN(d.getTime()) ? { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate() } : null;
-  };
-  const s = at(t?.[0]);
-  const e = at(t?.[1]);
-  const day = (p: { m: number; d: number }) => `${MONTHS[p.m]} ${p.d}`;
-  if (s && e) {
-    if (s.y !== e.y) return `${day(s)}, ${s.y} to ${day(e)}, ${e.y}`;
-    if (s.m !== e.m) return `${day(s)} to ${day(e)}, ${s.y}`;
-    return s.d === e.d ? `${day(s)}, ${s.y}` : `${day(s)} to ${e.d}, ${s.y}`;
-  }
-  if (s) return `${day(s)}, ${s.y} to now`;
-  if (e) return `Until ${day(e)}, ${e.y}`;
-  return null;
+  return fmtRange(t?.[0], t?.[1]) || null;
 }
 
 type Fact = { label: string; value: ReactNode; wide?: boolean };

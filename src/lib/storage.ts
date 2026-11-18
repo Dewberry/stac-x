@@ -34,7 +34,8 @@ export type ObjectRef =
   | { kind: "s3"; bucket: string; key: string; uri: string }
   | { kind: "file"; path: string; uri: string };
 
-export type ObjectHead = { etag: string; size: number };
+/** `modified` is when the object was last written, as the store has it. */
+export type ObjectHead = { etag: string; size: number; modified: string | null };
 
 export class PreconditionFailed extends Error {
   constructor(uri: string) {
@@ -160,7 +161,7 @@ export async function head(uri: string): Promise<ObjectHead | null> {
   if (ref.kind === "s3") {
     try {
       const res = await s3().send(new HeadObjectCommand({ Bucket: ref.bucket, Key: ref.key }));
-      return { etag: res.ETag ?? "", size: res.ContentLength ?? 0 };
+      return { etag: res.ETag ?? "", size: res.ContentLength ?? 0, modified: res.LastModified?.toISOString() ?? null };
     } catch (e) {
       if (isMissing(e)) return null;
       throw e;
@@ -168,7 +169,7 @@ export async function head(uri: string): Promise<ObjectHead | null> {
   }
   const s = await stat(/*turbopackIgnore: true*/ ref.path).catch(() => null);
   if (!s) return null;
-  return { etag: fileEtag(s.mtimeMs, s.size), size: s.size };
+  return { etag: fileEtag(s.mtimeMs, s.size), size: s.size, modified: new Date(s.mtimeMs).toISOString() };
 }
 
 function fileEtag(mtimeMs: number, size: number) {

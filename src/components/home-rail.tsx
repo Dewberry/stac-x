@@ -342,7 +342,8 @@ export function HomeRail({
             row's mark, and a filter. Collections only; catalogs aren't reviewed. */}
         {statesShown && (
           <div className="sx-rail-states" role="group" aria-label="Filter by review state">
-            {STATE_ORDER.map((st) => (
+            {/* A state nothing is in is left out, unless it's the filter that's on. */}
+            {STATE_ORDER.filter((st) => byState[st] > 0 || filter === st).map((st) => (
               <button
                 key={st}
                 type="button"

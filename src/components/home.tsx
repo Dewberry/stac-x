@@ -227,7 +227,11 @@ export function HomeConsole({
   // With no area set the map waits for the collections to know where to open.
   const frame = areaFrame ?? data?.frame ?? null;
   const [hovered, setHovered] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  // The open collection starts from ?open=, which the effect below keeps
+  // in step, so Back from its page returns to the map with it still open and
+  // a link to the map with a collection open can be shared.
+  const searchParams = useSearchParams();
+  const [selected, setSelected] = useState<string | null>(() => searchParams.get("open"));
   // The shape of the selected collection under the cursor, on the map or in
   // its item rows; the other side lights it up.
   const [hoverKeys, setHoverKeys] = useState<string[]>([]);
@@ -267,7 +271,7 @@ export function HomeConsole({
   const collections = useMemo(() => areas.filter((a) => a.kind === "collection"), [areas]);
   // The catalog opened in the rail, from ?in= (home-scope.tsx). A slug that
   // isn't a catalog here, or isn't here at all, opens nothing.
-  const inParam = useSearchParams().get("in");
+  const inParam = searchParams.get("in");
   const opened = useMemo(() => {
     const a = inParam ? bySlug.get(inParam) : null;
     return a?.kind === "catalog" ? a : null;
@@ -312,6 +316,19 @@ export function HomeConsole({
   const shownIds = useMemo(() => new Set(shown.map((a) => a.slug)), [shown]);
   const activeSelected = selected && shownIds.has(selected) ? selected : null;
   const current = activeSelected ? (bySlug.get(activeSelected) ?? null) : null;
+  // Written in place, not pushed: opening rows one after another shouldn't
+  // pile up in Back, which still leaves the page (or the catalog) in one
+  // step. Not until the collections are in, or a link's ?open= would be
+  // wiped before there's anything to match it against.
+  useEffect(() => {
+    if (loading) return;
+    const p = new URLSearchParams(window.location.search);
+    if (activeSelected) p.set("open", activeSelected);
+    else p.delete("open");
+    const s = p.toString();
+    const url = `${window.location.pathname}${s ? `?${s}` : ""}`;
+    if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
+  }, [loading, activeSelected, inParam]);
   const childCollections = useMemo(() => activeSelected ? hierarchy.childrenOf(activeSelected) : [], [hierarchy, activeSelected]);
   // An open collection's child collections can be previewed without becoming rows.
   // Catalogs inside it have nothing to draw.
@@ -499,7 +516,8 @@ export function HomeConsole({
     [router, env, current],
   );
 
-  const areaHighlight = (current ? pickedInArea : null) ?? (activeHovered ? (bySlug.get(activeHovered)?.inArea ?? false) : false);
+  // A collection opened from the link has no pick behind it, so it answers for itself.
+  const areaHighlight = (current ? (pickedInArea ?? current.inArea) : null) ?? (activeHovered ? (bySlug.get(activeHovered)?.inArea ?? false) : false);
   // The collection lighting up the whole area, when one is: the preview
   // draws over the selection, so it's named first.
   const coveredBy = (previewArea?.drawn === "area" ? previewArea : current?.drawn === "area" ? current : null)?.name ?? null;
@@ -522,7 +540,45 @@ export function HomeConsole({
                   : `Previewing ${previewArea.name} on the map.`
             : ""}
         </p>
-        <HomeSplit initial={railShare}>
+        <HomeSplit
+          initial={railShare}
+          rail={
+            loading ? <HomeRailLoading /> : (
+          <HomeRail
+            env={env}
+            collectionCount={collections.length}
+            rootsWithData={roots.full}
+            allInCatalogs={roots.all}
+            emptyRoots={roots.empty}
+            opened={opened}
+            openedParent={openedParent}
+            emptyInOpened={emptyInOpened}
+            catalogsInside={(slug) => hierarchy.catalogsBelow(slug)}
+            trail={trail}
+            childCollections={childCollections}
+            total={inView.length}
+            paths={paths}
+            catalogHits={catalogHits}
+            groups={groups}
+            byState={byState}
+            notice={notice}
+            emptyText={emptyText}
+            filter={filter}
+            onFilter={(value) => { resetSelection(); setFilter(value); }}
+            query={query}
+            onQuery={(value) => { resetSelection(); setQuery(value); }}
+            search={searching ? { q, collections: scope.length } : null}
+            selected={activeSelected}
+            hovered={activeHovered}
+            preview={preview}
+            rowsBySlug={rowsBySlug}
+            activeIds={activeIds}
+            onHover={setHovered}
+            onSelect={select}
+          />
+            )
+          }
+        >
           <div className="sx-console-map">
             {frame && (
             <MapBoundary label={area ? `Collections in ${area.name}` : "Collections on the map"} fill>
@@ -564,40 +620,6 @@ export function HomeConsole({
               activeIds={activeIds}
               onClose={close}
             />
-          )}
-          {loading ? <HomeRailLoading /> : (
-          <HomeRail
-            env={env}
-            collectionCount={collections.length}
-            rootsWithData={roots.full}
-            allInCatalogs={roots.all}
-            emptyRoots={roots.empty}
-            opened={opened}
-            openedParent={openedParent}
-            emptyInOpened={emptyInOpened}
-            catalogsInside={(slug) => hierarchy.catalogsBelow(slug)}
-            trail={trail}
-            childCollections={childCollections}
-            total={inView.length}
-            paths={paths}
-            catalogHits={catalogHits}
-            groups={groups}
-            byState={byState}
-            notice={notice}
-            emptyText={emptyText}
-            filter={filter}
-            onFilter={(value) => { resetSelection(); setFilter(value); }}
-            query={query}
-            onQuery={(value) => { resetSelection(); setQuery(value); }}
-            search={searching ? { q, collections: scope.length } : null}
-            selected={activeSelected}
-            hovered={activeHovered}
-            preview={preview}
-            rowsBySlug={rowsBySlug}
-            activeIds={activeIds}
-            onHover={setHovered}
-            onSelect={select}
-          />
           )}
         </HomeSplit>
       </div>
