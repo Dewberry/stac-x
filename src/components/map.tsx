@@ -14,6 +14,7 @@ import type { FeatureCollection, MultiPolygon, Position } from "geojson";
 import type { Symbology } from "@/lib/symbology";
 import { Icon, ICONS } from "./icons";
 import { MapCard } from "./map-card";
+import { Spinner } from "./spinner";
 import {
   applyBasemap,
   AREA_LINE,
@@ -90,6 +91,10 @@ export type MapProps = {
   label: string;
   /** Readout text before anything is hovered. */
   hint?: string;
+  /** Said on the map itself, beside a spinner, while the data is still on its way. */
+  busy?: string;
+  /** Said on the map itself, and left up, when the data never arrived. */
+  problem?: string;
   /** How to use the features, said once, beside the first one pointed at. */
   tip?: string;
   /** The deployment's area, outlined under the data with a button that goes to it. */
@@ -376,7 +381,7 @@ function addLayers(
   });
 }
 
-export function DataMap({ data, bbox, selected = null, hovered = null, onHover, label, hint, tip, area = null, dataName = "the data" }: MapProps) {
+export function DataMap({ data, bbox, selected = null, hovered = null, onHover, label, hint, busy, problem, tip, area = null, dataName = "the data" }: MapProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -667,6 +672,13 @@ export function DataMap({ data, bbox, selected = null, hovered = null, onHover, 
           ))}
           {hover.hits.length > TIP_ROWS && <span className="ffx-map-tip-more">and {hover.hits.length - TIP_ROWS} more</span>}
         </div>
+      )}
+      {/* For the eye. The readout below has the same words, and LinkedMap's status line says them to a screen reader. */}
+      {(busy || problem) && (
+        <p className="sx-loading-status sx-map-status" aria-hidden="true">
+          {busy && <Spinner />}
+          {busy ?? problem}
+        </p>
       )}
       {basemapDown && <div className="ffx-map-note">Basemap unavailable, showing data only.</div>}
       {selectedSimplified && <div className="ffx-map-note sx-map-simplified">Simplified geometry</div>}

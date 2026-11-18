@@ -141,6 +141,16 @@
   font-size: var(--ffx-t-micro);
   color: var(--ffx-ink-sec);
 }
+/* A collection's map while its items are still being fetched, and after
+   if they never arrive (components/item-hover.tsx). It's the home map's
+   loading pill (.sx-loading-status in loading.css), lifted clear of the
+   readout under the canvas, which is the 2rem. Named under .ffx-map because
+   loading.css comes later in the cascade. */
+.ffx-map .sx-map-status {
+  bottom: calc(2rem + 1.125rem);
+  max-width: calc(100% - 1.5rem);
+  white-space: normal;
+}
 /* Stays on the map of an item whose geometry is a simplified one
    (lib/simplified.ts), on the right so it's clear of the basemap note. */
 .sx-map-simplified {

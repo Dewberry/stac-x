@@ -37,8 +37,9 @@ type Fetched = { src: string; status: "done" | "error"; data?: FeatureCollection
  * `src` is where the features are when they were too heavy to come with
  * the page (lib/item-features.ts). The map opens on the extent it was
  * given and the features are drawn when they arrive; until then, and if
- * they never do, the readout under the map says so, and so does a status
- * line for screen readers.
+ * they never do, a pill on the map says so, where it gets
+ * seen. The readout under the map says it too, and so does a status line
+ * for screen readers.
  */
 export function LinkedMap({ src, ...props }: Omit<MapProps, "hovered" | "onHover"> & { src?: string }) {
   const { hovered, setHovered } = useItemHover();
@@ -70,6 +71,8 @@ export function LinkedMap({ src, ...props }: Omit<MapProps, "hovered" | "onHover
           {...props}
           data={got?.data ?? props.data}
           hint={waiting ? "Loading the items…" : failed ? "The items couldn't be loaded onto the map." : props.hint}
+          busy={waiting ? "Loading the items…" : undefined}
+          problem={failed ? "The items couldn't be loaded onto the map." : undefined}
           hovered={hovered}
           onHover={setHovered}
         />
