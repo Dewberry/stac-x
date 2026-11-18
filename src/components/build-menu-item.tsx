@@ -8,8 +8,7 @@ import { fmtDate } from "@/lib/format";
 
 /**
  * The app's version in the account menu, where anyone can find it, signed
- * in or not: the release, then the commit and the build date, which are
- * what tell two deployments of the same release apart.
+ * in or not: the version, then the commit and the build date behind it.
  *
  * It's a menu item rather than a line of text so the keyboard and a screen
  * reader reach it like everything else in the menu. Choosing it copies the

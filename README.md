@@ -303,46 +303,46 @@ collection says why, and the rest of the app carries on. The limits are
 
 Every push to `main` publishes `ghcr.io/dewberry/stac-x:latest` for
 linux/amd64 and linux/arm64, plus a `sha-<short sha>` tag for that commit
-(see `.github/workflows/docker.yml`). Tagging a release `v1.2.3` also
-publishes `1.2.3` and `1.2`.
+and the version's own tags, `1.2.3` and `1.2` (see
+`.github/workflows/docker.yml`).
 
 ### Versions and releases
 
-The app's version is the `version` in `package.json` and follows
-[semver](https://semver.org): a fix bumps the last number, a new feature
-the middle one, and a change people have to adjust to the first. Every
-build also knows the commit it came from and when it was built
-(`src/lib/build.ts`), since `main` deploys many times between releases and
-those builds share a version.
+Every merge to `main` is a release with its own version, and nobody has to
+bump anything. `package.json` names the series, say `1.2.0`, and the
+Docker workflow counts the last number up from the tags already there:
+the first merge is `v1.2.0`, the next `v1.2.1`, and so on. The workflow
+builds the image with that version, publishes it, then tags the commit and
+writes a GitHub release listing the pull requests since the last one. That
+list is the changelog. Nothing is committed back to `main`.
 
-All three show in the account menu at the top right, for everyone, and at
-the bottom of Admin. The same answer comes from the server, which is the
-quick check after a deployment:
-
-```bash
-curl https://ffrd.cloud.dewberryanalytics.com/stac/api/version
-```
-
-A tab that was open through a deployment gets a line under the header
-saying the app has been updated, with a Reload button.
-
-To cut a release, bump the version in a pull request:
+The numbers follow [semver](https://semver.org). The last one moving means
+"something was merged". To say more than that, start a new series by
+changing the version in `package.json` in the pull request that earns it:
+`1.3.0` for a feature worth pointing at, `2.0.0` for a change people have
+to adjust to.
 
 ```bash
 npm version minor --no-git-tag-version
 ```
 
-Use `patch` or `major` as fits. Once that's merged, tag `main` and write
-the release in one step:
+The app shows its version in the account menu at the top right, for
+everyone, with the commit and build date under it, and again at the bottom
+of Admin. The same answer comes from the server, which is the quick check
+after a deployment:
 
 ```bash
-gh release create v0.2.0 --target main --generate-notes
+curl https://ffrd.cloud.dewberryanalytics.com/stac/api/version
 ```
 
-The tag has to match `package.json`. The Docker workflow fails the build
-if it doesn't, so an image can't name itself wrongly. GitHub's generated
-notes list the pull requests since the last release, which is the
-changelog.
+A tab that was open through a deployment catches up in one of two ways.
+Moving to another page loads it whole from the new build (Next's
+`deploymentId`, set to the commit in `next.config.ts`). Staying put brings
+up a line under the header saying the app has been updated, with a Reload
+button.
+
+Under `npm run dev` the version is `package.json`'s as it stands, marked
+as a development build.
 
 The image is a production build with no hot reload. Use it to check what
 ships, and keep using `npm run dev` day to day.

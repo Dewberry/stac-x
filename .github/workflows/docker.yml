@@ -1,7 +1,7 @@
 # Builds the Docker image for linux/amd64 and linux/arm64 and publishes it to
 # GitHub's container registry at ghcr.io/dewberry/stac-x, one tag covering
 # both. Pull requests only build, to catch a broken Dockerfile on either
-# platform; pushes to main and version tags also push the image.
+# platform; pushes to main also push the image.
 #
 # Each platform builds on its own native runner (the repo is public, so the
 # arm64 runners are free) and pushes the result by digest. A second job then
@@ -9,20 +9,28 @@
 # arm64 under QEMU on the amd64 runner instead took six times as long for
 # `next build` alone.
 #
-# Tags: `latest` and `sha-<short sha>` for every push to main; `1.2.3` and
-# `1.2` for a tag like v1.2.3, which moves `latest` too.
+# Every push to main is a release with its own version. package.json names
+# the series (1.2.x) and the `version` job counts the last number up from
+# the tags already there, so the first merge after package.json says 1.2.0
+# is v1.2.0, the next v1.2.1, and so on. The build is told that version, the
+# app shows it, and once the image is published the commit is tagged and a
+# GitHub release written with the pull requests since the last one. Nothing
+# is committed back to main. To start a new series, change package.json's
+# version in a pull request (1.3.0, or 2.0.0).
+#
+# Tags: `latest`, `sha-<short sha>`, `1.2.3` and `1.2` for every push to main.
 name: Docker image
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
+# contents: write is for the tag and the release, in the last job only.
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 # A newer push to the same branch supersedes the older build, so cancel it.
@@ -37,7 +45,45 @@ env:
   IMAGE: ghcr.io/dewberry/stac-x
 
 jobs:
+  # Works out the version this run builds. Anywhere but a push to main that's
+  # package.json's as it stands, and nothing gets tagged.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pick.outputs.version }}
+      release: ${{ steps.pick.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pick the version
+        id: pick
+        run: |
+          base="$(jq -r .version package.json)"
+          version="$base"
+          release=false
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
+            release=true
+            series="${base%.*}"
+            floor="${base##*.}"
+            # Tags are asked of the remote, so the checkout can stay shallow.
+            tags="$(git ls-remote --tags origin "refs/tags/v$series.*" | grep -v '\^{}' || true)"
+            # A re-run of a commit that already has its tag keeps that version.
+            mine="$(awk -v sha="$GITHUB_SHA" '$1 == sha { sub("refs/tags/v", "", $2); print $2 }' <<< "$tags" | head -n 1)"
+            last="$(sed -E 's#.*refs/tags/v[0-9]+\.[0-9]+\.##' <<< "$tags" | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)"
+            if [ -n "$mine" ]; then
+              version="$mine"
+            elif [ -n "$last" ]; then
+              next=$((last + 1))
+              if [ "$next" -lt "$floor" ]; then next="$floor"; fi
+              version="$series.$next"
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "Building $version (release: $release)"
+
   build:
+    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -49,17 +95,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
-
-      # The app shows package.json's version, so a release tag that disagrees
-      # with it would publish an image that names itself wrongly.
-      - name: Check the tag matches package.json
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          want="v$(jq -r .version package.json)"
-          if [ "$GITHUB_REF_NAME" != "$want" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME doesn't match package.json, which says $want."
-            exit 1
-          fi
 
       - uses: docker/setup-buildx-action@v4
 
@@ -94,9 +129,10 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           # Production serves the app at ffrd.cloud.dewberryanalytics.com/stac.
-          # APP_COMMIT is what the app shows beside its version.
+          # APP_VERSION and APP_COMMIT are what the app shows as its version.
           build-args: |
             NEXT_PUBLIC_BASE_PATH=/stac
+            APP_VERSION=${{ needs.version.outputs.version }}
             APP_COMMIT=${{ github.sha }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha,scope=${{ steps.slug.outputs.name }}
@@ -119,10 +155,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Combines the per-platform images into one manifest list and tags it.
+  # Combines the per-platform images into one manifest list and tags it,
+  # then tags the commit and writes the release.
   merge:
     if: github.event_name != 'pull_request'
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     steps:
       - name: Download digests
@@ -148,9 +185,9 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=sha
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{version}},value=v${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.version.outputs.version }},enable=${{ needs.version.outputs.release == 'true' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Create and push the manifest list
         working-directory: /tmp/digests
@@ -161,3 +198,17 @@ jobs:
 
       - name: Inspect
         run: docker buildx imagetools inspect "$IMAGE:${{ steps.meta.outputs.version }}"
+
+      # Last, so a version is only ever claimed by an image that exists. The
+      # tag made here doesn't start another run of this workflow.
+      - name: Tag the commit and write the release
+        if: needs.version.outputs.release == 'true'
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "v$VERSION is already released."
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}

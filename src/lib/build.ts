@@ -6,9 +6,11 @@
  * it has moved on. That's what lets an open tab notice a deployment
  * (components/build-notice.tsx).
  *
- * The version is package.json's and follows semver. A release is that
- * version tagged `v1.2.3` on main; README.md has the steps. Builds between
- * releases share a version, so the commit is what tells them apart.
+ * The version follows semver. package.json names the series (1.2.x) and
+ * CI gives every merge to main the next number in it, so each deployed
+ * build has a version of its own (.github/workflows/docker.yml). A checkout
+ * shows package.json's version as it stands, and the commit says which
+ * build it really is.
  *
  * Not to be confused with lib/versions.ts, which is about the versions of
  * a collection. Safe to import from client components.

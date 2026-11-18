@@ -15,9 +15,12 @@ const EVERY_MS = 5 * 60_000;
  * view and every few minutes while it's showing, and compares the commit
  * with its own.
  *
- * It only offers the reload. Doing it unasked could throw away a QC note
- * someone is halfway through writing. The wording covers a rollback too:
- * the live build is the current one whether it's newer or not.
+ * Next reloads such a tab itself the next time it moves to another page
+ * (deploymentId in next.config.ts); this is for someone who stays where
+ * they are. It only offers the reload. Doing it unasked could throw away
+ * a QC note someone is halfway through writing. The wording covers a
+ * rollback too: the live build is the current one whether it's newer or
+ * not.
  *
  * The status element is always mounted and only its text changes, so
  * screen readers announce it. A build that doesn't know its commit has
