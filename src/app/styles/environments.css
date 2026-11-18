@@ -212,6 +212,44 @@
 .ffx-menu-item.ffx-theme-item[data-state="checked"] {
   color: var(--ffx-ink);
 }
+/* The app's version in the account menu: the release over the commit and
+   build date, with the copy mark at the right. */
+.ffx-menu-item.sx-build-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.sx-build-name {
+  display: block;
+  color: var(--ffx-ink);
+}
+.sx-build-sub {
+  display: block;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+  line-height: 1.4;
+}
+.sx-build-copy {
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
+/* Under the header when the tab is from a build that's no longer deployed
+   (build-notice.tsx). Neutral like the older-version notice. Always in the
+   page so its status is announced; it has no height until there's text. */
+.sx-build-notice[data-stale] {
+  border-bottom: 1px solid var(--ffx-rule);
+  background: var(--ffx-surface-sunken);
+  font-size: var(--ffx-t-small);
+  color: var(--ffx-ink-sec);
+}
+.sx-build-notice[data-stale] .sx-build-notice-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  padding: 0.5rem var(--ffx-edge);
+}
 /* The version picker on a collection page. */
 .sx-version-menu {
   min-width: 15rem;

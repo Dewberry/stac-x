@@ -91,10 +91,10 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
 
 export const config = {
   // Everything but framework files, sign-in, Auth.js's own routes, the
-  // health check, the icons and web app manifest, and the static files in
+  // health and version checks, the icons and web app manifest, and the static files in
   // public/. The asset and preview proxies are matched so a session's
   // cookie stays fresh on them too, and route() passes them through. The
   // bare "/" is listed on its own because under a base path
   // the pattern only matches /stac/..., never /stac itself.
-  matcher: ["/", "/((?!_next/|api/auth/|api/health|signin|data/|vendor/|icons/|favicon\\.ico|apple-icon\\.png|manifest\\.webmanifest).*)"],
+  matcher: ["/", "/((?!_next/|api/auth/|api/health|api/version|signin|data/|vendor/|icons/|favicon\\.ico|apple-icon\\.png|manifest\\.webmanifest).*)"],
 };

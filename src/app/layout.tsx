@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { BuildNotice } from "@/components/build-notice";
 import { EnvBand, SiteFooter, SiteHeader } from "@/components/shell";
 import { ThemeScript } from "@/components/theme";
 import { appDescription, catalogTitle } from "@/lib/config";
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="flex min-h-full flex-col">
         <SiteHeader session={session} />
         <EnvBand />
+        <BuildNotice />
         <main id="main" tabIndex={-1} className="ffx-shell flex-1">
           {children}
         </main>

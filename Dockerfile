@@ -25,6 +25,12 @@ ARG NEXT_PUBLIC_BASE_PATH
 ARG NEXT_PUBLIC_MAP_STYLE_LIGHT
 ARG NEXT_PUBLIC_MAP_STYLE_DARK
 ARG NEXT_PUBLIC_MAP_TERRAIN
+# The version and commit being built, which the app shows (src/lib/build.ts).
+# CI numbers each merge to main and passes both in. Unset, the version is
+# package.json's and there's no commit, since .git isn't in the build
+# context for the build to ask.
+ARG APP_VERSION
+ARG APP_COMMIT
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
