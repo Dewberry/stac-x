@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Geometry } from "geojson";
 import type { ItemRow } from "@/components/items-list";
 import { itemRowLabel } from "@/lib/item-kinds";
 import { shapeGroups, tintOf } from "@/lib/overview";
@@ -8,7 +9,7 @@ import type { Collection, StacItem } from "@/lib/stac";
 /**
  * A collection's items as the compact rows the items list shows: one per
  * item, named the way its own page names it, with what its geometry is (a
- * point, a line, an area, or none) and the swatch of its shape when the
+ * point, a line, an area, a mix of those, or none) and the swatch of its shape when the
  * collection draws as a few shapes. Built here for the collection
  * page and for the home page's rows route, so both lists agree. Those two
  * use listItemRows, below; the home page's footprints call this one inside
@@ -60,15 +61,34 @@ function rowsOf(c: Collection, groups: string[][]): ItemRow[] {
  */
 function geomOf(i: StacItem): ItemRow["geom"] {
   if (!i.geometry) return i.geometryError ? undefined : null;
-  switch (i.geometry.type) {
+  return kindOf(i.geometry);
+}
+
+/**
+ * A GeometryCollection is what its parts are: a point if they're all
+ * points, and "mixed" when they differ (a gage and its reach), so the row
+ * never calls a point and a line a polygon. An empty one has nothing to
+ * draw, the same as no geometry.
+ */
+function kindOf(g: Geometry): NonNullable<ItemRow["geom"]> | null {
+  switch (g.type) {
     case "Point":
     case "MultiPoint":
       return "point";
     case "LineString":
     case "MultiLineString":
       return "line";
-    default:
+    case "Polygon":
+    case "MultiPolygon":
       return "area";
+    case "GeometryCollection": {
+      const kinds = new Set(g.geometries.map(kindOf).filter((k) => k !== null));
+      if (kinds.size === 0) return null;
+      return kinds.size === 1 ? [...kinds][0] : "mixed";
+    }
+    default:
+      // The readers only let these seven types through. If one is ever added, say it's mixed, not a polygon.
+      return "mixed";
   }
 }
 
