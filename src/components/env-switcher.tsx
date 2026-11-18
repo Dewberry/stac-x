@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ENVS, envMeta, splitEnv, withEnv, type EnvKey } from "@/lib/env";
 import type { Session } from "@/lib/session";
-import { withBase } from "@/lib/utils";
 
 /**
  * The header's right end and the environment band. This file is the same in
@@ -51,7 +50,7 @@ export function HeaderControls({
   children?: ReactNode;
 }) {
   const pathname = usePathname();
-  if (pathname === SIGN_IN) {
+  if (!session || pathname === SIGN_IN) {
     return (
       <Link href={SIGN_IN} className="ffx-btn ffx-btn-sm no-underline">
         Sign in
@@ -59,13 +58,8 @@ export function HeaderControls({
     );
   }
   const { env } = splitEnv(pathname);
-  // Nobody signed in: the catalog is open to read, so the header keeps the
-  // switcher and the menu, and the menu offers Sign in instead of Sign out.
-  // It goes straight on to Keycloak and back to this page. A plain <a>,
-  // since the route redirects off the site, so it carries the base path.
   const account = {
     session,
-    signIn: withBase(`/api/auth/start?callbackUrl=${encodeURIComponent(pathname)}`),
     home: withEnv(env, home),
     homeLabel,
     signOut,
@@ -126,9 +120,7 @@ function postTo(action: string) {
   form.submit();
 }
 type Account = {
-  /** Null when nobody is signed in. */
-  session: Session | null;
-  signIn: string;
+  session: Session;
   home: string;
   homeLabel: string;
   signOut: SignOut;
@@ -158,7 +150,7 @@ function AccountMenu(account: Account) {
   const { session } = account;
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger className="ffx-account-trigger" aria-label={session ? `Account menu, signed in as ${session.account}` : "Account menu, not signed in"}>
+      <DropdownMenu.Trigger className="ffx-account-trigger" aria-label={`Account menu, signed in as ${session.account}`}>
         <Avatar />
         <Chevron />
       </DropdownMenu.Trigger>
@@ -219,17 +211,11 @@ function EnvItems({ env }: { env: EnvKey }) {
   );
 }
 
-function AccountItems({ session, signIn, home, homeLabel, signOut, links, menuItems }: Account) {
+function AccountItems({ session, home, homeLabel, signOut, links, menuItems }: Account) {
   return (
     <>
       <DropdownMenu.Label className="px-2.5 pb-1.5 pt-1 text-micro text-ink-mut">
-        {session ? (
-          <>
-            Signed in as <span className="ffx-id text-ink">{session.account}</span>
-          </>
-        ) : (
-          "Not signed in"
-        )}
+        Signed in as <span className="ffx-id text-ink">{session.account}</span>
       </DropdownMenu.Label>
       <DropdownMenu.Separator className="my-1 h-px bg-rule" />
       <DropdownMenu.Item asChild>
@@ -251,13 +237,7 @@ function AccountItems({ session, signIn, home, homeLabel, signOut, links, menuIt
           <DropdownMenu.Separator className="my-1 h-px bg-rule" />
         </>
       )}
-      {!session ? (
-        <DropdownMenu.Item asChild>
-          <a href={signIn} className="ffx-menu-item">
-            Sign in
-          </a>
-        </DropdownMenu.Item>
-      ) : "post" in signOut ? (
+      {"post" in signOut ? (
         <DropdownMenu.Item className="ffx-menu-item" onSelect={() => postTo(signOut.post)}>
           Sign out
         </DropdownMenu.Item>

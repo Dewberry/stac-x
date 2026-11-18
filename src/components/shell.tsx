@@ -26,7 +26,7 @@ export { Icon, ICONS } from "./icons";
 /** What the home page is called wherever it's linked: the trail and the account menu. */
 export const HOME_LABEL = "All collections";
 
-/** Pages reached from the account menu rather than the bar. Admin is only there for someone signed in with the admin role. */
+/** Pages reached from the account menu rather than the bar. Admin is left out for someone without the reviewer role. */
 const ACCOUNT_LINKS = [{ href: "/admin", label: "Admin" }];
 
 /**

@@ -11,7 +11,7 @@ import { BASE_PATH } from "@/lib/utils";
  * finish with no prompt, so signing out would look like it did nothing.
  *
  * The Keycloak session is ended server to server with the refresh token kept
- * at sign-in, and the browser comes straight back to the catalog. The
+ * at sign-in, and the browser comes straight back to the sign-in page. The
  * browser's end-session URL can't do that without Keycloak's "Do you want to
  * log out?" page, so it's only the fallback, for when that call fails.
  *
@@ -26,8 +26,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
   }
 
-  // The catalog is open to read, so signing out lands back on it.
-  const landing = `${publicOrigin(request)}${BASE_PATH}/`;
+  const landing = `${publicOrigin(request)}${BASE_PATH}/signin`;
 
   // Read before signOut, which clears the cookie it lives in.
   const refreshToken = await readRefreshToken(request);

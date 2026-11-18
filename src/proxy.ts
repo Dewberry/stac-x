@@ -13,10 +13,11 @@ import { auth, authEnabled } from "./auth";
  * page served in place. Production's home also answers at /prod, which is
  * where its links point, so they work whichever environment / opens.
  *
- * With Keycloak configured (src/auth.ts) it's also the gate on Admin. The
- * catalog is open to read: its pages, the API and the asset and preview
- * proxies need no session. Admin opened without one goes to Keycloak and
- * comes back, and saving QC checks the session itself (app/actions.ts).
+ * With Keycloak configured (src/auth.ts) it's also the sign-in gate. A page
+ * opened without a session goes to Keycloak and comes back to it. An API
+ * route (the asset and preview proxies included) or a server action answers
+ * 401 instead, since a redirect is no answer to a fetch. The action checks
+ * the session itself as well (app/actions.ts).
  *
  * Kept free of imports from src/lib: proxy runs apart from the render code.
  */
@@ -55,20 +56,16 @@ function route(req: NextRequest) {
   return NextResponse.rewrite(url);
 }
 
-/** The Admin pages, in any environment: /admin, /dev/admin, /test/admin/... */
-const ADMIN = /^\/(?:(?:sandbox|dev|test|prod)\/)?admin(?:\/|$)/;
-
 /**
- * What a request without a session gets, or null to carry on. Only Admin
- * needs one: it goes to Keycloak and comes back. nextUrl has the base path
- * stripped, which is what a callbackUrl wants.
+ * What a request without a session gets, or null to carry on. nextUrl has
+ * the base path stripped, which is what a callbackUrl wants.
  */
 function gate(req: NextRequest, signedIn: boolean): NextResponse | null {
+  if (signedIn) return null;
   const { pathname, search } = req.nextUrl;
-  if (signedIn || !ADMIN.test(pathname)) return null;
-  // A server action posted from Admin after the session ended. A redirect is
-  // no answer to a fetch, and the action says why itself (app/actions.ts).
-  if (req.headers.has("next-action")) return null;
+  if (pathname.startsWith("/api/") || pathname.includes("/api/") || req.headers.has("next-action")) {
+    return NextResponse.json({ error: "Sign in to use this." }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  }
   const url = req.nextUrl.clone();
   url.pathname = "/api/auth/start";
   url.search = `?callbackUrl=${encodeURIComponent(pathname + search)}`;
@@ -90,11 +87,11 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
 }
 
 export const config = {
-  // Everything but framework files, sign-in, Auth.js's own routes, the
-  // health and version checks, the icons and web app manifest, and the static files in
-  // public/. The asset and preview proxies are matched so a session's
-  // cookie stays fresh on them too, and route() passes them through. The
-  // bare "/" is listed on its own because under a base path
+  // Everything but framework files, the routes that work without a session
+  // (sign-in, Auth.js's own, the health and version checks), the icons and
+  // web app manifest, and the static files in public/. The asset and preview
+  // proxies are matched so they're behind sign-in, and route() passes them
+  // through. The bare "/" is listed on its own because under a base path
   // the pattern only matches /stac/..., never /stac itself.
   matcher: ["/", "/((?!_next/|api/auth/|api/health|api/version|signin|data/|vendor/|icons/|favicon\\.ico|apple-icon\\.png|manifest\\.webmanifest).*)"],
 };

@@ -66,12 +66,10 @@ change to the server's `.env` and a container restart, with no rebuild.
 
 ## What happens
 
-- The catalog is open to read. Its pages, the API and the asset and preview
-  proxies need no sign-in.
-- Admin and saving QC need a sign-in with the admin role. Opening Admin
-  without a session goes straight to Keycloak and back, and someone already
-  signed in to another FFRD app doesn't see a sign-in page at all. The
-  account menu has Sign in for everyone else.
+- Opening any page without a session goes straight to Keycloak and back. Someone
+  already signed in to another FFRD app doesn't see a sign-in page at all.
+- API routes, the asset and preview proxies and server actions answer 401
+  without a session. `/api/health` stays open for the Docker health check.
 - A session lasts as long as Keycloak's does (see below). Sign out ends the
   Keycloak session too.
 - When the Keycloak session ends anywhere else, Keycloak calls the
@@ -104,8 +102,8 @@ won't take the token. What that means:
 - Signing out of FFRD Cloud signs you out here on your next request,
   through the back-channel URL above. If Keycloak's session had already
   ended, the next check notices instead, within five minutes.
-- Leave this app idle past the realm's 30 minutes and you're signed out:
-  the catalog still opens, and Admin asks you to sign in again. No session here lasts past the realm's 10 hours.
+- Leave this app idle past the realm's 30 minutes and the next page asks
+  you to sign in again. No session here lasts past the realm's 10 hours.
 - Signing out here ends Keycloak's session, but FFRD Cloud isn't told. It
   only goes back to Keycloak when its access token expires, which is five
   days, so it stays signed in until then. Setting Access Token Lifespan to
