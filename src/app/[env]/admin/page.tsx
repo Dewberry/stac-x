@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { AdminConsole, type QueueRow } from "@/components/admin-console";
 import { homeCrumb, PageHead } from "@/components/shell";
+import { BUILD, builtLabel } from "@/lib/build";
 import { getCatalog, getCatalogElsewhere } from "@/lib/catalog";
 import { hierarchyOf, treeNodesOf } from "@/lib/collection-hierarchy";
 import { ENVS, PATH, nextEnv } from "@/lib/env";
+import { fmtDate } from "@/lib/format";
 import { pageEnv } from "@/lib/page-env";
 import { canPromote } from "@/lib/promote";
 import { getSession } from "@/lib/session";
@@ -143,6 +145,16 @@ export default async function AdminPage({ params, searchParams }: Props) {
         now={now}
         initial={{ status: one(sp.status), q: one(sp.q), sort: one(sp.sort), group: one(sp.group) }}
       />
+      {/* Which build is deployed, so whoever is reviewing can say what they were looking at. */}
+      <p className="sx-build-line">
+        stac-x version {BUILD.version}
+        {BUILD.shortCommit && (
+          <>
+            , commit <span className="ffx-id">{BUILD.shortCommit}</span>
+          </>
+        )}
+        , {builtLabel(fmtDate(BUILD.builtAt))}
+      </p>
     </div>
   );
 }

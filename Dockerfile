@@ -25,6 +25,10 @@ ARG NEXT_PUBLIC_BASE_PATH
 ARG NEXT_PUBLIC_MAP_STYLE_LIGHT
 ARG NEXT_PUBLIC_MAP_STYLE_DARK
 ARG NEXT_PUBLIC_MAP_TERRAIN
+# The commit being built, shown with the app's version (src/lib/build.ts).
+# .git isn't in the build context, so the build can't ask git itself.
+# Unset, the app shows its version without a commit.
+ARG APP_COMMIT
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

@@ -610,3 +610,10 @@ a.sx-activity-title:hover {
   line-height: 1.45;
   color: var(--ffx-ink-mut);
 }
+
+/* The last line of Admin: the build that's deployed. */
+.sx-build-line {
+  margin-top: 1.25rem;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}

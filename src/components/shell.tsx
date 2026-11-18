@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { BrandLink } from "./brand-link";
+import { BuildMenuItem } from "./build-menu-item";
 import { Chevron, FolderGlyph, Icon, ICONS } from "./icons";
 import { HeaderControls } from "./env-switcher";
 import { MoreMenu } from "./more-menu";
@@ -18,8 +19,8 @@ export { Icon, ICONS } from "./icons";
  * same edge gutter. The theme is in the account menu, so it's on every page.
  * Navigation is the map and the breadcrumb trail at the top of each page,
  * which starts at the home page so there's always a plain way back.
- * Signed in, the header's right end holds the environment switcher and the
- * account menu, which is the way to Admin.
+ * The header's right end holds the environment switcher and the account
+ * menu, which is the way to Admin and where the app's version is.
  */
 
 /** What the home page is called wherever it's linked: the trail and the account menu. */
@@ -87,7 +88,13 @@ export function SiteHeader({ session }: { session: Session | null }) {
             homeLabel={HOME_LABEL}
             signOut={session?.federated ? { post: withBase("/api/auth/federated-logout") } : { href: "/signin" }}
             links={session?.reviewer ? ACCOUNT_LINKS : []}
-            menuItems={<ThemeMenuItems />}
+            menuItems={
+              <>
+                <ThemeMenuItems />
+                <div className="my-1 h-px bg-rule" role="separator" />
+                <BuildMenuItem />
+              </>
+            }
           />
         </div>
       </div>

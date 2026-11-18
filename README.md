@@ -306,6 +306,44 @@ linux/amd64 and linux/arm64, plus a `sha-<short sha>` tag for that commit
 (see `.github/workflows/docker.yml`). Tagging a release `v1.2.3` also
 publishes `1.2.3` and `1.2`.
 
+### Versions and releases
+
+The app's version is the `version` in `package.json` and follows
+[semver](https://semver.org): a fix bumps the last number, a new feature
+the middle one, and a change people have to adjust to the first. Every
+build also knows the commit it came from and when it was built
+(`src/lib/build.ts`), since `main` deploys many times between releases and
+those builds share a version.
+
+All three show in the account menu at the top right, for everyone, and at
+the bottom of Admin. The same answer comes from the server, which is the
+quick check after a deployment:
+
+```bash
+curl https://ffrd.cloud.dewberryanalytics.com/stac/api/version
+```
+
+A tab that was open through a deployment gets a line under the header
+saying the app has been updated, with a Reload button.
+
+To cut a release, bump the version in a pull request:
+
+```bash
+npm version minor --no-git-tag-version
+```
+
+Use `patch` or `major` as fits. Once that's merged, tag `main` and write
+the release in one step:
+
+```bash
+gh release create v0.2.0 --target main --generate-notes
+```
+
+The tag has to match `package.json`. The Docker workflow fails the build
+if it doesn't, so an image can't name itself wrongly. GitHub's generated
+notes list the pull requests since the last release, which is the
+changelog.
+
 The image is a production build with no hot reload. Use it to check what
 ships, and keep using `npm run dev` day to day.
 

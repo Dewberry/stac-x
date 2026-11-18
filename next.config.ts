@@ -1,4 +1,6 @@
+import { execSync } from "node:child_process";
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 // A checkout on a Windows drive seen from WSL never delivers filesystem
 // events, so the dev server has to poll instead. Off unless asked for.
@@ -10,7 +12,30 @@ const pollIntervalMs = Number(process.env.NEXT_WATCH_POLL_MS) || 0;
 // rewrite itself.
 const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
 
+// Which build this is, for src/lib/build.ts: package.json's version, the
+// commit and the time of the build. CI hands the commit in as APP_COMMIT
+// (the Docker build has no .git to ask); a checkout asks git. The time is
+// kept in the environment so the processes `next build` starts all get the
+// same one, and is left empty under `next dev`, which isn't a build.
+function buildCommit(): string {
+  const given = process.env.APP_COMMIT?.trim();
+  if (given) return given;
+  try {
+    return execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "";
+  }
+}
+if (process.env.NODE_ENV !== "development") process.env.APP_BUILT_AT ||= new Date().toISOString();
+
 const nextConfig: NextConfig = {
+  // Written into the server and browser code at build time, so a page keeps
+  // the build it was loaded from.
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+    NEXT_PUBLIC_APP_COMMIT: buildCommit(),
+    NEXT_PUBLIC_APP_BUILT_AT: process.env.APP_BUILT_AT ?? "",
+  },
   // `next build` also writes .next/standalone, a self-contained server with
   // only the node_modules it needs. The Dockerfile copies that in.
   output: "standalone",
