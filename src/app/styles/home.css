@@ -1632,6 +1632,42 @@ button.sx-map-pill svg {
 .sx-swatch[data-step="3"] {
   background: color-mix(in srgb, var(--ffx-trace-deep) 85%, transparent);
 }
+/* What an item's geometry is, at the start of its row (GeomGlyph in
+   components/icons.tsx): river blue for one that's on the map, in its own
+   blue where the collection's shapes each have one, and a gray dashed ring
+   for an item with no geometry. */
+.sx-geom,
+.sx-item > .sx-geom {
+  /* The reset makes every svg a block, which would put it on a line of its own. */
+  display: inline-block;
+  flex: none;
+  margin-right: 6px;
+  vertical-align: -1px;
+  color: var(--ffx-trace-strong);
+}
+.sx-item > .sx-geom {
+  margin-right: 0;
+}
+.sx-geom[data-step="1"] {
+  color: color-mix(in srgb, var(--ffx-trace) 90%, transparent);
+}
+.sx-geom[data-step="2"] {
+  color: color-mix(in srgb, var(--ffx-trace-strong) 75%, transparent);
+}
+.sx-geom[data-step="3"] {
+  color: color-mix(in srgb, var(--ffx-trace-deep) 85%, transparent);
+}
+.sx-geom[data-kind="none"],
+.sx-item > .sx-geom[data-kind="none"] {
+  color: var(--ffx-ink-mut);
+}
+/* Said once above the rows when no item in the collection has geometry. */
+.sx-items-note {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: var(--ffx-t-micro);
+  color: var(--ffx-ink-mut);
+}
 /* On a phone the menu's buttons are in the rail head instead. */
 @media (max-width: 63.99rem) {
   .sx-map-key {

@@ -3,12 +3,13 @@ import "server-only";
 import type { ItemRow } from "@/components/items-list";
 import { itemRowLabel } from "@/lib/item-kinds";
 import { shapeGroups, tintOf } from "@/lib/overview";
-import type { Collection } from "@/lib/stac";
+import type { Collection, StacItem } from "@/lib/stac";
 
 /**
  * A collection's items as the compact rows the items list shows: one per
- * item, named the way its own page names it, with the swatch of its shape
- * when the collection draws as a few shapes. Built here for the collection
+ * item, named the way its own page names it, with what its geometry is (a
+ * point, a line, an area, or none) and the swatch of its shape when the
+ * collection draws as a few shapes. Built here for the collection
  * page and for the home page's rows route, so both lists agree. Those two
  * use listItemRows, below; the home page's footprints call this one inside
  * a guard of their own.
@@ -45,10 +46,30 @@ function rowsOf(c: Collection, groups: string[][]): ItemRow[] {
   return c.items.map((i) => ({
     id: i.id,
     ...itemRowLabel(c, i),
+    geom: geomOf(i),
     tint: tintOfItem.get(i.id),
     start: str(i.properties.start_datetime) ?? str(i.properties.datetime),
     end: str(i.properties.end_datetime) ?? null,
   }));
+}
+
+/**
+ * What an item's geometry is, for the mark on its row. Null is an item that
+ * has none. One whose geometry couldn't be read is left unsaid: it may well
+ * have some, and the page already says the file's geometry is broken.
+ */
+function geomOf(i: StacItem): ItemRow["geom"] {
+  if (!i.geometry) return i.geometryError ? undefined : null;
+  switch (i.geometry.type) {
+    case "Point":
+    case "MultiPoint":
+      return "point";
+    case "LineString":
+    case "MultiLineString":
+      return "line";
+    default:
+      return "area";
+  }
 }
 
 function str(v: unknown): string | null {

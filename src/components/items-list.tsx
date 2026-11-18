@@ -8,7 +8,7 @@ import { breakable } from "./breakable";
 import type { EnvKey } from "@/lib/env";
 import { itemHref } from "@/lib/utils";
 import { useItemHover } from "./item-hover";
-import { Icon, ICONS } from "./icons";
+import { GeomGlyph, Icon, ICONS } from "./icons";
 
 /**
  * The items of a collection: a search box, a sort, and the rows. On the
@@ -16,7 +16,10 @@ import { Icon, ICONS } from "./icons";
  * home rail (`compact`) each row is the item's name alone, on one line
  * with a chevron, in a block that scrolls inside the rail with a note
  * under it saying how many more are below. Either way the rows start in
- * the catalog's own order. The rail has no sort, since with names alone
+ * the catalog's own order, and each row opens with a mark for what the
+ * item's geometry is. An item with none also says "No geometry", unless
+ * no item in the collection has any, which is said once above the rows
+ * instead of on every one. The rail has no sort, since with names alone
  * there's nothing to sort by eye, and no search box either
  * unless the collection has more rows than the block shows, since a list
  * that's all in view has nothing to search. The collection page is where
@@ -32,6 +35,8 @@ export type ItemRow = {
   hideId?: boolean;
   /** "HEC-HMS" or "HEC-RAS" in a calibration collection, where both models carry the basin's name. */
   kind?: string | null;
+  /** What the item's geometry is; null when it has none. Left out when that isn't known. */
+  geom?: "point" | "line" | "area" | null;
   /** Which blue the item's shape is drawn in on the map, when there are few enough shapes to color. */
   tint?: 1 | 2 | 3;
   start: string | null;
@@ -80,6 +85,9 @@ const WINDOW = 5;
 // "catalog" is the order the catalog lists the items in, which is how they
 // start. Whoever wrote the catalog may have put them in an order that means
 // something, and sorting by id up front threw that away.
+/** A geometry mark in words, for a screen reader. */
+const GEOM_NAME = { point: "Point", line: "Line", area: "Polygon" } as const;
+
 type Sort = "catalog" | "id" | "label" | "start";
 const isSort = (v: unknown): v is Sort => v === "catalog" || v === "id" || v === "label" || v === "start";
 
@@ -149,6 +157,22 @@ export function ItemsList({
       return [r, k ? `${r.id}#${k}` : r.id];
     }));
   }, [rows]);
+  // With no geometry anywhere in the collection, one line above the rows
+  // says so, and the rows carry the mark without the words.
+  const noneHave = all > 0 && rows.every((r) => r.geom === null);
+  const geomMark = (r: ItemRow) => (r.geom === undefined ? null : <GeomGlyph kind={r.geom} step={r.tint} />);
+  const geomWords = (r: ItemRow) =>
+    r.geom === undefined ? null : r.geom === null ? (
+      noneHave ? (
+        <span className="sr-only">No geometry</span>
+      ) : (
+        <span className="sx-tag" data-tone="muted">
+          No geometry
+        </span>
+      )
+    ) : (
+      <span className="sr-only">{GEOM_NAME[r.geom]}</span>
+    );
   // Where every row is already in view, there's nothing to search for.
   const searchable = all > 0 && (!compact || all > WINDOW);
   // The server renders the first size; a kept choice takes over in the browser.
@@ -257,12 +281,14 @@ export function ItemsList({
       )}
       {slice.length === 0 ? (
         <p className="sx-empty">{all === 0 ? "This collection has no items." : "No items match."}</p>
-      ) : compact ? (
+      ) : null}
+      {noneHave && slice.length > 0 && <p className="sx-items-note">These items have no geometry, so none are on the map.</p>}
+      {slice.length === 0 ? null : compact ? (
         <div className="sx-item-block" data-more={more || undefined}>
           <div ref={blockRef} className="sx-item-list" onScroll={onScroll}>
             {slice.map((r) => (
               <Link key={keys.get(r)} className="sx-item" {...rowProps(r)}>
-                {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
+                {geomMark(r) ?? (r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />)}
                 {r.label && !repeated.has(r.label) ? (
                   <span className="sx-item-name">{mark(r.label, q)}</span>
                 ) : (
@@ -273,6 +299,7 @@ export function ItemsList({
                     {r.kind}
                   </span>
                 )}
+                {geomWords(r)}
                 <Icon d={ICONS.chevronRight} size={12} />
               </Link>
             ))}
@@ -284,7 +311,7 @@ export function ItemsList({
             <Link key={keys.get(r)} className="sx-row" {...rowProps(r)}>
               <div className="sx-row-main">
                 <div className="sx-row-title">
-                  {r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />}
+                  {geomMark(r) ?? (r.tint && <i className="sx-swatch" data-step={r.tint} aria-hidden="true" />)}
                   {breakable(r.label ?? r.id)}
                 </div>
                 <div className="sx-row-sub">
@@ -293,6 +320,7 @@ export function ItemsList({
                       {r.kind}
                     </span>
                   )}
+                  {geomWords(r)}
                   {r.label && !r.hideId && <span className="ffx-id">{r.id}</span>}
                   {(r.start || r.end) && <span className="ffx-num">{fmtRange(r.start, r.end)}</span>}
                 </div>
