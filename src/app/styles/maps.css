@@ -143,11 +143,11 @@
 }
 /* A collection's map while its items are still being fetched, and after
    if they never arrive (components/item-hover.tsx). It's the home map's
-   loading pill (.sx-loading-status in loading.css), lifted clear of the
-   readout under the canvas, which is the 2rem. Named under .ffx-map because
+   loading pill (.sx-loading-status in loading.css), centered on the canvas
+   and not on the readout under it, which is the 2.5rem. Named under .ffx-map because
    loading.css comes later in the cascade. */
 .ffx-map .sx-map-status {
-  bottom: calc(2rem + 1.125rem);
+  top: calc(50% - 1.25rem);
   max-width: calc(100% - 1.5rem);
   white-space: normal;
 }
