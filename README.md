@@ -4,402 +4,109 @@
 
 A STAC viewer for reviewing a catalog before it's published.
 
-- Reads static STAC catalogs and stac-geoparquet files (`.parquet`, `.geoparquet`
-  or `.pq`), from S3 or local folders.
+- Reads static STAC catalogs and stac-geoparquet files, from S3 or local folders.
 - Draws every collection on a map.
 - Lets a reviewer mark each collection approved, needs revision or rejected.
 - Approving a collection copies its files into the next environment
   (Development to Test, Test to Production).
 
-It only ever writes two things:
-
-- QC decisions, to a JSON sidecar beside the collection's file
-  (`gages.parquet` gets `gages.edits.json`). The parquet itself is never touched.
-- Promoted collections, copied byte for byte into the next environment's first source.
+It never changes your data. QC decisions go to a JSON file beside the
+collection's file (`gages.parquet` gets `gages.edits.json`), and promoted
+collections are copied byte for byte.
 
 ## Quick start
 
-You need [Node.js](https://nodejs.org) 20 or newer. On WSL, install Node
-inside the Linux distro, not on Windows.
+You need [Node.js](https://nodejs.org) 20 or newer. The commands below work
+as written in a WSL shell and in PowerShell.
 
-1. Install dependencies:
+Install dependencies:
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-2. Make a `.env` from the example, then point it at your catalogs (see
-   [Sources](#sources)):
+Make a `.env` from the example:
 
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+cp .env.example .env
+```
 
-   In PowerShell, use `Copy-Item .env.example .env`.
+Start the dev server:
 
-3. Start the dev server:
+```bash
+npm run dev
+```
 
-   ```bash
-   npm run dev
-   ```
+Open http://localhost:3000. It opens in Development, which is empty until
+`.env` points at a catalog: see [Configuration](docs/configuration.md).
 
-4. Open http://localhost:3000. It opens in Development.
+On WSL, install Node inside the Linux distro and keep the repo in the Linux
+filesystem (`~/code`, not `/mnt/c`). If the repo has to stay on the Windows
+drive, set `NEXT_WATCH_POLL_MS=1000` in `.env` so hot reload works.
 
-Two things to know:
+Two things that surprise people on a first run:
 
 - Reading from S3 needs AWS credentials with access to the bucket. Without
   them the pages still load, but empty, with a note that collections couldn't
   be loaded.
-- Sign-in is off until `KEYCLOAK_ISSUER` is set. Off, every page is open,
-  the sign-in page opens Development whatever you type, and the account
-  shown is a fixed role. [Sign-in](#sign-in) says how to turn it on.
+- Sign-in is off until Keycloak is configured, so every page is open. That's
+  fine on your machine and not fine on a server.
+  [Deployment](docs/deployment.md#sign-in) says how to turn it on.
 
 ## Commands
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Dev server with hot reload |
-| `npm run build`, then `npm start` | Production build. Use it for demos so pages don't compile on first click |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript check |
-| `npm run a11y` | Accessibility check (WCAG 2.2 AA) against the running dev server: axe on each kind of page in light and dark, plus the layout at 320px wide. Run `npx playwright install chromium` once first |
-
-Every pull request is linted and typechecked by
-`.github/workflows/checks.yml`, beside the Docker build. In a fresh
-checkout, `npm run typecheck` needs the types Next generates: run
-`npx next typegen` first, or `npm run dev` or a build, which write them too.
-
-Dependabot opens a pull request each Monday with that week's dependency
-updates (`.github/dependabot.yml`).
-
-## Configuration
-
-Settings live in `.env`. `.env.example` explains every variable, including
-optional ones not covered here.
-
-### Sources
-
-Each environment reads from its own variable:
-
-| Environment | Variable |
-| --- | --- |
-| Sandbox | `STAC_SOURCES_SANDBOX` |
-| Development | `STAC_SOURCES_DEV` |
-| Test | `STAC_SOURCES_TEST` |
-| Production | `STAC_SOURCES_PROD` |
-
-Each value is one or more of these, separated by commas:
-
-- **A STAC catalog**, `catalog.json` or a versioned name like `catalog-v1.json`.
-  It's followed through its `child` links to its collections, and each
-  collection's items come from linked GeoParquet or JSON files.
-- **A single STAC Collection JSON file**, with linked items or metadata only.
-- **An S3 prefix or local folder.** Every parquet file in it is read, whether
-  it's named `.parquet`, `.geoparquet` or `.pq`, along with `catalog.json` or a
-  versioned `catalog-v1.json`. Other JSON files in the folder are only read
-  when a catalog or collection links to them.
-- **A single parquet file**, on S3 or local, with any of those three extensions.
-
-Collections can link individual JSON Items with `rel="item"`, or JSON
-ItemCollections (GeoJSON FeatureCollections) with `rel="items"`. ItemCollection
-`next` links are followed, repeated files and item ids are read once, and
-relative item links and asset hrefs resolve against the JSON file containing
-them. A link to a parquet file is recognized by its media type or by a
-`.parquet`, `.geoparquet` or `.pq` extension. Linked GeoParquet takes precedence
-when both formats are available.
-JSON reads and ETag checks run eight files at a time; GeoParquet is still
-recommended for large collections. Changes to linked items or pages are
-picked up at the configured refresh interval, even if the collection is unchanged.
-
-Every node is read as either a collection or a catalog (a node that only holds
-other nodes), worked out from what it holds on every load. A collection with
-items, or with a link to where its items are (a GeoParquet file, even with
-zero rows yet, or JSON items), is a collection. Otherwise a document typed
-`Catalog` is a catalog; a leaf with collection-level assets is a collection (a
-bundle of files); a node with children stays a catalog even when a manifest
-or README is attached to it; and anything with nothing in it is a catalog.
-A node whose parent document was listed but didn't load sits at the top of
-the list and its row says so. Missing or unreadable linked files still report
-an error; they aren't treated as intentionally empty collections.
-
-The home page lists collections, grouped under the top-level catalog each sits
-in. Catalogs are never rows: a heading opens one in the rail (`?in=<slug>`),
-with its collections under the catalogs inside it and its empty catalogs folded
-at the end, and top-level catalogs with nothing in them yet are named at the
-foot of the list. Search matches collections and catalogs by title and
-description, without bringing in a match's descendants, and lists the two
-apart; catalogs that share a name are one row that opens to where each sits.
-The review counts, the map and the Admin queue cover collections only. A catalog's
-page shows what's inside it and where it sits, with no map, items or review
-state. Loaded children whose parents couldn't be loaded stay at the top level,
-and rootless cyclic branches stay visible rather than disappearing.
-
-Collection pages keep the home page's shape: the description (folded to start)
-and the items on the left, the map with the assets and metadata on the right.
-Item pages keep their maps at the top left. Assets open to begin with and
-fold away. On
-desktop, the handle on the edge of the map hides the collection list and brings it
-back. Long item lists scroll in their own box so the rest of the page stays in
-view; item search, sort and paging stay outside the scrolling rows. Phones keep
-the stacked map and list.
-
-There are no defaults in the code, so an environment left unset reads nothing
-and its pages load empty. The example file points Sandbox and Production at
-`./data/sandbox` and `./data/prod`, and Development and Test at placeholder
-S3 paths for you to replace.
-
-AWS credentials come from the SDK's usual chain: `AWS_PROFILE`, env keys, or
-a task or instance role; nothing has to name the role.
-
-### Promotion
-
-- Approving copies a collection's parquet file into the next environment.
-  That works for parquet files that sit directly in a source folder or prefix.
-- A collection read through a STAC catalog can't be copied yet. Approving it
-  records the decision, and the review sheet says the copy is coming soon.
-- Sandbox is outside promotion. Approving there records the decision and
-  copies nothing, and nothing is ever promoted into it.
-
-### Opening page
-
-The app's bare address opens Development, for a deployment whose Production
-is still empty. Once collections have been approved through, open on
-Production instead:
-
 ```bash
-STAC_HOME_ENV=prod
+# Dev server with hot reload
+npm run dev
+
+# Production build, then serve it. Use this for demos so pages don't compile on first click
+npm run build
+npm start
+
+# ESLint
+npm run lint
+
+# TypeScript check. In a fresh checkout, run `npx next typegen` once first
+npm run typecheck
+
+# Accessibility check (WCAG 2.2 AA) against the running dev server
+npm run a11y
 ```
 
-It takes `sandbox`, `dev`, `test` or `prod`, and is read per request, so a
-restart picks it up with no rebuild. Production's home page also answers at
-`/prod` whichever you pick.
-
-### Map area
-
-The home map can focus on one area, like a state or a river basin:
+`npm run a11y` needs a browser installed once:
 
 ```bash
-STAC_MAP_AREA=./areas/south-platte.geojson
-STAC_MAP_AREA_NAME=the South Platte basin
+npx playwright install chromium
 ```
 
-With an area set, the map opens on it, outlines it and dims everything
-outside, and collections that cover most of it say "Whole area" in the list.
-
-- `STAC_MAP_AREA_NAME` is used in phrases like "Fit to the South Platte
-  basin", so include "the" if it reads better. If it's unset, the file's
-  `name` property is used.
-- The polygons are sent to the browser with the page, so simplify them first.
-  10 to 50 KB is plenty for a state or a large basin.
-- Both are read when the server starts. Changing them needs a restart, not a
-  rebuild.
-- Without an area, the map opens on everything the catalog covers and draws
-  no outline. Collections with a national or world-sized box are left out of
-  that view.
-
-## Setting up for another project
-
-Each project runs its own copy with its own `.env`. Everything in
-[Configuration](#configuration) applies; this is what a team starting cold
-also needs to know.
-
-### What the catalog has to look like
-
-The app reads stac-geoparquet and static STAC JSON items.
-
-- A STAC catalog's `child` links lead, through any sub-catalogs, to
-  collection files. Each collection links to its parquet file with any `rel`
-  but `self`, as long as the link's `type` says parquet
-  (`application/vnd.apache.parquet`) or its href ends in `.parquet`,
-  `.geoparquet` or `.pq`. Relative hrefs are fine.
-- Collections can instead link JSON Items or paginated ItemCollections as
-  described in [Sources](#sources). Missing or invalid linked documents report
-  an error rather than appearing as empty collections.
-- Sources and the files they link to have to be on S3 (`s3://`) or a local
-  path. `https://` isn't read: the page notes that collections couldn't be
-  loaded, and the server log says why.
-- A parquet file with no `id` column (a data table an asset points at, say)
-  is left out of the catalog rather than shown as a collection.
-- Give the same kind of asset the same key on every item (`geojson`, not
-  `co00002-630_geojson` on one item and `co00003-505_geojson` on the next).
-  Parquet has one schema for the whole file, so every asset key becomes its
-  own set of columns on every row, and a file of a few megabytes can take
-  gigabytes to read. STAC JSON items don't have this problem.
-- A line item can say how it's drawn with a `symbology` property, for
-  example `"symbology": { "color": "#cb4154", "size": 0.5 }`. `color` is a
-  hex color (`#rgb` or `#rrggbb`). `size` is the line's weight as a multiple
-  of the app's own, so 1 changes nothing, 0.5 is half as heavy and 2 is
-  double; it's kept between 0.25 and 4. Both are optional, and a line item
-  without the property, or with a value that can't be used, is drawn in
-  river blue at the default weight. A color that would be hard to see on
-  the light or the dark map is swapped there for a lighter or darker shade
-  of the same hue, so a black line is white on the dark map. It's set on each item, not on the
-  collection, so one collection can hold more than one kind of line. In a
-  parquet file it's a struct column of that name. The home map draws up to
-  12 different symbologies for one collection and the rest as plain lines.
-- A collection whose parquet file can't be read (it's missing, it has no
-  `id` column, or it needs more memory or time than a file is allowed)
-  still shows as a collection, with the reason where its items would be.
-- A file written from a pandas frame of items, with bbox, links, assets and
-  properties as JSON text and the geometry as WKB bytes with no `geo`
-  metadata, is read too. A geometry that still isn't valid is dropped from
-  its item, and a collection that can't be read at all is left out with a
-  note on the page, so one bad file doesn't take the catalog with it.
-- Promotion copies parquet files that sit directly in a source folder or
-  prefix. A collection read through a catalog records its approval but isn't
-  copied yet (see [Promotion](#promotion)).
-
-### AWS permissions
-
-The server's credentials need:
-
-- `s3:ListBucket` on every source prefix, and `s3:GetObject` on everything
-  the sources and their catalogs link to, including assets people will
-  download or preview.
-- `s3:PutObject` beside every source file in every environment, for the QC
-  sidecars (`*.edits.json`), and on Test's and Production's first source
-  folder, where promoted collections land.
-
-QC saves are conditional writes (`If-Match` and `If-None-Match` on
-PutObject), so an S3-compatible store has to support those. Promotion from
-one S3 location to another is a CopyObject, so the file never passes through
-the server; it needs nothing beyond the read on the source and the write on
-the landing folder listed above.
-
-### Sign-in
-
-The app signs people in with Keycloak (OpenID Connect, through Auth.js).
-Set `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`,
-`AUTH_SECRET` and `AUTH_URL` (see `.env.example`) to turn it on. The
-catalog stays open to read without signing in. Admin and QC saves need a
-sign-in with the `stac-admin` role (`STAC_REVIEWER_ROLE` names a different
-one, or `*` for anyone who can sign in), and each QC save records the
-username of whoever made it. A session ends when Keycloak's does. The Keycloak client's
-settings are in [docs/keycloak.md](docs/keycloak.md).
-
-With sign-in off, anyone who can reach the app can approve a collection,
-and approving copies files into Test or Production with the server's
-credentials. Don't deploy it that way without other auth in front (an ALB
-with OIDC, a VPN, an authenticating proxy).
-
-### Size
-
-Every environment's catalog is held in memory, all four at once, and a
-parquet file that changes is read again in full. Parsing is well under a
-second for a hundred thousand items. Memory grows with the item count and
-how many properties each item carries, so a project with hundreds of
-thousands of items should size the server for it and watch its first load.
-Nothing larger has been tried.
-
-Each parquet file is decoded by a process of its own, two at a time, with
-a limit on its memory and its time. What a file costs to decode can't be
-told from its size, and a server that runs out of memory can't recover, so
-a file that needs more than its limit ends that process instead: its
-collection says why, and the rest of the app carries on. The limits are
-`STAC_PARQUET_MEMORY_MB`, `STAC_PARQUET_MAX_MB` and
-`STAC_PARQUET_TIMEOUT_SECONDS` (see `.env.example`).
+Every pull request is linted, typechecked and built into a Docker image by
+the workflows in `.github/workflows`.
 
 ## Docker
 
-Every push to `main` publishes `ghcr.io/dewberry/stac-x:latest` for
-linux/amd64 and linux/arm64, plus a `sha-<short sha>` tag for that commit
-and the version's own tags, `1.2.3` and `1.2` (see
-`.github/workflows/docker.yml`).
-
-### Versions and releases
-
-Every merge to `main` is a release with its own version, and nobody has to
-bump anything. `package.json` names the series, say `1.2.0`, and the
-Docker workflow counts the last number up from the tags already there:
-the first merge is `v1.2.0`, the next `v1.2.1`, and so on. The workflow
-builds the image with that version, publishes it, then tags the commit and
-writes a GitHub release listing the pull requests since the last one. That
-list is the changelog. Nothing is committed back to `main`.
-
-The numbers follow [semver](https://semver.org). The last one moving means
-"something was merged". To say more than that, start a new series by
-changing the version in `package.json` in the pull request that earns it:
-`1.3.0` for a feature worth pointing at, `2.0.0` for a change people have
-to adjust to.
+Every merge to `main` publishes an image. To run it:
 
 ```bash
-npm version minor --no-git-tag-version
-```
-
-The app shows its version in the account menu at the top right, for
-everyone, with the commit and build date under it, and again at the bottom
-of Admin. The same answer comes from the server, which is the quick check
-after a deployment:
-
-```bash
-curl https://ffrd.cloud.dewberryanalytics.com/stac/api/version
-```
-
-A tab that was open through a deployment catches up in one of two ways.
-Moving to another page loads it whole from the new build (Next's
-`deploymentId`, set to the commit in `next.config.ts`). Staying put brings
-up a line under the header saying the app has been updated, with a Reload
-button.
-
-Under `npm run dev` the version is `package.json`'s as it stands, marked
-as a development build.
-
-The image is a production build with no hot reload. Use it to check what
-ships, and keep using `npm run dev` day to day.
-
-### Base path
-
-The published image is built to be served under `/stac`, where Production
-lives (`https://ffrd.cloud.dewberryanalytics.com/stac`).
-
-- Next bakes the path into the build, so it can't be changed when the
-  container starts. A project served anywhere else, including at the
-  domain's root, builds its own image (below).
-- Pages, `_next` assets and API routes all answer under `/stac/...`. The
-  proxy in front should pass the path through without stripping the prefix.
-- To build for another path, set `NEXT_PUBLIC_BASE_PATH` as a build arg.
-  Leave it out and the app answers at `/`.
-
-### Running it
-
-If the ghcr.io package is private to you, log in first with a classic
-GitHub token that has `read:packages`:
-
-```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u <github-user> --password-stdin
 docker run --rm -p 3000:3000 --env-file .env ghcr.io/dewberry/stac-x:latest
 ```
 
-It answers at http://localhost:3000/stac.
+It answers at http://localhost:3000/stac. Building your own image, serving it
+at a different path, and what a real server needs are in
+[Deployment](docs/deployment.md).
 
-To build and run your own instead:
+## Docs
 
-```bash
-docker build -t stac-x .
-# or, to match Production
-docker build --build-arg NEXT_PUBLIC_BASE_PATH=/stac -t stac-x .
+| | |
+| --- | --- |
+| [Configuration](docs/configuration.md) | Sources for each environment, promotion, the opening page, the map area |
+| [Catalog format](docs/catalog-format.md) | What your STAC files have to look like, and what happens when one can't be read |
+| [Deployment](docs/deployment.md) | Docker, base path, AWS permissions, sign-in, sizing, versions and releases |
+| [Keycloak](docs/keycloak.md) | The Keycloak client's settings |
 
-docker run --rm -p 3000:3000 --env-file .env -v "$PWD/data:/app/data" stac-x
-```
-
-Wherever it runs for real, give it a restart policy (`--restart
-unless-stopped`) and a memory limit. `/api/health` under the base path
-(`/stac/api/health` in the published image) answers 200 whenever the server
-is up, without reading the catalog; the image's own health check uses it.
-
-The container reads the same variables as `.env.example`. A few things about
-its files:
-
-- Local sources live at `/app/data` and are lost when the container stops.
-  The `-v` above mounts the repo's `data` folder there, so promoted
-  collections and their QC edits are kept.
-- Edits to collections read from S3 go to S3 sidecars either way.
-- The image includes the `areas` folder. Mount your own over `/app/areas` to
-  use a different map area.
+`.env.example` explains every setting.
 
 ---
 
 <div align="center">
-    <sub>Built with ❤️ by Dewberry</sub><br/>
-    <sub>Full-Stack Software Engineering</sub>
-  </div>
+    <sub>Built with ❤️ by Dewberry</sub>
+</div>
