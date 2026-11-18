@@ -67,3 +67,27 @@ export function FolderGlyph({ size = 14 }: { size?: number }) {
     </svg>
   );
 }
+
+/**
+ * What an item's geometry is, beside its name in a list: a dot for a
+ * point, a stroke for a line, a filled shape for an area, and an empty
+ * dashed ring for an item with none. `step` is the blue the item's shape
+ * is drawn in on the map, where the collection's few shapes each have one
+ * (.sx-geom in styles/home.css). It's for the eye only; the row says the
+ * same in words.
+ */
+export function GeomGlyph({ kind, step }: { kind: "point" | "line" | "area" | null; step?: 1 | 2 | 3 }) {
+  return (
+    <svg className="sx-geom" data-kind={kind ?? "none"} data-step={step} viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+      {kind === "point" ? (
+        <circle cx="6" cy="6" r="3" fill="currentColor" />
+      ) : kind === "line" ? (
+        <path d="M1.5 9.5 4.5 4l3 4 3-5.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      ) : kind === "area" ? (
+        <path d="M2 4.5 6.5 1.5l4 2.5-1 6-6.5.5Z" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+      ) : (
+        <circle cx="6" cy="6" r="4.25" fill="none" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2 1.7" />
+      )}
+    </svg>
+  );
+}
