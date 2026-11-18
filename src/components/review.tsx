@@ -64,9 +64,9 @@ export function decisionCopy(env: EnvKey, decision: QcStatus | null, count = 1, 
       ? "Pick a decision above. Nothing is written until you do."
       : decision === "approved" && next
         ? `Writes the QC record beside the source file and copies the ${count > 1 ? "collections" : "collection"} to ${next.label}.`
-        : decision === "approved" && onward
-          ? `Writes the QC record in ${here}. Copying to ${onward.label} is coming soon.`
-          : `Writes the QC record in ${here}. Nothing moves.`;
+        : // An approval that can't be sent on yet moves nothing either; the
+          // Approve card above already says sending is coming.
+          `Writes the QC record in ${here}. Nothing moves.`;
   const placeholder = toProd
     ? "What was checked, and why it's ready for Production."
     : decision === "approved" || decision === null

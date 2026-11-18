@@ -230,6 +230,13 @@ function DecisionFields({
   );
 }
 
+/** Under the current step while nobody has decided: the state's own name, with how long when that's known. */
+function notReviewedFor(since: string | null, now: number) {
+  const label = qcMeta("pending").label;
+  const age = fmtAge(since, now);
+  return age && age !== "just now" ? `${label} for ${age}` : label;
+}
+
 function noteRequired(env: EnvKey, decision: Decision | null) {
   return decision === "needs_revision" || decision === "rejected" || decisionCopy(env, decision).toProd;
 }
@@ -318,8 +325,11 @@ function OneReview({
           </p>
         }
         link={
-          <Link href={row.href} className="ffx-link sx-sheet-open">
+          // In a new tab, so the sheet and a half-written note are still here
+          // after a look at the map and the items.
+          <Link href={row.href} target="_blank" className="ffx-btn ffx-btn-sm sx-sheet-open">
             Open collection <span aria-hidden="true">↗</span>
+            <span className="sr-only"> (opens in a new tab)</span>
           </Link>
         }
         nav={
@@ -341,7 +351,7 @@ function OneReview({
 
       <div className="sx-sheet-scroll">
         {envMeta(env).onPath && (
-          <PromotionPath current={env} stages={row.stages} here={row.since ? `Waiting ${fmtAge(row.since, now)}` : "Waiting"} />
+          <PromotionPath current={env} stages={row.stages} here={notReviewedFor(row.since, now)} />
         )}
 
         <dl className="sx-sheet-facts">
@@ -362,6 +372,13 @@ function OneReview({
             </dd>
           </div>
         </dl>
+
+        {row.description && (
+          <div className="sx-sheet-desc">
+            <h3>Description</h3>
+            <p>{row.description}</p>
+          </div>
+        )}
 
         {lastNote && lastNote.kind === "qc" && (
           <figure className="sx-lastnote">

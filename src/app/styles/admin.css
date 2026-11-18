@@ -24,14 +24,15 @@
   order: 1;
 }
 
-/* The queue takes most of the width, activity sits beside it; below 64rem
-   activity drops under the queue. */
+/* The queue takes most of the width, activity sits beside it; below 80rem
+   activity drops under the queue, so the table keeps room for its columns
+   on a laptop. */
 .sx-admin {
   display: grid;
   gap: var(--ffx-deck-gap);
   align-items: start;
 }
-@media (min-width: 64rem) {
+@media (min-width: 80rem) {
   .sx-admin {
     grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
   }
@@ -90,6 +91,24 @@
   background: transparent;
   box-shadow: none;
 }
+/* Over the table it lies on the header row, beside the select-all box, so
+   ticking a row doesn't move the rows. The cards have no header row, so
+   there it stays in the flow. */
+@media (min-width: 64rem) {
+  #queue-panel {
+    position: relative;
+  }
+  .sx-bulk {
+    position: absolute;
+    z-index: 3;
+    inset: 0 0 auto calc(var(--ffx-panel-pad) + 1.5rem);
+    height: 38px;
+    flex-wrap: nowrap;
+    padding-block: 0;
+    padding-left: 0.625rem;
+    border-bottom: 0;
+  }
+}
 
 .sx-queue tbody tr {
   cursor: pointer;
@@ -119,7 +138,9 @@
   accent-color: var(--ffx-ink);
   cursor: pointer;
 }
-.sx-queue-name {
+/* Two classes, to outrank the table's own nowrap: a long title wraps
+   instead of pushing Review off the side. */
+.sx-queue td.sx-queue-name {
   white-space: normal;
   min-width: 13rem;
 }
@@ -129,7 +150,16 @@
   color: var(--ffx-ink);
   text-decoration: none;
 }
-a.sx-queue-title:hover {
+/* As a button in the queue, where it opens the review sheet like the rest
+   of its row. */
+button.sx-queue-title,
+button.sx-qcard-title {
+  text-align: left;
+  cursor: pointer;
+}
+a.sx-queue-title:hover,
+button.sx-queue-title:hover,
+button.sx-qcard-title:hover {
   color: var(--ffx-active-text);
   text-decoration: underline;
   text-underline-offset: 3px;

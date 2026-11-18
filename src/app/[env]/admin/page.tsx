@@ -94,7 +94,9 @@ export default async function AdminPage({ params, searchParams }: Props) {
     sendable: canPromote(c),
     qc: c.qc,
     // A history entry whose date was lost from the file has an empty one.
-    since: c.history[0]?.at || c.qc?.updated_at || null,
+    // With no review yet, it's when the source file was last written.
+    since: c.history[0]?.at || c.qc?.updated_at || c.modifiedAt || null,
+    description: c.description,
     stages: PATH.map((e) => {
       const s = statusIn.get(e.key)?.get(c.id);
       return { env: e.key, qc: s?.qc ?? null, at: s?.at ?? null };

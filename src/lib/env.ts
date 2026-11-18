@@ -33,7 +33,7 @@ export const ENVS = [
     short: "Dev",
     prefix: "/dev",
     onPath: true,
-    blurb: "Where new collections land. Approving one here sends it to Test.",
+    blurb: "Where new collections land before they go to Test.",
   },
   {
     key: "test",
@@ -41,7 +41,7 @@ export const ENVS = [
     short: "Test",
     prefix: "/test",
     onPath: true,
-    blurb: "Collections under review. Approving one here sends it to Production.",
+    blurb: "Collections under review before they go to Production.",
   },
   {
     key: "prod",

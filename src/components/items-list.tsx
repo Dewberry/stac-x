@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { fmtRange } from "@/lib/format";
 import { breakable } from "./breakable";
 import type { EnvKey } from "@/lib/env";
@@ -40,6 +41,39 @@ export type ItemRow = {
 // A dozen rows keeps a page short. The search box is how you find one gage
 // in 192, not scrolling.
 const PAGE = 12;
+/** What the pager's "Per page" offers; the first is where it starts. */
+const SIZES = [PAGE, 24, 48, 96];
+const SIZE_KEY = "sx-items-per-page";
+
+// The choice is the reader's own, so it's kept in their browser and holds
+// from one collection to the next. Storage can be blocked or empty; then the
+// choice lasts for the visit, held here.
+let sizeHeld: number | null = null;
+const sizeListeners = new Set<() => void>();
+function readSize(): number {
+  if (sizeHeld !== null) return sizeHeld;
+  try {
+    const n = Number(window.localStorage.getItem(SIZE_KEY));
+    return SIZES.includes(n) ? n : PAGE;
+  } catch {
+    return PAGE;
+  }
+}
+function writeSize(n: number) {
+  sizeHeld = n;
+  try {
+    window.localStorage.setItem(SIZE_KEY, String(n));
+  } catch {
+    // Kept for the visit instead.
+  }
+  sizeListeners.forEach((l) => l());
+}
+function watchSize(cb: () => void) {
+  sizeListeners.add(cb);
+  return () => {
+    sizeListeners.delete(cb);
+  };
+}
 /** How many rows the rail's block shows before it scrolls; a search box is only worth having past that. */
 const WINDOW = 5;
 
@@ -47,6 +81,7 @@ const WINDOW = 5;
 // start. Whoever wrote the catalog may have put them in an order that means
 // something, and sorting by id up front threw that away.
 type Sort = "catalog" | "id" | "label" | "start";
+const isSort = (v: unknown): v is Sort => v === "catalog" || v === "id" || v === "label" || v === "start";
 
 export function ItemsList({
   env,
@@ -69,9 +104,17 @@ export function ItemsList({
   /** Items lit up from elsewhere (a shape under the cursor on the home map), besides the one pointed at here. */
   activeIds?: ReadonlySet<string>;
 }) {
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("catalog");
-  const [page, setPage] = useState(0);
+  // On the collection page the search, sort and page live in the URL, so
+  // Back from an item returns to the page of the list it was opened from,
+  // and a link to "page 3, sorted by name" works. The rail's list is part of
+  // the home page's own state and leaves the URL alone.
+  const sp = useSearchParams();
+  const [query, setQuery] = useState(() => (compact ? "" : sp.get("q") ?? ""));
+  const [sort, setSort] = useState<Sort>(() => {
+    const v = compact ? null : sp.get("sort");
+    return isSort(v) ? v : "catalog";
+  });
+  const [page, setPage] = useState(() => (compact ? 0 : Math.max(0, (Number(sp.get("page")) || 1) - 1)));
   const q = useDeferredValue(query.trim().toLowerCase());
   // Shared with the page's map: pointing at a row lights up its shape.
   const { hovered, setHovered } = useItemHover();
@@ -108,9 +151,23 @@ export function ItemsList({
   }, [rows]);
   // Where every row is already in view, there's nothing to search for.
   const searchable = all > 0 && (!compact || all > WINDOW);
-  const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / PAGE));
+  // The server renders the first size; a kept choice takes over in the browser.
+  const size = useSyncExternalStore(watchSize, readSize, () => PAGE);
+  const pages = compact ? 1 : Math.max(1, Math.ceil(filtered.length / size));
   const current = Math.min(page, pages - 1);
-  const slice = compact ? filtered : filtered.slice(current * PAGE, current * PAGE + PAGE);
+  const slice = compact ? filtered : filtered.slice(current * size, current * size + size);
+
+  useEffect(() => {
+    if (compact) return;
+    const p = new URLSearchParams(window.location.search);
+    const put = (k: string, v: string | null) => (v ? p.set(k, v) : p.delete(k));
+    put("q", q || null);
+    put("sort", sort === "catalog" ? null : sort);
+    put("page", current > 0 ? String(current + 1) : null);
+    const s = p.toString();
+    const url = `${window.location.pathname}${s ? `?${s}` : ""}${window.location.hash}`;
+    if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(null, "", url);
+  }, [compact, q, sort, current]);
 
   // A new page, search or sort starts at the top of the full list's scroller.
   const rowsRef = useRef<HTMLDivElement>(null);
@@ -273,11 +330,31 @@ export function ItemsList({
           )}
         </p>
       )}
-      {pages > 1 && (
+      {/* Shown whenever the smallest page wouldn't hold them all, so a larger
+          choice that fits everything on one page can still be turned down. */}
+      {!compact && filtered.length > SIZES[0] && (
         <div className="sx-pager">
           <span className="ffx-num">
             Page {current + 1} of {pages}
           </span>
+          <label className="ffx-field ffx-field-select sx-pager-size">
+            <span className="ffx-field-label">Per page</span>
+            <select
+              value={size}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                // Stay on the page that holds the row now at the top.
+                setPage(Math.floor((current * size) / n));
+                writeSize(n);
+              }}
+            >
+              {SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
           <span className="flex gap-1.5">
             {/* aria-disabled, not disabled, at either end: the button pressed
                 to get there keeps focus instead of dropping it. */}

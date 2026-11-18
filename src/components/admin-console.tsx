@@ -43,6 +43,8 @@ import { withBase } from "@/lib/utils";
 export type QueueRow = {
   id: string;
   title: string;
+  /** The collection's own description, for the review sheet. */
+  description: string | null;
   /** The top-level catalog it sits in; null for a collection at the top. */
   group: { slug: string; name: string } | null;
   /** Empty catalogs directly inside it (Project Scoping's ten). */
@@ -69,7 +71,7 @@ type Sort = "oldest" | "newest" | "title";
 type Grouping = "catalog" | "none";
 
 const FILTERS: { value: Filter; label: string }[] = [
-  { value: "pending", label: "To review" },
+  { value: "pending", label: "Not reviewed" },
   { value: "needs_revision", label: "Needs revision" },
   { value: "rejected", label: "Rejected" },
   { value: "approved", label: "Approved" },
@@ -247,6 +249,7 @@ export function AdminConsole({
   }
 
   const selectedShown = shown.filter((r) => selected.has(r.id));
+  const grouped = rows.some((r) => r.group);
   const openId = sheet?.mode === "one" ? sheet.id : null;
   const [activityOpen, setActivityOpen] = useState(false);
 
@@ -263,16 +266,18 @@ export function AdminConsole({
             <Short long="Waiting for review" short="Waiting" />
           </dt>
           <dd>{fmtNum(stats.waiting)}</dd>
-          <dd className="sx-stat-note">
-            Collections.
-            {catalogCount > 0 && <> The {plural(catalogCount, "catalog", "catalogs")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.</>}
-          </dd>
+          {catalogCount > 0 && (
+            <dd className="sx-stat-note">
+              Collections. The {plural(catalogCount, "catalog", "catalogs")} around them {catalogCount === 1 ? "isn't" : "aren't"} reviewed.
+            </dd>
+          )}
         </div>
         <div className="sx-stat">
           <dt>
             <Short long="Oldest waiting" short="Oldest" />
           </dt>
-          <dd>{stats.oldest ? fmtAge(stats.oldest, now) : "None"}</dd>
+          {/* "None" only when nothing waits; a queue with no dates says so instead. */}
+          <dd>{stats.oldest ? fmtAge(stats.oldest, now) : stats.waiting > 0 ? <span className="sx-unknown">Unknown</span> : "None"}</dd>
         </div>
         <div className="sx-stat">
           <dt>Sent back</dt>
@@ -322,7 +327,8 @@ export function AdminConsole({
                 ))}
               </select>
             </label>
-            <label className="ffx-field ffx-field-select">
+            {/* With every collection at the top there's nothing to group under. */}
+            {grouped && <label className="ffx-field ffx-field-select">
               <span className="ffx-field-label">Group by</span>
               <select value={grouping} aria-label="Group by" onChange={(e) => setGrouping(e.target.value as Grouping)}>
                 {GROUPINGS.map((g) => (
@@ -331,9 +337,28 @@ export function AdminConsole({
                   </option>
                 ))}
               </select>
-            </label>
+            </label>}
           </div>
 
+          <p className={`sx-admin-flash`} data-tone={flash?.tone ?? "ok"} role="status" aria-live="polite">
+            {flash && (
+              <>
+                {flash.text}
+                {flash.link && (
+                  <>
+                    {" "}
+                    <Link href={flash.link.href} className="ffx-link">
+                      {flash.link.label}
+                    </Link>
+                  </>
+                )}
+              </>
+            )}
+          </p>
+
+          <div id="queue-panel" role="tabpanel" aria-labelledby={`tab-${filter}`} tabIndex={-1}>
+          {/* Inside the panel so that, over the table, it lies on the header
+              row instead of pushing the rows down under the pointer. */}
           {selectedShown.length > 0 && (
             <div className="sx-bulk" role="region" aria-label="Selected collections">
               <span className="ffx-num">
@@ -367,24 +392,6 @@ export function AdminConsole({
               </span>
             </div>
           )}
-
-          <p className={`sx-admin-flash`} data-tone={flash?.tone ?? "ok"} role="status" aria-live="polite">
-            {flash && (
-              <>
-                {flash.text}
-                {flash.link && (
-                  <>
-                    {" "}
-                    <Link href={flash.link.href} className="ffx-link">
-                      {flash.link.label}
-                    </Link>
-                  </>
-                )}
-              </>
-            )}
-          </p>
-
-          <div id="queue-panel" role="tabpanel" aria-labelledby={`tab-${filter}`} tabIndex={-1}>
             {shown.length === 0 ? (
               <p className="sx-empty">{q ? "No collections match that search." : EMPTY[filter]}</p>
             ) : (
@@ -584,9 +591,11 @@ function QueueTable({
                   <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`Select ${r.title}`} />
                 </td>
                 <td className="sx-queue-name">
-                  <Link href={r.href} className="sx-queue-title">
+                  {/* The title does what the rest of its row does. The way to
+                      the collection's page is Open collection, in the sheet. */}
+                  <button type="button" className="sx-queue-title" onClick={() => onOpen(r.id)}>
                     {r.title}
-                  </Link>
+                  </button>
                   {r.id === openId && <span className="sx-open-tag">Open</span>}
                   <span className="sx-queue-sub">
                     <span className="ffx-id">{r.id}</span>
@@ -668,9 +677,9 @@ function QueueCards({
                   aria-label={`Select ${r.title}`}
                 />
                 <div className="sx-qcard-main">
-                  <Link href={r.href} className="sx-qcard-title">
+                  <button type="button" className="sx-qcard-title" onClick={() => onOpen(r.id)}>
                     {r.title}
-                  </Link>
+                  </button>
                   <span className="ffx-id sx-qcard-id">{r.id}</span>
                   {r.emptyInside > 0 && (
                     <span className="sx-qcard-holds">Also holds {plural(r.emptyInside, "empty catalog", "empty catalogs")}</span>

@@ -36,6 +36,8 @@ type SourceState = {
   uri: string;
   /** For a catalog's collection.json, its ETag and its parquet file's, joined. */
   etag: string;
+  /** When the file was last written, as the store has it. */
+  modified?: string | null;
   /** The parquet file a collection.json's items come from. */
   parquet: string | null;
   /** JSON item files and pages, absent on caches from before JSON item support. */
@@ -298,6 +300,7 @@ async function build(env: EnvKey, cache: Cache): Promise<Catalog> {
     c.parentMissing = !!parent && !loadedHrefs.has(parent);
     c.versionsElsewhere = (c.docHref && listing.elsewhere?.[c.docHref]) || [];
     c.itemsStamp = c.sources.map((uri) => `${uri}@${cache.sources.get(uri)?.etag ?? ""}`).join("|");
+    c.modifiedAt = c.sources.map((uri) => cache.sources.get(uri)?.modified ?? "").sort().pop() || null;
   }
   try {
     const series = groupVersions(collections);
@@ -428,6 +431,7 @@ async function refreshSource(cache: Cache, uri: string, now: number) {
   try {
     const [h, sidecar] = await Promise.all([head(uri), readEdits(uri)]);
     if (!h) throw new Error("object not found");
+    state.modified = h.modified;
     // Re-read when the collection or any linked items file changes. JSON
     // dependencies include every ItemCollection page, not just the first.
     if (isJsonSource(uri)) {

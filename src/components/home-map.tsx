@@ -101,9 +101,19 @@ const L = {
   items: "sx-live-items",
 };
 
-/** Even room around the area, a little more at the bottom for the legend. */
-function fitPadding() {
-  return { padding: { top: 28, right: 28, bottom: 56, left: 28 } };
+/** Even room around what's framed, a little more at the bottom for the legend. */
+function fitPadding(side = 28) {
+  return { padding: { top: side, right: side, bottom: side + 28, left: side } };
+}
+/**
+ * The room around the whole area when the page opens or Fit is pressed: a
+ * tenth of the map's shorter side, so the area sits in the middle with the
+ * country around it showing instead of running edge to edge. A phone's
+ * small map keeps the 28px, a wide one stops at 96.
+ */
+function areaPadding(host: HTMLElement) {
+  const side = Math.round(Math.min(host.clientWidth, host.clientHeight) * 0.1);
+  return fitPadding(Math.max(28, Math.min(96, side)));
 }
 /** How close the map goes when it frames one collection: a watershed, not a street. */
 const FIT_MAX_ZOOM = 11;
@@ -425,7 +435,7 @@ export function HomeMap({
         style: blankStyle(p),
         attributionControl: false,
         bounds: bounds(),
-        fitBoundsOptions: fitPadding(),
+        fitBoundsOptions: areaPadding(host),
         maxZoom: 14,
         minZoom: 2,
         cooperativeGestures: matchMedia("(pointer: coarse)").matches,
@@ -461,7 +471,7 @@ export function HomeMap({
       const fitFrame = (duration = 750) => {
         movedByHand.current = false;
         framingRef.current = null;
-        m.fitBounds(bounds(), { ...fitPadding(), duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration });
+        m.fitBounds(bounds(), { ...areaPadding(host), duration: matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : duration });
       };
       fitFrameRef.current = fitFrame;
       // The map already fills the window, so there's no full screen button.
@@ -471,7 +481,7 @@ export function HomeMap({
       // The map takes the window, so a resize changes what fits. With nothing
       // selected, keep the area framed.
       m.on("resize", () => {
-        if (!shownRef.current && !movedByHand.current) m.fitBounds(bounds(), { ...fitPadding(), duration: 0 });
+        if (!shownRef.current && !movedByHand.current) m.fitBounds(bounds(), { ...areaPadding(host), duration: 0 });
       });
 
       const draw = () => {

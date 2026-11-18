@@ -96,6 +96,25 @@
   line-height: var(--ffx-t-micro-lh);
   color: var(--ffx-ink-mut);
 }
+/* The name under the cursor stays on one line and is cut short when it's
+   long, so hovering never changes the card's height and moves the panels
+   under it. The tooltip beside the cursor has the whole name. The home map's
+   readout floats over the map, so it's left to wrap. */
+.ffx-map:not(.sx-home-map) .ffx-map-readout {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.ffx-map:not(.sx-home-map) .ffx-map-readout > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Opened, the credits need the room, so the row may wrap then. */
+.ffx-map:not(.sx-home-map) .ffx-map-readout:has(.sx-credit[data-open="true"]) {
+  flex-wrap: wrap;
+}
 .ffx-map-credit {
   margin-left: auto;
   display: inline-flex;

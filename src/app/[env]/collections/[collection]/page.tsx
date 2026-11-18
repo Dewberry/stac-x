@@ -181,7 +181,9 @@ export default async function CollectionPage({ params }: Props) {
               </span>
             )}
             {c.temporal[0] || c.temporal[1] ? (
-              <span className="ffx-num">{fmtRange(c.temporal[0], c.temporal[1])}</span>
+              <span>
+                Dates <span className="ffx-num">{fmtRange(c.temporal[0], c.temporal[1])}</span>
+              </span>
             ) : null}
             {!c.fromDocument && <span>metadata derived from the items</span>}
             <QcChip status={c.qc?.qc} />

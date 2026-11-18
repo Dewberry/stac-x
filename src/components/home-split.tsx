@@ -16,8 +16,13 @@ const STEP = 5;
  * follows the window splitter pattern: a focusable separator whose value
  * is the list's share of the width. Double-click puts it back at the
  * default. Only on a wide screen; a phone has the map over the list.
+ *
+ * The source runs the way the wide screen reads: the list, the divider,
+ * then the map (`children`). Tab follows the source, so the keyboard gets
+ * to the search box and the collections before the map's buttons. A phone
+ * lifts the map above the list with CSS.
  */
-export function HomeSplit({ initial, children }: { initial: number; children: ReactNode }) {
+export function HomeSplit({ initial, rail, children }: { initial: number; rail: ReactNode; children: ReactNode }) {
   const [share, setShare] = useState(initial);
   const root = useRef<HTMLDivElement>(null);
 
@@ -37,7 +42,7 @@ export function HomeSplit({ initial, children }: { initial: number; children: Re
 
   return (
     <div ref={root} className="sx-console" style={{ "--rail": `${share}%` } as CSSProperties}>
-      {children}
+      {rail}
       {/* A focusable separator is a widget (it moves with the keys), which
           the lint rules don't know. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
@@ -81,6 +86,7 @@ export function HomeSplit({ initial, children }: { initial: number; children: Re
           commit(to);
         }}
       />
+      {children}
     </div>
   );
 }
