@@ -36,7 +36,7 @@ export type ItemRow = {
   /** "HEC-HMS" or "HEC-RAS" in a calibration collection, where both models carry the basin's name. */
   kind?: string | null;
   /** What the item's geometry is; null when it has none. Left out when that isn't known. */
-  geom?: "point" | "line" | "area" | null;
+  geom?: "point" | "line" | "area" | "mixed" | null;
   /** Which blue the item's shape is drawn in on the map, when there are few enough shapes to color. */
   tint?: 1 | 2 | 3;
   start: string | null;
@@ -86,7 +86,7 @@ const WINDOW = 5;
 // start. Whoever wrote the catalog may have put them in an order that means
 // something, and sorting by id up front threw that away.
 /** A geometry mark in words, for a screen reader. */
-const GEOM_NAME = { point: "Point", line: "Line", area: "Polygon" } as const;
+const GEOM_NAME = { point: "Point", line: "Line", area: "Polygon", mixed: "Mixed geometry" } as const;
 
 type Sort = "catalog" | "id" | "label" | "start";
 const isSort = (v: unknown): v is Sort => v === "catalog" || v === "id" || v === "label" || v === "start";
