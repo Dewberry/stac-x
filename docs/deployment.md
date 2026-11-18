@@ -101,10 +101,11 @@ Set `KEYCLOAK_ISSUER`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`,
 `AUTH_SECRET` and `AUTH_URL` (see `.env.example`) to turn it on. The Keycloak
 client's settings are in [keycloak.md](keycloak.md).
 
-The catalog stays open to read without signing in. Admin and QC saves need a
-sign-in with the `stac-admin` role (`STAC_REVIEWER_ROLE` names a different
-one, or `*` for anyone who can sign in), and each QC save records the
-username of whoever made it. A session ends when Keycloak's does.
+With it on, every page and API route needs a session, which ends when
+Keycloak's does. Anyone who can sign in can browse. Admin and QC saves also
+need the `stac-admin` role (`STAC_REVIEWER_ROLE` names a different one, or
+`*` for anyone who can sign in), and each QC save records the username of
+whoever made it.
 
 With sign-in off, anyone who can reach the app can approve a collection,
 and approving copies files into Test or Production with the server's
