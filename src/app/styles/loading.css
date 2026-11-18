@@ -284,22 +284,25 @@
 
 /* The home page while its collections load (components/home.tsx,
    home-loading.tsx): a line over the map, which is already up, and the
-   rail with its real head and bars for rows. */
+   rail with its real head and bars for rows. The line sits in the middle
+   of the map, since until the collections arrive it's the only thing
+   there to read. */
 .sx-loading-status {
   position: absolute;
-  bottom: 18px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
-  padding: 6px 12px 6px 10px;
+  padding: 10px 18px 10px 14px;
   border-radius: 999px;
   background: var(--ffx-surface);
   box-shadow: var(--ffx-shadow-float);
-  font-size: var(--ffx-t-micro);
-  color: var(--ffx-ink-mut);
+  font-size: var(--ffx-t-base);
+  font-weight: 500;
+  color: var(--ffx-ink);
   white-space: nowrap;
   /* Over the map and its controls, which mount after it. */
   z-index: 3;
